@@ -108,7 +108,7 @@ def cameraToRectangles(camera):
             cbbox   = ccd.getAllPixels(True)
             cwidth  = cbbox.getMaxX() - cbbox.getMinX()
             cheight = cbbox.getMaxY() - cbbox.getMinY()
-            if abs(yaw - numpy.pi/2.0) < 1.0e-3:  # nQuart == 1 or nQuart == 3:
+            if abs(yaw.asRadians() - numpy.pi/2.0) < 1.0e-3:  # nQuart == 1 or nQuart == 3:
                 ctmp = cwidth
                 cwidth = cheight
                 cheight = ctmp
@@ -198,12 +198,12 @@ def getLevels(hist_data,percentile_list=[0.5]):
 
 #make a contour plot
 def make_densityContour(axes,x,y,xlims=None,ylims=None,bins=(50,50),
-			log=False, color='g',levels=3,normed=True,
+                        log=False, color='g',levels=3,normed=True,
                         percentiles=False,lw=1.0,ls='solid'):
     if xlims==None:
-	xlims=(x.min(),x.max())
+        xlims=(x.min(),x.max())
     if ylims==None:
-	ylims=(y.min(),y.max())
+        ylims=(y.min(),y.max())
     x_p = x[(x>=xlims[0]) & (x<=xlims[1]) & (y>=ylims[0]) & (y<=ylims[1])]
     y_p = y[(x>=xlims[0]) & (x<=xlims[1]) & (y>=ylims[0]) & (y<=ylims[1])]
 
@@ -221,13 +221,13 @@ def make_densityContour(axes,x,y,xlims=None,ylims=None,bins=(50,50),
             levels = getLevels(hist_xy)
 
     if log:
-	new = axes.contour( numpy.log10((numpy.rot90(hist_xy))+1.0), numpy.log10(levels + 1.0),
+        new = axes.contour( numpy.log10(numpy.flipud(numpy.rot90(hist_xy)) + 0.1), numpy.log10(levels + 0.1),
                             extent=[xedges[0], xedges[-1], 
                                     yedges[0], yedges[-1]],
                             colors=color,linestyles=ls,linewidths=lw)
         
     else:
-	new = axes.contour( xedges[:-1], yedges[:-1], numpy.rot90(hist_xy), levels,
+        new = axes.contour( xedges[:-1], yedges[:-1], numpy.rot90(hist_xy), levels,
                             extent=[xedges[0], 
                                     xedges[-1], yedges[0], yedges[-1]],
                             colors=color,linestyles=ls,linewidths=lw)
@@ -240,13 +240,13 @@ def make_densityContour(axes,x,y,xlims=None,ylims=None,bins=(50,50),
 def make_densityplot(axes,x,y,xlims=None,
                      ylims=None,bins=(50,50),log=False):
     if xlims==None:
-	xlims=(x.min(),x.max())
+        xlims=(x.min(),x.max())
     if ylims==None:
-	ylims=(y.min(),y.max())
+        ylims=(y.min(),y.max())
     x_p = x[(x>=xlims[0])&(x<=xlims[1])&
-	    (y>=ylims[0])&(y<=ylims[1])]
+            (y>=ylims[0])&(y<=ylims[1])]
     y_p = y[(x>=xlims[0])&(x<=xlims[1])&
-	    (y>=ylims[0])&(y<=ylims[1])]
+            (y>=ylims[0])&(y<=ylims[1])]
 
     if len(bins)==2:
         bins = (numpy.linspace(xlims[0],xlims[1],num=bins[0]),
@@ -255,14 +255,14 @@ def make_densityplot(axes,x,y,xlims=None,
     hist_xy,xedges,yedges = numpy.histogram2d(x_p,y_p,bins=bins)
 
     if log:
-	return axes.imshow( numpy.log10(numpy.rot90(hist_xy)+1.),
-			    extent=[xedges[0], xedges[-1], 
+        return axes.imshow( numpy.log10(numpy.rot90(hist_xy)+1.),
+                            extent=[xedges[0], xedges[-1], 
                                     yedges[0], yedges[-1]],
-			    aspect='auto',
+                            aspect='auto',
                             interpolation='nearest',cmap=cm.gray_r)
     else:
-	return axes.imshow( numpy.rot90(hist_xy),
-			    extent=[xedges[0], xedges[-1], 
+        return axes.imshow( numpy.rot90(hist_xy),
+                            extent=[xedges[0], xedges[-1], 
                                     yedges[0], yedges[-1]],
-			    aspect='auto',interpolation='nearest',
+                            aspect='auto',interpolation='nearest',
                             cmap=cm.gray_r)

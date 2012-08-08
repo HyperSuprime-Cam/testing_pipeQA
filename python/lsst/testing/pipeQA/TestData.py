@@ -10,7 +10,6 @@ import lsst.daf.persistence             as dafPersist
 from lsst.testing.pipeQA.Checksum       import Checksum
 from lsst.testing.pipeQA.Manifest       import Manifest
 
-# import lsst.pipette as pipette
 import QaDataUtils as qaDataUtils
 
 #import lsst.meas.extensions.shapeHSM.hsmLib as shapeHSM

@@ -28,4 +28,7 @@ from AstrometricErrorQaAnalysis  import *
 from CompletenessQa              import *
 from ZeropointFitQa              import *
 from VignettingQa                import *
+from performanceQa               import *
 
+from VisitToVisitPhotQa          import *
+from VisitToVisitAstromQa        import *

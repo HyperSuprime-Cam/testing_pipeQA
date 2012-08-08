@@ -2,6 +2,7 @@ import os
 import lsst.testing.pipeQA.figures as qaFig
 import numpy
 import cPickle as pickle
+import eups
 
 import lsst.testing.pipeQA.TestCode as testCode
 
@@ -31,27 +32,38 @@ class QaAnalysis(object):
         @param dataId  a dataId dictionary
         @param label   a label for particular TestSet
         """
+
+        dataIdStd = data.cameraInfo.dataIdCameraToStandard(dataId)
+        group = dataIdStd['visit']
         
-        group = dataId['visit']
         filter = data.getFilterBySensor(dataId)
         # all sensors have the same filter, so just grab one
         key = filter.keys()[0]
-	filterName = '?'
-	if not filter[key] is None:
-	    filterName = filter[key].getName()
+        filterName = '?'
+        if not filter[key] is None:
+            filterName = filter[key].getName()
 
         if not label is None:
             label = self.__class__.__name__ + "."+ label
         else:
             label = self.__class__.__name__
 
-        tsId = group + "-" + filterName
+        tsIdLabel = "visit-filter"
+        tsId = str(group)+ '-' + filterName
+        if data.cameraInfo.name == 'sdss':
+            tsId = group
+            
         if not self.testSets.has_key(tsId):
             self.testSets[tsId] = testCode.TestSet(label, group=tsId, clean=self.clean,
                                                    wwwCache=self.wwwCache)
             self.testSets[tsId].addMetadata('dataset', data.getDataName())
-            self.testSets[tsId].addMetadata('visit-filter', tsId)
-
+            self.testSets[tsId].addMetadata(tsIdLabel, tsId)
+            pqaVersion = eups.getSetupVersion('testing_pipeQA')
+            dqaVersion = eups.getSetupVersion('testing_displayQA')
+            self.testSets[tsId].addMetadata('PipeQA', pqaVersion)
+            self.testSets[tsId].addMetadata('DisplayQA', dqaVersion)
+            
+            
         return self.testSets[tsId]
 
 

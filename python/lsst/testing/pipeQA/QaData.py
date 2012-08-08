@@ -40,11 +40,14 @@ class QaData(object):
 
         self.brokenDataIdList = []
 
-	self.ccdConvention = 'ccd'
-	if self.cameraInfo.name == 'lsstSim':
-	    self.ccdConvention = 'sensor'
 
-	
+        self.ccdConvention = 'ccd'
+        if self.cameraInfo.name == 'lsstSim':
+            self.ccdConvention = 'sensor'
+        if self.cameraInfo.name == 'sdss':
+            self.ccdConvention = 'camcol'
+
+        
     def printStartLoad(self, message):
         if self.loadDepth > 0:
             print "\n", " "*4*self.loadDepth, message,
@@ -101,7 +104,10 @@ class QaData(object):
 
         self.refObjectQueryCache = {}
         self.refObjectCache = {}
-        
+
+        self.visitMatchQueryCache = {}
+        self.visitMatchCache = {}
+
         # cache calexp info, but not the MaskedImage ... it's too big.
         self.calexpQueryCache = {}
         self.calexpCache = {}
@@ -111,42 +117,84 @@ class QaData(object):
         self.filterCache = {}
         self.calibCache = {}
 
+        self.performCache = {}
+        
         # store the explicit dataId (ie. no regexes) for each key used in a cache
         self.dataIdLookup = {}
 
         self.cacheList = {
-            "query"         : self.queryCache,  
-            "columnQuery"   : self.columnQueryCache,
-            "sourceSet"     : self.sourceSetCache,
+            "query"          : self.queryCache,  
+            "columnQuery"    : self.columnQueryCache,
+            "sourceSet"      : self.sourceSetCache,
             "sourceSetColumn"  : self.sourceSetColumnCache,
-            "matchQuery"    : self.matchQueryCache,
-            "matchList"     : self.matchListCache,
-            "refObjectQuery": self.refObjectQueryCache,
-            "refObject"     : self.refObjectCache,
-            "calexpQuery"   : self.calexpQueryCache,
-            "calexp"        : self.calexpCache, 
-            "wcs"           : self.wcsCache,    
-            "detector"      : self.detectorCache,
-            "raftDetector"  : self.raftDetectorCache,
-            "filter"        : self.filterCache, 
-            "calib"         : self.calibCache,  
-            "dataIdLookup"  : self.dataIdLookup,
+            "matchQuery"     : self.matchQueryCache,
+            "matchList"      : self.matchListCache,
+            "refObjectQuery" : self.refObjectQueryCache,
+            "refObject"      : self.refObjectCache,
+            "visitMatchQuery": self.visitMatchQueryCache,
+            "calexpQuery"    : self.calexpQueryCache,
+            "calexp"         : self.calexpCache, 
+            "wcs"            : self.wcsCache,    
+            "detector"       : self.detectorCache,
+            "raftDetector"   : self.raftDetectorCache,
+            "filter"         : self.filterCache, 
+            "calib"          : self.calibCache,  
+            "dataIdLookup"   : self.dataIdLookup,
             }
 
+
+    def cachePerformance(self, dataIdStr, test, label, value):
+        if isinstance(dataIdStr, dict):
+            dataIdStr = self._dataIdToString(dataIdStr, defineFully=True)
+            
+        if not self.performCache.has_key(dataIdStr):
+            self.performCache[dataIdStr] = {}
+        if not self.performCache[dataIdStr].has_key(test):
+            self.performCache[dataIdStr][test] = {}
+        if not self.performCache[dataIdStr].has_key('total'):
+            self.performCache[dataIdStr]['total'] = {}
+            
+        if not self.performCache[dataIdStr][test].has_key(label):
+            self.performCache[dataIdStr][test][label] = 0.0
+        if not self.performCache[dataIdStr]['total'].has_key(label):
+            self.performCache[dataIdStr]['total'][label] = 0.0
+            
+        self.performCache[dataIdStr][test][label]    += value
+        self.performCache[dataIdStr]['total'][label] += value
+        #print 'd', dataIdStr, "l",label, "p",self.performCache[dataIdStr]['total'][label], 'v',value
+        
+    def getPerformance(self, dataIdStr, test, label):
+        if isinstance(dataIdStr, dict):
+            dataIdStr = self._dataIdToString(dataIdStr, defineFully=True)
+        if self.performCache.has_key(dataIdStr):
+            if self.performCache[dataIdStr].has_key(test):
+                if self.performCache[dataIdStr][test].has_key(label):
+                    return self.performCache[dataIdStr][test][label]
+        return None
 
     def clearCache(self):
         """Reset all internal cache attributes."""
         for cache in self.cacheList.values():
             for key in cache.keys():
-                del cache[key]
+                #sys.stderr.write( "Clearing "+key+"\n")
+                if isinstance(cache[key], dict):
+                    for key2 in cache[key].keys():
+                        del cache[key][key2]
+                else:
+                    del cache[key]
         self.initCache()
 
     def printCache(self):
-        for name, cache in self.cacheList.items():
+        for name, cache in self.__dict__.items(): #cacheList.items():
+            if re.search("^_", name):
+                continue
             n = 0
-            for key in cache:
-                if hasattr(cache[key], "__len__"):
-                    n += len(cache[key])
+            if isinstance(cache, dict):
+                for key in cache:
+                    if hasattr(cache[key], "__len__"):
+                        n += len(cache[key])
+            if isinstance(cache, list):
+                n = len(cache)
             print name, n
                 
 
@@ -164,7 +212,7 @@ class QaData(object):
         @param accessors  List of accessor method names (as string without 'get' prepended)
         """
 
-        dataIdStr = self._dataIdToString(dataIdRegex)
+        dataIdStr = self._dataIdToString(dataIdRegex, defineFully=True)
 
         # if they want a specific dataId and we have it ....
         ssTDict = {}
@@ -280,6 +328,7 @@ class QaData(object):
         @param pointsPerLeaf who knows?
         @param leafExtentThresholdArcsec Drawing a blank here too.
         """
+        import lsst.ap.cluster as apCluster
         
         policy = pexPolicy.Policy()
         policy.set("epsilonArcsec", epsilonArcsec)
@@ -347,7 +396,7 @@ class QaData(object):
         return tuple(dataList)
 
 
-    def _dataIdToString(self, dataId):
+    def _dataIdToString(self, dataId, defineFully=False):
         """Convert a dataId dict to a string.
 
         @param dataId The dataId to be converted
@@ -358,11 +407,19 @@ class QaData(object):
             dataIdName = self.dataIdNames[i]
             if dataId.has_key(dataIdName):
                 s.append( dataIdName + re.sub("[,]", "", str(dataId[dataIdName])))
+            elif defineFully:
+                if dataIdName == 'snap':
+                    s.append(dataIdName + "0")
+                else:
+                    s.append( dataIdName + ".*" )
         #x = self._dataTupleToString(self._dataIdToDataTuple(dataId))
         s = "-".join(s)
         #print x, s
         return s
+
     
+    def reduceAvailableDataTupleList(self, dataIdRegexDict):
+        pass
 
     def keyStringsToVisits(self, keyList):
         """Extract a list of visits from a list of sensor keys.
@@ -385,41 +442,47 @@ class QaData(object):
 
         @param dataIdRegex dataId dict of regular expressions for data to be retrieved
         """
-        pass
+        raise NotImplementedError, "Must define getSourceSet in derived QaData class."
     def getSourceSetBySensor(self, dataIdRegex):
         """Get a dict of all Sources matching dataId, with sensor name as dict keys.
 
         @param dataIdRegex dataId dict of regular expressions for data to be retrieved
         """
-        pass
+        raise NotImplementedError, "Must define getSourceSetBySensor in derived QaData class."
+
     def getMatchListBySensor(self, dataIdRegex):
         """Get a dict of all SourceMatches matching dataId, with sensor name as dict keys.
 
         @param dataIdRegex dataId dict of regular expressions for data to be retrieved
         """
-        pass
+        raise NotImplementedError, "Must define getMatchListBySensor in derived QaData class."
+
     def getCalexpEntryBySensor(self, cache, dataIdRegex):
         """Fill and return the dict for a specified calexp cache.
 
         @param cache The cache dictionary to return
         @param dataIdRegex dataId dict of regular expressions for data to be retrieved
         """
-        pass
+        raise NotImplementedError, "Must define getCalexpEntryBySensor in derived QaData class."
+
     def getVisits(self, dataIdRegex):
         """Get a list of all visits matching dataIdRegex
 
         @param dataIdRegex dataId dict of regular expressions for data to be retrieved
         """
-        pass
+        raise NotImplementedError, "Must define getVisits in derived QaData class."
+
     def loadCalexp(self, dataIdRegex):
         """Load the calexp data for data matching dataIdRegex.
 
         @param dataIdRegex dataId dict of regular expressions for data to be retrieved
         """
-        pass
+        raise NotImplementedError, "Must define loadCalexp in derived QaData class."
+
     def breakDataId(self, dataId, breakBy):
         """Take a dataId with regexes and return a list of dataId regexes
         which break the dataId by raft, or ccd.
 
         @param breakBy   'visit', 'raft', or 'ccd'
         """
+        raise NotImplementedError, "Must define breakDataId in derived QaData class."

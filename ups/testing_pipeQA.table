@@ -1,10 +1,14 @@
+setupRequired(testing_displayQA)
+setupRequired(numpy)
+setupRequired(meas_astrom)
+
 setupOptional(ap)
-setupRequired(numpy >= 1.6.1+2)
 setupOptional(mysql-python)
 
 setupOptional(obs_lsstSim)
 setupOptional(obs_cfht)
 setupOptional(obs_subaru)
+setupOptional(obs_sdss)
 
 envAppend(LD_LIBRARY_PATH, ${PRODUCT_DIR}/lib)
 envAppend(DYLD_LIBRARY_PATH, ${PRODUCT_DIR}/lib)

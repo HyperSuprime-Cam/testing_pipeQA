@@ -1,9 +1,12 @@
 import numpy as num
+import time
 import lsst.testing.pipeQA.TestCode as testCode
 import QaAnalysis as qaAna
 import lsst.testing.pipeQA.figures as qaFig
 import lsst.testing.pipeQA.figures.QaFigureUtils as qaFigUtils
 import RaftCcdData as raftCcdData
+import lsst.testing.pipeQA.source as pqaSource
+
 import lsst.meas.algorithms as measAlg
 import QaAnalysisUtils as qaAnaUtil
 import lsst.afw.math as afwMath
@@ -18,27 +21,35 @@ class VignettingQa(qaAna.QaAnalysis):
         self.magType1 = "ap"
         self.magType2 = "cat"
 
+        self.sCatDummy = pqaSource.Catalog()
+        self.srefCatDummy = pqaSource.RefCatalog()
+        
         self.description = """
          For each CCD, the difference in aperture and reference catalog magnitudes
          is plotted as a function of radial location from the center of the
          focal plane.  The summary FPA figures show the median offset, as well
          as the standard deviation of this offset, for each chip.
         """
+
         
     def _getFlux(self, mType, s, sref):
+
         # if the source isn't valid, return NaN
         if not hasattr(s, 'getId') or not hasattr(sref, 'getId'):
             return num.NaN
+            
+        
         if mType=="psf":
-            return s.getPsfFlux()
+            return s.getD(self.sCatDummy.PsfFluxKey)
         elif mType=="ap":
-            return s.getApFlux()
+            return s.getD(self.sCatDummy.ApFluxKey)
         elif mType=="mod":
-            return s.getModelFlux()
+            return s.getD(self.sCatDummy.ModelFluxKey)
         elif mType=="cat":
-            return sref.getPsfFlux()
+            return sref.getD(self.srefCatDummy.PsfFluxKey)
         elif mType=="inst":
-            return s.getInstFlux()
+            return s.getD(self.sCatDummy.InstFluxKey)
+        
         
     def free(self):
         del self.detector
@@ -53,6 +64,7 @@ class VignettingQa(qaAna.QaAnalysis):
         del self.rmsOffset
 
     def test(self, data, dataId):
+        
         testSet = self.getTestSet(data, dataId)
         testSet.addMetadata({"Description": self.description})
 
@@ -67,13 +79,13 @@ class VignettingQa(qaAna.QaAnalysis):
         self.medianOffset = raftCcdData.RaftCcdData(self.detector)
         self.rmsOffset    = raftCcdData.RaftCcdData(self.detector)
         
-        badFlags = measAlg.Flags.INTERP_CENTER | measAlg.Flags.SATUR_CENTER | measAlg.Flags.EDGE
+        #badFlags = pqaSource.INTERP_CENTER | pqaSource.SATUR_CENTER | pqaSource.EDGE
         
         for key in self.detector.keys():
 
-	    if self.detector[key] is None:
-		continue
-	    
+            if self.detector[key] is None:
+                continue
+            
             raftId     = self.detector[key].getParent().getId().getName()
             ccdId      = self.detector[key].getId().getName()
 
@@ -95,15 +107,17 @@ class VignettingQa(qaAna.QaAnalysis):
                 for m in mdict:
                     sref, s, dist = m
 
-                    if not sref.getFlagForDetection() & measAlg.Flags.STAR:
+                    if s.getD(self.sCatDummy.ExtendednessKey): # if non-stellar
                         continue
 
                     f1 = self._getFlux(self.magType1, s, sref)
                     f2 = self._getFlux(self.magType2, s, sref)
 
-                    flags = s.getFlagForDetection()
+                    intcen = s.getD(self.sCatDummy.FlagPixInterpCenKey)
+                    satcen = s.getD(self.sCatDummy.FlagPixSaturCenKey)
+                    edge   = s.getD(self.sCatDummy.FlagPixEdgeKey)
                     
-                    if (f1 > 0.0 and f2 > 0.0  and not flags & badFlags):
+                    if (f1 > 0.0 and f2 > 0.0  and not (intcen or satcen or edge)):
                         m1 = -2.5*num.log10(f1)
                         m2 = -2.5*num.log10(f2)
 
@@ -114,25 +128,29 @@ class VignettingQa(qaAna.QaAnalysis):
                             self.dmag.append(raftId, ccdId, m1 - m2)
                             self.ids.append(raftId, ccdId, str(s.getId()))
 
-			    if data.cameraInfo.name == 'lsstSim':
-				# XY switched
-				xmm     = centerXm + (s.getYAstrom() - centerXp) * pixelSize
-				ymm     = centerYm + (s.getXAstrom() - centerYp) * pixelSize
-				radiusp = num.sqrt(xmm**2 + ymm**2) / pixelSize
-			    else:
-				# XY not switch, and pixel centers not in mm
-				xmm     = centerXm + (s.getXAstrom() - centerXp)
-				ymm     = centerYm + (s.getYAstrom() - centerYp)
-				radiusp = num.sqrt(xmm**2 + ymm**2)
+                            if data.cameraInfo.name == 'lsstSim':
+                                # XY switched
+                                xmm     = centerXm + (s.getD(self.sCatDummy.YAstromKey) - centerXp)*pixelSize
+                                ymm     = centerYm + (s.getD(self.sCatDummy.XAstromKey) - centerYp)*pixelSize
+                                radiusp = num.sqrt(xmm**2 + ymm**2) / pixelSize
+                            else:
+                                # XY not switch, and pixel centers not in mm
+                                xmm     = centerXm + (s.getD(self.sCatDummy.XAstromKey) - centerXp)
+                                ymm     = centerYm + (s.getD(self.sCatDummy.YAstromKey) - centerYp)
+                                radiusp = num.sqrt(xmm**2 + ymm**2)
                             self.radius.append(raftId, ccdId, radiusp)
 
                 # Calculate stats
                 dmags = self.dmag.get(raftId, ccdId)
-                med   = num.median(dmags)
-		std   = 0.0
-		if len(dmags) > 1:
-		    stat  = afwMath.makeStatistics(dmags, afwMath.IQRANGE)
-		    std   = 0.741 * stat.getValue(afwMath.IQRANGE)
+                if len(dmags) > 0:
+                    med = num.median(dmags)
+                else:
+                    med = 0.0
+                    
+                std   = 0.0
+                if len(dmags) > 1:
+                    stat  = afwMath.makeStatistics(dmags, afwMath.IQRANGE)
+                    std   = 0.741 * stat.getValue(afwMath.IQRANGE)
                 self.medianOffset.set(raftId, ccdId, med)
                 self.rmsOffset.set(raftId, ccdId, std)
                 
@@ -148,7 +166,9 @@ class VignettingQa(qaAna.QaAnalysis):
                 test = testCode.Test(label, std, self.rmsLimits, comment, areaLabel=areaLabel)
                 testSet.addTest(test)
 
+                
     def plot(self, data, dataId, showUndefined = False):
+
         testSet = self.getTestSet(data, dataId)
         testSet.setUseCache(self.useCache) #cache
         isFinalDataId = False
@@ -215,18 +235,18 @@ class VignettingQa(qaAna.QaAnalysis):
             dmags = self.dmag.get(raft, ccd)
             radii = self.radius.get(raft, ccd)
 
-	    ymin, ymax = -0.5, 0.5
-	    if len(dmags) > 0:
-		ymin = num.max([dmags.min(),-0.5])
-		ymax = num.min([dmags.max(), 0.5])
+            ymin, ymax = -0.5, 0.5
+            if len(dmags) > 0:
+                ymin = num.max([dmags.min(),-0.5])
+                ymax = num.min([dmags.max(), 0.5])
             ylim = [ymin, ymax]
             
             ids   = self.ids.get(raft, ccd)
 
-	    if len(dmags) == 0:
-		dmags = num.array([0.0])
-		radii = num.array([0.0])
-		ids   = num.array([0])
+            if len(dmags) == 0:
+                dmags = num.array([0.0])
+                radii = num.array([0.0])
+                ids   = num.array([0])
 
             print "Plotting ", ccd
             fig = qaFig.QaFigure(size=(4.0,4.0))
@@ -263,7 +283,8 @@ class VignettingQa(qaAna.QaAnalysis):
 
         if self.useCache:
             testSet.shelve(cacheLabel, shelfData)
-        
+
+            
         if not self.delaySummary or isFinalDataId:
             print "plotting Summary figure"
 
@@ -281,11 +302,12 @@ class VignettingQa(qaAna.QaAnalysis):
                 radiiAll  = num.append(radiiAll  , radii)
                 idsAll    = num.append(idsAll    , ids)
                 labelsAll = num.append(labelsAll , labels)
-            
+
             ymin = num.max([dmagsAll.min(),-0.5])
             ymax = num.min([dmagsAll.max(), 0.5])
             ylim = [ymin, ymax]
-            
+            if ymin == ymax:
+                ylim = [ymin - 0.1, ymax + 0.1]
             fig = qaFig.QaFigure(size=(4.0,4.0))
             sp1 = fig.fig.add_subplot(111)
             sp1.plot(radiiAll, dmagsAll, 'ro', ms=2, alpha = 0.5)
@@ -301,7 +323,6 @@ class VignettingQa(qaAna.QaAnalysis):
             qaFigUtils.qaSetp(sp1x2.get_xticklabels()+sp1x2.get_yticklabels(), visible=False)
 
             label = "all"
-
             ddmag = 0.0005
             drad  = 0.005 * (max(radiiAll) - min(radiiAll))
             for i in range(len(dmagsAll)):

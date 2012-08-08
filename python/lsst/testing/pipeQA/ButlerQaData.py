@@ -3,7 +3,7 @@ import sys, os, re, copy
 import lsst.daf.persistence             as dafPersist
 import lsst.afw.detection               as afwDet
 import lsst.afw.image                   as afwImage
-import lsst.meas.astrom                 as measAst
+import lsst.meas.astrom                 as measAstrom
 import lsst.afw.geom                    as afwGeom
 import lsst.afw.cameraGeom              as cameraGeom
 import lsst.meas.algorithms             as measAlg
@@ -27,6 +27,7 @@ import CameraInfo as qaCamInfo
 
 import QaDataUtils as qaDataUtils
 import simRefObject as simRefObj
+import source       as pqaSource
 
 from QaData import QaData
 
@@ -64,12 +65,12 @@ class ButlerQaData(QaData):
         self.dataId         = self.kwargs.get('dataId', {})
         self.haveManifest   = self.kwargs.get('haveManifest', False)
         self.verifyChecksum = self.kwargs.get('verifyChecksum', False)
-	self.shapeAlg       = self.kwargs.get('shapeAlg', 'HSM_REGAUSS')
+        self.shapeAlg       = self.kwargs.get('shapeAlg', 'HSM_REGAUSS')
 
-	knownAlgs = ["HSM_REGAUSS", "HSM_BJ", "HSM_LINEAR", "HSM_SHAPELET", "HSM_KSB"]
-	if not self.shapeAlg in set(knownAlgs):
-	    knownStr = "\n".join(knownAlgs)
-	    raise Exception("Unknown shape algorithm: %s.  Please choose: \n%s\n" % (self.shapeAlg, knownStr))
+        knownAlgs = ["HSM_REGAUSS", "HSM_BJ", "HSM_LINEAR", "HSM_SHAPELET", "HSM_KSB"]
+        if not self.shapeAlg in set(knownAlgs):
+            knownStr = "\n".join(knownAlgs)
+            raise Exception("Unknown shape algorithm: %s.  Please choose: \n%s\n" % (self.shapeAlg, knownStr))
 
         ###############################################
         # check the manifest, if requested
@@ -107,14 +108,26 @@ class ButlerQaData(QaData):
         # make a list of the frames we're asked to care about
 
         # get all the available raw inputs
-        self.availableDataTuples = self.outButler.queryMetadata('raw', self.dataIdNames,
+        self.availableDataTuples = self.outButler.queryMetadata(cameraInfo.rawName, self.dataIdNames,
                                                                 format=self.dataIdNames)
 
-        # of the data available, get a list of the ones the user actually wants us
-        #  to run.  A bit sketchy here ... kwargs contains non-idname info as well.
+        # availableDataTuples may be a *very* *large* list.  Be sure to call reduceAvailableDataTupleList
+        self.dataTuples = self.availableDataTuples
+
+    
+    def reduceAvailableDataTupleList(self, dataIdRegexDict):
+        """Reduce availableDataTupleList by keeping only dataIds that match the input regex."""
         self.dataTuples = self._regexMatchDataIds(dataIdRegexDict, self.availableDataTuples)
+        
+    def initCache(self):
 
+        QaData.initCache(self)
+        # need to intialize these differently than base class
+        # ... Db has 'object' and 'source' matching to be cached
+        self.matchListCache = { 'obj': {}, 'src': {} }
+        self.matchQueryCache = { 'obj' : {}, 'src': {} }
 
+        
     def getDataName(self):
         """Get a string representation describing this data set. """
         return os.path.realpath(self.dataDir) + " rerun="+str(self.rerun)
@@ -125,10 +138,12 @@ class ButlerQaData(QaData):
         @param dataIdRegex dataId dict containing regular expressions of data to retrieve.
         """
         visits = []
-        dataTuplesToFetch = self._regexMatchDataIds(dataIdRegex, self.dataTuples)
+
+        dataTuplesToFetch = self._regexMatchDataIds(dataIdRegex, self.dataTuples, verbose=False)
+
         for dataTuple in dataTuplesToFetch:
             dataId = self._dataTupleToDataId(dataTuple)
-            visits.append(str(dataId['visit']))
+            visits.append(self.cameraInfo.dataIdCameraToStandard(dataId)['visit'])
         return sorted(set(visits))
     
 
@@ -187,89 +202,251 @@ class ButlerQaData(QaData):
         """
 
         flookup = {
-	    "u":"u", "g": "g", "r":"r", "i":"i", "z":"z", "y":"z",
-	    "B":"g", 'V':"r", 'R':"r", 'I':"i",
-	    }
-	
+            "u":"u", "g": "g", "r":"r", "i":"i", "z":"z", "y":"z",
+            "B":"g", 'V':"r", 'R':"r", 'I':"i",
+            }
+        
+
         
         dataTuplesToFetch = self._regexMatchDataIds(dataIdRegex, self.dataTuples)
         
         # get the datasets corresponding to the request
         matchListDict = {}
+        typeDict = {}
         for dataTuple in dataTuplesToFetch:
             dataId = self._dataTupleToDataId(dataTuple)
             dataKey = self._dataTupleToString(dataTuple)
             
-            if self.matchListCache.has_key(dataKey):
-                matchListDict[dataKey] = copy.copy(self.matchListCache[dataKey])
+            if self.matchListCache[useRef].has_key(dataKey):
+                typeDict[dataKey] = copy.copy(self.matchListCache[useRef][dataKey])
                 continue
 
-            self.printStartLoad("Loading MatchList for: " + dataKey + "...")
             
             filterObj = self.getFilterBySensor(dataId)
             filterName = "unknown"
             if filterObj.has_key(dataKey) and hasattr(filterObj[dataKey], 'getName'):
                 filterName = filterObj[dataKey].getName()
-		filterName = flookup[filterName]
-		
+                filterName = flookup[filterName]
+                
             # make sure we actually have the output file
-            isWritten = self.outButler.datasetExists('icMatch', dataId)
-            if isWritten:
-                #persistableMatchVector = self.outButler.get('icMatch', dataId)
+            isWritten = self.outButler.datasetExists('icMatch', dataId) and \
+                self.outButler.datasetExists('calexp', dataId)
+            multiplicity = {}
+            matchList = []
+            
+            if not isWritten:
+                print str(dataTuple) + " output file missing.  Skipping."
+                continue
+            
+            else:
 
-                matches, calib, refsources = qaDataUtils.getCalibObjects(self.outButler, filterName, dataId)
-                self.matchListCache[dataKey] = {
-                    'orphan' : [],
-                    'matched' : [],
-                    'blended' : [],
-                    'undetected' : [],
-                    }
-                # matches #persistableMatchVector.getSourceMatches()
+                self.printStartLoad("Loading MatchList for: " + dataKey + "...")
+                
+                matches = measAstrom.astrom.readMatches(self.outButler, dataId)
+                
+                sourcesDict    = self.getSourceSetBySensor(dataId)
+                refObjectsDict = self.getRefObjectSetBySensor(dataId)
 
-                if self.outButler.datasetExists('calexp', dataId):
+                calibDict = self.getCalibBySensor(dataId)
+                calib = calibDict[dataKey]
 
-                    calibDict = self.getCalibBySensor(dataId)
-                    calib = calibDict[dataKey]
-                    
-                    fmag0, fmag0err = calib.getFluxMag0()
-                    for m in matches:
-                        sref, s, dist = m
-                        if ((not sref is None) and (not s is None)):
-                            s.setApFlux(s.getApFlux()/fmag0)
-                            s.setPsfFlux(s.getPsfFlux()/fmag0)
-                            s.setModelFlux(s.getModelFlux()/fmag0)
-			    s.setInstFlux(s.getInstFlux()/fmag0)
-                            # flux errors
-                            psfFluxErr  = qaDataUtils.calibFluxError(s.getPsfFlux(),   s.getPsfFluxErr(),
-                                                                     fmag0, fmag0err)
-                            apFluxErr   = qaDataUtils.calibFluxError(s.getApFlux(),    s.getApFluxErr(),
-                                                                     fmag0, fmag0err)
-                            modFluxErr  = qaDataUtils.calibFluxError(s.getModelFlux(), s.getModelFluxErr(),
-                                                                     fmag0, fmag0err)
-                            instFluxErr = qaDataUtils.calibFluxError(s.getInstFlux(),  s.getInstFluxErr(),
-                                                                     fmag0, fmag0err)
-                            s.setPsfFluxErr(psfFluxErr)
-                            s.setApFluxErr(apFluxErr)
-                            s.setModelFluxErr(modFluxErr)
-                            s.setInstFluxErr(instFluxErr)
-                            
-			    if True: #re.search("lsst", self.cameraInfo.name):
-				s.setRa((180.0/numpy.pi)*s.getRa())
-				s.setDec((180.0/numpy.pi)*s.getDec())
-				sref.setRa((180.0/numpy.pi)*sref.getRa())
-				sref.setDec((180.0/numpy.pi)*sref.getDec())
-                            self.matchListCache[dataKey]['matched'].append([sref, s, dist])
-                            
-                            
-                matchListDict[dataKey] = copy.copy(self.matchListCache[dataKey])
+                
+                fmag0, fmag0err = calib.getFluxMag0()
+                for m in matches:
+                    srefIn, sIn, dist = m
+                    if ((not srefIn is None) and (not sIn is None)):
+
+                        if not matchListDict.has_key(dataKey):
+                            refCatObj = pqaSource.RefCatalog()
+                            refCat    = refCatObj.catalog
+                            catObj    = pqaSource.Catalog()
+                            cat       = catObj.catalog
+
+                            matchListDict[dataKey] = []
+
+                            refRaKey   = refCatObj.keyDict['Ra']
+                            refDecKey  = refCatObj.keyDict['Dec']
+                            refPsfKey  = refCatObj.keyDict['PsfFlux']
+                            refApKey   = refCatObj.keyDict['ApFlux']
+                            refModKey  = refCatObj.keyDict['ModelFlux']
+                            refInstKey = refCatObj.keyDict['InstFlux']
+
+                            psfKey     = catObj.keyDict['PsfFlux']
+                            apKey      = catObj.keyDict['ApFlux']
+                            modKey     = catObj.keyDict['ModelFlux']
+                            instKey    = catObj.keyDict['InstFlux']
+
+                            psfErrKey  = catObj.keyDict['PsfFluxErr']
+                            apErrKey   = catObj.keyDict['ApFluxErr']
+                            modErrKey  = catObj.keyDict['ModelFluxErr']
+                            instErrKey = catObj.keyDict['InstFluxErr']
+
+                            intCenKey  = catObj.keyDict['FlagPixInterpCen']     
+                            negKey     = catObj.keyDict['FlagNegative']    
+                            edgeKey    = catObj.keyDict['FlagPixEdge']     
+                            badCenKey  = catObj.keyDict['FlagBadCentroid'] 
+                            satCenKey  = catObj.keyDict['FlagPixSaturCen']     
+                            extKey     = catObj.keyDict['Extendedness']
+
+
+                        matchList = matchListDict[dataKey]
+
+                        # reference objects
+                        sref = refCat.addNew()
+
+                        sref.setId(srefIn.getId()) # this should be refobjId
+                        sref.setD(refRaKey, srefIn.getRa().asDegrees())
+                        sref.setD(refDecKey, srefIn.getDec().asDegrees())
+                        flux = srefIn.get('flux')
+
+                        sref.setD(refPsfKey, flux)
+                        sref.setD(refApKey, flux)
+                        sref.setD(refModKey, flux)
+                        sref.setD(refInstKey, flux)
+
+                        # sources
+                        s = cat.addNew()
+                        s.setId(sIn.getId())
+                        isStar = srefIn.get('stargal')+0.0
+                        s.setD(catObj.keyDict['Extendedness'], isStar)
+
+                        s.setD(catObj.keyDict['XAstrom'], sIn.getX())
+                        s.setD(catObj.keyDict['YAstrom'], sIn.getY())
+                        s.setD(catObj.keyDict['Ra'], sIn.getRa().asDegrees())
+                        s.setD(catObj.keyDict['Dec'], sIn.getDec().asDegrees())
+                        s.setD(psfKey,  sIn.getPsfFlux())
+                        s.setD(apKey,   sIn.getApFlux())
+                        s.setD(modKey,  sIn.getModelFlux())
+                        s.setD(instKey, sIn.getInstFlux())
+
+                        s.setD(intCenKey, sIn.get('flags.pixel.interpolated.center')+0.0)
+                        s.setD(negKey,    sIn.get('flags.negative')+0.0)
+                        s.setD(edgeKey,   sIn.get('flags.pixel.edge')+0.0)
+                        s.setD(badCenKey, sIn.get('flags.badcentroid')+0.0)
+                        s.setD(satCenKey, sIn.get('flags.pixel.saturated.center')+0.0)
+                        s.setD(extKey,    sIn.get('classification.extendedness')+0.0)
+
+                        fmag0, fmag0Err = calib.getFluxMag0()
+
+                        # fluxes
+                        s.setD(psfKey,   s.getD(psfKey)/fmag0)
+                        s.setD(apKey,    s.getD(apKey)/fmag0)
+                        s.setD(modKey,   s.getD(modKey)/fmag0)
+                        s.setD(instKey,  s.getD(instKey)/fmag0)
+
+                        # flux errors
+                        psfFluxErr  = qaDataUtils.calibFluxError(sIn.getPsfFlux(), sIn.getPsfFluxErr(),
+                                                                 fmag0, fmag0Err)
+                        s.setD(psfErrKey, psfFluxErr)
+
+                        apFluxErr   = qaDataUtils.calibFluxError(sIn.getApFlux(),  sIn.getApFluxErr(),
+                                                                 fmag0, fmag0Err)
+                        s.setD(apErrKey, apFluxErr)
+
+                        modFluxErr  = qaDataUtils.calibFluxError(sIn.getModelFlux(), sIn.getModelFluxErr(),
+                                                                 fmag0, fmag0Err)
+                        s.setD(modErrKey, modFluxErr)
+
+                        instFluxErr = qaDataUtils.calibFluxError(sIn.getInstFlux(),  sIn.getInstFluxErr(),
+                                                                 fmag0, fmag0Err)
+                        s.setD(instErrKey, instFluxErr)
+
+                        if multiplicity.has_key(s.getId()):
+                            multiplicity[s.getId()] += 1
+                        else:
+                            multiplicity[s.getId()] = 1
+
+                        matchList.append([sref, s, dist])
+
                 self.dataIdLookup[dataKey] = dataId
                 
-            else:
-                print str(dataTuple) + " output file missing.  Skipping."
 
-            self.printStopLoad()
+                ######
+                ######
+                ######
+                # Determine which are orphans, blends, straight matches, and non-detections
 
-        return matchListDict
+                sources    = sourcesDict[dataKey]
+                if refObjectsDict.has_key(dataKey):
+                    refObjects = refObjectsDict[dataKey]
+                else:
+                    refObjects = simRefObj.SimRefObjectSet() # an empty set
+
+
+                typeDict[dataKey] = {}
+
+                refIds     = []
+                for ro in refObjects:
+                    refIds.append(ro.getId())
+
+                srcIds     = []
+                for so in sources:
+                    srcIds.append(so.getId())
+
+                matRef     = []
+                matSrc     = []
+                for ma in matchList:
+                    matRef.append(ma[0].getId())
+                    matSrc.append(ma[1].getId())
+
+                refIds = set(refIds)
+                srcIds = set(srcIds)
+                matRef = set(matRef)
+                matSrc = set(matSrc)
+
+                undetectedIds = refIds - matRef
+                orphanIds     = srcIds - matSrc
+                matchedIds    = srcIds & matSrc   # Does not know about duplicates
+                #print 'Undet, orphan, matched:', len(undetectedIds), len(orphanIds), len(matchedIds)
+
+                undetected = []
+                orphans    = []
+                matched    = []
+                blended    = []
+                for ro in refObjects:
+                    if ro.getId() in undetectedIds:
+                        undetected.append(ro)
+                matchListById = dict([(m[1].getId(), m) for m in matchList])
+                matchIdsSet = set(matchListById.keys())
+                for so in sources:
+                    soid = so.getId()
+                    if soid in orphanIds:
+                        orphans.append(so)
+                    if soid in matchedIds and soid in matchIdsSet:
+                        if multiplicity[soid] == 1:
+                            matched.append(matchListById[soid])
+                        else:
+                            blended.append(matchListById[soid])
+
+
+
+                typeDict[dataKey]['orphan']     = orphans
+                typeDict[dataKey]['matched']    = matchList # a hack b/c src and icSrc Ids are different
+                typeDict[dataKey]['blended']    = blended
+                typeDict[dataKey]['undetected'] = undetected
+
+                # cache it
+                self.matchListCache[useRef][dataKey] = typeDict[dataKey]
+
+
+                self.printMidLoad('\n        %s: Undet, orphan, matched, blended = %d %d %d %d' % (
+                    dataKey,
+                    len(typeDict[dataKey]['undetected']),
+                    len(typeDict[dataKey]['orphan']),
+                    len(typeDict[dataKey]['matched']),
+                    len(typeDict[dataKey]['blended']))
+                                  )
+
+                self.matchQueryCache[useRef][dataKey] = True
+
+                # Determine which are orphans, blends, straight matches, and non-detections
+                ######
+                ######
+                ######
+
+                self.printStopLoad()
+
+        return copy.copy(typeDict)
 
 
 
@@ -299,84 +476,100 @@ class ButlerQaData(QaData):
             # make sure we actually have the output file
             isWritten = self.outButler.datasetExists('src', dataId)
             if isWritten:
-                persistableSourceVector = self.outButler.get('src', dataId)
-                sourceSetTmp = persistableSourceVector.getSources()
+                sourceCatalog = self.outButler.get('src', dataId)
 
-                #if self.outButler.datasetExists('calexp', dataId):
+                calibDict = self.getCalibBySensor(dataId)
+                calib = calibDict[dataKey]
 
-		calibDict = self.getCalibBySensor(dataId)
-		calib = calibDict[dataKey]
+                if not calib is None:
+                    fmag0, fmag0Err = calib.getFluxMag0()
+                else:
+                    print "Warning: no calib available, fluxes uncalibrated."
+                    fmag0, fmag0Err = 1.0, 1.0
 
-		if not calib is None:
-		    fmag0, fmag0err = calib.getFluxMag0()
-		else:
-		    print "Warning: no calib available, fluxes uncalibrated."
-		    fmag0, fmag0err = 1.0, 1.0
-		    
-		for s in sourceSetTmp:
-		    s.setApFlux(s.getApFlux()/fmag0)
-		    s.setPsfFlux(s.getPsfFlux()/fmag0)
-		    s.setModelFlux(s.getModelFlux()/fmag0)
-		    s.setInstFlux(s.getInstFlux()/fmag0)
 
+                catObj = pqaSource.Catalog()
+                cat  = catObj.catalog
+
+                raKey  = catObj.keyDict['Ra']     
+                decKey = catObj.keyDict['Dec']    
+                xKey   = catObj.keyDict['XAstrom']
+                yKey   = catObj.keyDict['YAstrom']
+
+                ixxKey = catObj.keyDict['Ixx']
+                iyyKey = catObj.keyDict['Iyy']
+                ixyKey = catObj.keyDict['Ixy']
+
+                intCenKey  = catObj.keyDict['FlagPixInterpCen']     
+                negKey     = catObj.keyDict['FlagNegative']    
+                edgeKey    = catObj.keyDict['FlagPixEdge']     
+                badCenKey  = catObj.keyDict['FlagBadCentroid'] 
+                satCenKey  = catObj.keyDict['FlagPixSaturCen']     
+                extKey     = catObj.keyDict['Extendedness']
+
+
+                psfKey = catObj.keyDict['PsfFlux']
+                apKey  = catObj.keyDict['ApFlux']
+                modKey = catObj.keyDict['ModelFlux']
+                instKey = catObj.keyDict['InstFlux']
+            
+                psfErrKey = catObj.keyDict['PsfFluxErr']
+                apErrKey  = catObj.keyDict['ApFluxErr']
+                modErrKey = catObj.keyDict['ModelFluxErr']
+                instErrKey = catObj.keyDict['InstFluxErr']
+                    
+                for s in sourceCatalog:
+
+                    rec = cat.addNew()
+                    rec.setId(s.getId())
+
+                    rec.setD(raKey,    float(s.getRa()))
+                    rec.setD(decKey,   float(s.getDec()))
+                    rec.setD(xKey,     float(s.getX())) #Astrom()))
+                    rec.setD(yKey,     float(s.getY())) #Astrom()))
+                    
+                    # fluxes
+                    rec.setD(psfKey,   float(s.getPsfFlux())/fmag0)
+                    rec.setD(apKey,    float(s.getApFlux())/fmag0)
+                    rec.setD(modKey,   float(s.getModelFlux())/fmag0)
+                    rec.setD(instKey,  float(s.getInstFlux())/fmag0)
+
+                    # shapes
+                    rec.setD(ixxKey,   float(s.getIxx()))
+                    rec.setD(iyyKey,   float(s.getIyy()))
+                    rec.setD(ixyKey,   float(s.getIxy()))
+                    
+                    # flags
+                    rec.setD(intCenKey, s.get('flags.pixel.interpolated.center')+0.0)
+                    rec.setD(negKey,    s.get('flags.negative')+0.0)
+                    rec.setD(edgeKey,   s.get('flags.pixel.edge')+0.0)
+                    rec.setD(badCenKey, s.get('flags.badcentroid')+0.0)
+                    rec.setD(satCenKey, s.get('flags.pixel.saturated.center')+0.0)
+                    rec.setD(extKey,    s.get('classification.extendedness')+0.0)
+                    
+                    
                     # flux errors
-                    psfFluxErr  = qaDataUtils.calibFluxError(s.getPsfFlux(),   s.getPsfFluxErr(),
-                                                             fmag0, fmag0err)
-                    apFluxErr   = qaDataUtils.calibFluxError(s.getApFlux(),    s.getApFluxErr(),
-                                                             fmag0, fmag0err)
-                    modFluxErr  = qaDataUtils.calibFluxError(s.getModelFlux(), s.getModelFluxErr(),
-                                                             fmag0, fmag0err)
-                    instFluxErr = qaDataUtils.calibFluxError(s.getInstFlux(),  s.getInstFluxErr(),
-                                                             fmag0, fmag0err)
-                    s.setPsfFluxErr(psfFluxErr)
-                    s.setApFluxErr(apFluxErr)
-                    s.setModelFluxErr(modFluxErr)
-                    s.setInstFluxErr(instFluxErr)
+                    psfFluxErr  = qaDataUtils.calibFluxError(float(s.getPsfFlux()), float(s.getPsfFluxErr()),
+                                                             fmag0, fmag0Err)
+                    rec.setD(psfErrKey, psfFluxErr)
+
+                    apFluxErr   = qaDataUtils.calibFluxError(float(s.getApFlux()),  float(s.getApFluxErr()),
+                                                             fmag0, fmag0Err)
+                    rec.setD(apErrKey, apFluxErr)
+                    
+                    modFluxErr  = qaDataUtils.calibFluxError(float(s.getModelFlux()), float(s.getModelFluxErr()),
+                                                             fmag0, fmag0Err)
+                    rec.setD(modErrKey, modFluxErr)
+                    
+                    instFluxErr = qaDataUtils.calibFluxError(float(s.getInstFlux()),  float(s.getInstFluxErr()),
+                                                             fmag0, fmag0Err)
+                    rec.setD(instErrKey, instFluxErr)
 
 
-                self.sourceSetCache[dataKey] = sourceSetTmp
-                ssDict[dataKey] = copy.copy(sourceSetTmp)
+                self.sourceSetCache[dataKey] = catObj.catalog
+                ssDict[dataKey] = copy.copy(catObj.catalog)
                 self.dataIdLookup[dataKey] = dataId
 
-
-		# now see if we have 'source' to slurb out the blobs
-		sourceFile = self.outButler.get('source_filename', dataId)[0]
-		if os.path.exists(sourceFile):
-
-                    fits = pyfits.open(sourceFile)
-		    table = fits[1].data
-		    columns = fits[1].columns.names
-		    fits.close()
-
-		    haveShape = False
-		    shapeColumns = []
-		    for column in columns:
-			if re.search(self.shapeAlg, column):
-			    haveShape = True
-			    srcCol = re.sub("shape_"+self.shapeAlg+"_", "", column)
-			    shapeColumns.append(srcCol)
-
-		    if haveShape:
-			prefix = "shape_"+self.shapeAlg+"_"
-
-			# single pass through to store by ID
-			rowById = {}
-			for i in range(len(table)):
-			    row = table[i]
-			    objId = row.field('objId')
-			    rowById[objId] = row
-
-			# go through all sources and reset the shapes accordingly
-			for s in self.sourceSetCache[dataKey]:
-			    row = rowById[s.getId()]
-			    
-			    for column in shapeColumns:
-				value = row.field(prefix+column)
-				setterName = "set"+column.title()
-				if hasattr(s, setterName):
-				    setMethod = getattr(s, setterName)
-				    setMethod(value)
-			    
  
             else:
                 print str(dataTuple) + " output file missing.  Skipping."
@@ -419,23 +612,36 @@ class ButlerQaData(QaData):
         self.printStartLoad("Loading RefObjects for: " + dataIdStr + "...")
         
         # parse results and put them in a sourceSet
-        matchListDict = self.getMatchListBySensor(dataIdRegex)
-        filter = self.getFilterBySensor(dataIdRegex)
+        mastConfig = measAstrom.astrom.MeasAstromConfig()
+        astrom = measAstrom.astrom.Astrometry(mastConfig)
         
-        sroDict = {}
-        for key, matchList in matchListDict.items():
-            if not sroDict.has_key(key):
-                sroDict[key] = []
-            sros = sroDict[key]
-            
-            for m in matchList:
-                sref, s, dist = m
+        dataTuplesToFetch = self._regexMatchDataIds(dataIdRegex, self.dataTuples)
 
+        # get the datasets corresponding to the request
+        sroDict = {}
+        for dataTuple in dataTuplesToFetch:
+            dataId = self._dataTupleToDataId(dataTuple)
+            dataKey = self._dataTupleToString(dataTuple)
+            
+            wcs = self.getWcsBySensor(dataId)[dataKey]
+            filterName = self.getFilterBySensor(dataId)[dataKey].getName()
+            imageSize = self.calexpCache[dataKey]['NAXIS1'], self.calexpCache[dataKey]['NAXIS2']
+            pixelMargin = 0.0
+            refCat = astrom.getReferenceSourcesForWcs(wcs, imageSize, filterName, pixelMargin)
+        
+            if not sroDict.has_key(dataKey):
+                sroDict[dataKey] = []
+            sros = sroDict[dataKey]
+            
+            for rec in refCat:
                 sro = simRefObj.SimRefObject()
-                sro.refObjectId = sref.getId()
-                sro.isStar = sref.getFlagForDetection() & measAlg.Flags.STAR
-                filterName = filter[key].getName()
-                sro.setFlux(sref.getPsfFlux(), filterName)
+                sro.refObjectId = rec.getId()
+                sro.isStar = rec.get('stargal') + 0
+
+                coo = rec.get('coord')
+                sro.setRa(coo.getRa().asDegrees())
+                sro.setDecl(coo.getDec().asDegrees())
+                sro.setFlux(rec.get('flux'), filterName)
 
                 sros.append(sro)
 
@@ -446,8 +652,6 @@ class ButlerQaData(QaData):
         for k, sro in sroDict.items():
             self.refObjectCache[k] = sroDict[k]
 
-        for k,v in sroDict.items():
-            print k, len(v)
         return sroDict
 
 
@@ -466,7 +670,7 @@ class ButlerQaData(QaData):
         for dataTuple in dataTuplesToFetch:
             dataId = self._dataTupleToDataId(dataTuple)
             dataKey = self._dataTupleToString(dataTuple)
-            
+
             if self.calexpCache.has_key(dataKey):
                 continue
 
@@ -475,51 +679,38 @@ class ButlerQaData(QaData):
             if self.outButler.datasetExists('calexp_md', dataId):
                 calexp_md = self.outButler.get('calexp_md', dataId)
                 
-                #self.wcsCache[dataKey]      = calexp.getWcs()
-                #self.detectorCache[dataKey] = calexp.getDetector()
-                #self.filterCache[dataKey]   = calexp.getFilter()
-                #self.calibCache[dataKey]    = calexp.getCalib()
                 self.wcsCache[dataKey]      = afwImage.makeWcs(calexp_md)
 
                 ccdName = calexp_md.getAsString('DETNAME').strip()
                 names = ccdName.split()
+
                 if len(names) > 1:
                     raftName = names[0]
                 else:
-                    raftName = "R:0,0"
-		raftName = raftName.strip()
+                    raftName = ""
+                raftName = raftName.strip()
 
-		#raftId = cameraGeom.Id(raftName)
-                #ccdId = cameraGeom.Id(ccdName)
-                #ccdDetector = cameraGeom.Detector(ccdId)
-                #raftDetector = cameraGeom.Detector(raftId)
-                #ccdDetector.setParent(raftDetector)
-                #self.raftDetectorCache[dataKey] = raftDetector
-                #self.detectorCache[dataKey] = ccdDetector
-
-                #raftName = "R:"+rowDict['raftName']
-                #ccdName = raftName + " S:"+rowDict['ccdName']
                 self.detectorCache[dataKey] = self.cameraInfo.detectors[ccdName] #ccdDetector
-                self.raftDetectorCache[dataKey] = self.cameraInfo.detectors[raftName]
+                if len(raftName) > 0:
+                    self.raftDetectorCache[dataKey] = self.cameraInfo.detectors[raftName]
 
                 
-                #self.detectorCache[dataKey] = cameraGeom.Detector()
                 self.filterCache[dataKey]   = afwImage.Filter(calexp_md)
                 self.calibCache[dataKey]    = afwImage.Calib(calexp_md)
 
-		# store the calexp as a dict
-		if not self.calexpCache.has_key(dataKey):
-		    self.calexpCache[dataKey] = {}
+                # store the calexp as a dict
+                if not self.calexpCache.has_key(dataKey):
+                    self.calexpCache[dataKey] = {}
 
-		nameLookup = qaDataUtils.getCalexpNameLookup()
-		for n in calexp_md.names():
-		    val = calexp_md.get(n)
-		    self.calexpCache[dataKey][n] = val
+                nameLookup = qaDataUtils.getCalexpNameLookup()
+                for n in calexp_md.names():
+                    val = calexp_md.get(n)
+                    self.calexpCache[dataKey][n] = val
 
-		    # assign an alias to provide the same name as the database version uses.
-		    if nameLookup.has_key(n):
-			n2 = nameLookup[n]
-			self.calexpCache[dataKey][n2] = val
+                    # assign an alias to provide the same name as the database version uses.
+                    if nameLookup.has_key(n):
+                        n2 = nameLookup[n]
+                        self.calexpCache[dataKey][n2] = val
 
                 # if we're missing anything in nameLookup ... put in a NaN
                 for calexpName,qaName in nameLookup.items():
@@ -528,9 +719,9 @@ class ButlerQaData(QaData):
 
 
                 # check the fwhm ... we know we need it
-		# NOTE that we actually try to load this from the SEEING
-		#  keyword in the calexp_md.  So a fwhm=-1 here, doesn't mean
-		#  it wasn't already set by SEEING
+                # NOTE that we actually try to load this from the SEEING
+                #  keyword in the calexp_md.  So a fwhm=-1 here, doesn't mean
+                #  it wasn't already set by SEEING
                 sigmaToFwhm = 2.0*math.sqrt(2.0*math.log(2.0))
                 width = calexp_md.get('NAXIS1')
                 height = calexp_md.get('NAXIS2')
@@ -552,12 +743,16 @@ class ButlerQaData(QaData):
 
                 
             else:
-                print str(dataTuple) + " calib output file missing.  skipping."
+                calibFilename = self.outButler.get('calexp_filename', dataId)
+                print "\nSkipping " + str(dataTuple) + ". Calib output file missing:"
+                print "   "+str(calibFilename)
                 
 
             self.printStopLoad()
             
 
+
+            
     def getCalexpEntryBySensor(self, cache, dataIdRegex):
         """Fill and return the dict for a specified calexp cache.
 
@@ -572,12 +767,13 @@ class ButlerQaData(QaData):
         for dataTuple in dataTuplesToFetch:
             dataId = self._dataTupleToDataId(dataTuple)
             dataKey = self._dataTupleToString(dataTuple)
+
             self.loadCalexp(dataId)
             if cache.has_key(dataKey):
                 entryDict[dataKey] = cache[dataKey]
             else:
-		entryDict[dataKey] = None
-		
+                entryDict[dataKey] = None
+                
         return entryDict
 
 
@@ -587,7 +783,7 @@ class ButlerQaData(QaData):
     #  the ones which match regexes for the corresponding data type
     # so user can say eg. raft='0,\d', visit='855.*', etc
     #######################################################################
-    def _regexMatchDataIds(self, dataIdRegexDict, availableDataTuples):
+    def _regexMatchDataIds(self, dataIdRegexDict, availableDataTuples, verbose=False):
         """Match available data with regexes in a dataId dictionary        
         
         @param dataIdRegexDict dataId dict of regular expressions for data to be handled.
@@ -598,7 +794,8 @@ class ButlerQaData(QaData):
         # Put matches in a list of tuples, eg. [(vis1,sna1,raf1,sen1),(vis2,sna2,raf2,sen2)] 
         dataTuples = []
         for dataTuple in availableDataTuples:
-
+            if verbose:
+                print dataTuple
             # start true and fail if any dataId keys fail ... eg. 'visit' doesn't match
             match = True
             for i in range(len(self.dataIdNames)):
@@ -609,10 +806,12 @@ class ButlerQaData(QaData):
                 # if it doesn't match, this frame isn't to be run.
                 if not re.search(str(regexForThisId),  str(dataId)):
                     match = False
-
+                    break
+                
                 # ignore the guiding ccds on the hsc camera
                 if re.search('^hsc.*', self.cameraInfo.name) and dataIdName == 'ccd' and dataId > 99:
                     match = False
+                    break
 
             if match:
                 dataTuples.append(dataTuple)
@@ -643,12 +842,14 @@ def makeButlerQaData(label, rerun=None, camera=None, **kwargs):
     testbedDir, testdataDir = qaDataUtils.findDataInTestbed(label)
 
     # make sure LsstSim is last in the list (its 'verifyRegistries()' will pass for all cameras)
+    cameraKeys = ["hsc", "suprimecam", "suprimecam-old", "sdss", "lsstsim"]
     cameraInfos = {
-#	"cfht": qaCamInfo.CfhtCameraInfo(), # XXX CFHT camera geometry is currently broken following #1767
-	"hsc" : qaCamInfo.HscCameraInfo(),
-	"suprimecam": qaCamInfo.SuprimecamCameraInfo(),
+#       "cfht": qaCamInfo.CfhtCameraInfo(), # XXX CFHT camera geometry is currently broken following #1767
+        "hsc" : qaCamInfo.HscCameraInfo(),
+        "suprimecam": qaCamInfo.SuprimecamCameraInfo(),
         "suprimecam-old": qaCamInfo.SuprimecamCameraInfo(True),
-	"lsstsim": qaCamInfo.LsstSimCameraInfo(),
+        "sdss" : qaCamInfo.SdssCameraInfo(),
+        "lsstsim": qaCamInfo.LsstSimCameraInfo(),
         }
 
     # try each camera ***in-order***
@@ -656,25 +857,28 @@ def makeButlerQaData(label, rerun=None, camera=None, **kwargs):
     # ... must test it last
     cameraToUse = None
     if not camera is None:
-	cameraToUse = cameraInfos[camera]
+        cameraToUse = cameraInfos[camera]
     else:
-	for cameraInfo in cameraInfos.values():
-	    # if the mapper couldn't be found, we can't use this camera
-	    hasMapper = not cameraInfo.mapperClass is None
-	    validReg = cameraInfo.verifyRegistries(testdataDir)
-	    if hasMapper and validReg:
-		cameraToUse = cameraInfo
-		break
+
+        for cameraKey in cameraKeys:
+            cameraInfo = cameraInfos[cameraKey]
+            # if the mapper couldn't be found, we can't use this camera
+            hasMapper = not cameraInfo.mapperClass is None
+            validReg = cameraInfo.verifyRegistries(testdataDir)
+            #print cameraInfo.name, "valid: ", validReg
+            if hasMapper and validReg:
+                cameraToUse = cameraInfo
+                break
 
     if cameraToUse is None:
         raise Exception("Can't find registries usable with any mappers.")
     else:
         if rerun is None:
             rerun = cameraToUse.getDefaultRerun()
-	print "label:       ", label
-	print "rerun:       ", rerun
-	print "camera:      ", cameraToUse.name
-	print "testdataDir: ", testdataDir
+        print "label:       ", label
+        print "rerun:       ", rerun
+        print "camera:      ", cameraToUse.name
+        print "testdataDir: ", testdataDir
         return ButlerQaData(label, rerun, cameraToUse, testdataDir, **kwargs)
 
 

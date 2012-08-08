@@ -20,8 +20,8 @@
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
 
-from PipeRunner   import *
-from TestData     import *
+#from PipeRunner   import *
+#from TestData     import *
 
 # utilities
 from Checksum     import *

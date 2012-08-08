@@ -1,3 +1,6 @@
 # -*- python -*-
 from lsst.sconsUtils import scripts
-scripts.BasicSConscript.tests()
+ignoreList = ["checkPipetteAllMappers.py", "compareBoostToDb.py",
+        "fpaFigures.py", "psfPhotometry.py", "testButlerQueries.py",
+        "testDbQueries.py"]
+scripts.BasicSConscript.tests(ignoreList=ignoreList)

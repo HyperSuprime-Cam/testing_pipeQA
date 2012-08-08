@@ -10,12 +10,13 @@ from DbQaData      import makeDbQaData
 ###################################################
 # Factory for QaData
 ###################################################
-def makeQaData(label, rerun=None, retrievalType=None, **kwargs):
+def makeQaData(label, rerun=None, retrievalType=None, camera=None, **kwargs):
     """Factory to make a QaData object for either Butler data, or Database data.
 
     @param label         identifier for the data - either a directory in TESTBED_PATH or a database name
     @param rerun         data rerun to retrieve
     @param retrievalType 'butler', 'db', or None (will search first for butler, then database)
+    @param camera        Specify which camera is to be used
     """
     
     if retrievalType is None:
@@ -50,13 +51,16 @@ def makeQaData(label, rerun=None, retrievalType=None, **kwargs):
 
 
     # handle specially requested camera via retrievalType
-    if re.search("(lsstsim|suprimecam|cfht|hsc)", retrievalType):
-        return makeButlerQaData(label, rerun, camera=retrievalType, **kwargs)
+    #if re.search("(lsstsim|suprimecam|cfht|hsc|sdss)", retrievalType):
+    #    return makeButlerQaData(label, rerun, camera=retrievalType, **kwargs)
 
 
+    print "RetrievalType=", retrievalType
+    print "camera=", camera
+    
     if re.search("^[Bb]utler$", retrievalType):
-        return makeButlerQaData(label, rerun, camera=None, **kwargs)
+        return makeButlerQaData(label, rerun, camera=camera, **kwargs)
     
     if re.search("^([Dd][Bb]|[Dd]atabase)$", retrievalType):
-        return makeDbQaData(label, rerun, **kwargs)
+        return makeDbQaData(label, rerun, camera=camera, **kwargs)
 

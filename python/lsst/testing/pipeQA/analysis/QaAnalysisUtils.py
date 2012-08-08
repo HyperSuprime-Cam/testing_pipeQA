@@ -3,8 +3,9 @@ import numpy
 
 import lsst.afw.math        as afwMath
 import lsst.meas.algorithms as measAlg
+import lsst.testing.pipeQA.source as pqaSource
 
-# NOTE: please replace this with (s.getFlagForDetection() & measAlg.Flags.STAR)
+# NOTE: please replace this with (s.getFlagForDetection() & pqaSource.STAR)
 #       when we eventually start setting it.
 def isStarMoment(ss):
     """Quick and dirty isStar() based on comparison to psf ixx/yy/xy"""
@@ -37,7 +38,7 @@ def isStarMoment(ss):
         yyOk = (syy.getValue(afwMath.MEANCLIP) - s.getIyy())/sxx.getValue(afwMath.STDEVCLIP) < 3.0
 
         if xxOk and xyOk and yyOk:
-            s.setFlagForDetection(s.getFlagForDetection() | measAlg.Flags.STAR)
+            s.setFlagForDetection(s.getFlagForDetection() | pqaSource.STAR)
 
 
 
@@ -56,7 +57,7 @@ def isStarDeltaMag(ss):
                 m_psf, m = -2.5*numpy.log10(f_psf), -2.5*numpy.log10(f)
 
                 if abs(m_psf - m) < 0.1:
-                    s.setFlagForDetection(s.getFlagForDetection() | measAlg.Flags.STAR)
+                    s.setFlagForDetection(s.getFlagForDetection() | pqaSource.STAR)
 
 
 def isStar(ss):
@@ -68,6 +69,8 @@ def lineFit(x, y, dy=None):
     """A standard linear least squares line fitter with errors and chi2."""
     
     N = len(x)
+    if N < 2:
+        return 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
 
     no_err = False
     if dy is None:
@@ -118,30 +121,46 @@ def lineFit(x, y, dy=None):
 def robustPolyFit(x, y, order, nbin=3, sigma=3.0, niter=1):
 
     xNew, yNew = copy.copy(x), copy.copy(y)
-
+    
     # bin and take medians in each bin
-    xmin, xmax = xNew.min(), xNew.max()
+    epsilon = 1.0e-6
+    xmin, xmax = xNew.min() - epsilon, xNew.max() + epsilon
+
     step = (xmax-xmin)/(nbin)
     xMeds, yMeds, yErrs = [], [], []
     for i in range(nbin):
-        w = numpy.where( (xNew > xmin + i*step) & (xNew < xmin + (i+1)*step) )
+        w = numpy.where( (xNew > xmin + i*step) & (xNew <= xmin + (i+1)*step) )
         if len(xNew[w]) == 0:
             continue
         xMeds.append(numpy.median(xNew[w]))
         yMeds.append(numpy.median(yNew[w]))
         yErr = numpy.std(yNew[w])/numpy.sqrt(len(yNew[w]))
         yErrs.append(yErr)
-
+        
     # use these new coords to fit the line ... with sigma clipping if requested
     xNew, yNew, dyNew = numpy.array(xMeds), numpy.array(yMeds), numpy.array(yErrs)
 
-    # if there's only one piont in a bit, dy=0 ... use the average error instead
-    w0 = numpy.where(dyNew == 0)
-    wnot0 = numpy.where(dyNew > 0)
+    # if there's only one point in a bin, dy=0 ... use the average error instead
+    w0 = numpy.where(dyNew == 0)[0]
+    wnot0 = numpy.where(dyNew > 0)[0]
     if len(w0) > 0:
-	meanError = numpy.mean(dyNew[wnot0])
-	dyNew[w0] = meanError
+        if len(wnot0) > 0:
+            meanError = numpy.mean(dyNew[wnot0])
+        # if *all* bins have a single point, then all dy are zero
+        # take a blind guess and use stdev of all values we got
+        else:
+            meanError = numpy.std(yNew)
 
+        # last ... if we have errors of zero, use 1.0
+        # sounds silly, but if we fit a line to a difference value
+        # and it's the difference of identical values
+        # (eg. instFlux and modFlux are loaded with the same value)
+        # then the dy could be zero
+        if meanError == 0.0:
+            meanError = 1.0
+        dyNew[w0] = meanError
+
+    
     for i in range(niter):
 
         #ret = numpy.polyfit(xNew, yNew, order)
@@ -161,6 +180,7 @@ def robustPolyFit(x, y, order, nbin=3, sigma=3.0, niter=1):
             w = numpy.where( (numpy.abs(residuals - mean)/std) < sigma )
             xNew = xNew[w]
             yNew = yNew[w]
+            dyNew = dyNew[w]
             
     return b, db, a, da
 

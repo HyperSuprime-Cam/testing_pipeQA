@@ -80,7 +80,7 @@ def testPsfPhotometry():
     # get the data we want from the piperunner
     ss1 = pr.getSourceSet(dataId={'visit':'85501867', 'raft':'1,1'})
     ss2 = pr.getSourceSet(dataId={'visit':'85502008', 'raft':'1,1'})
-    tolerance = 1.0 * numpy.pi/180.0
+    tolerance = numpy.radians(1.0)
     matchList = afwDet.matchRaDec(ss1, ss2, tolerance)
 
     

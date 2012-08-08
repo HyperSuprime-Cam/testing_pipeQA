@@ -16,8 +16,16 @@ tests/.tests
 *out
 figures
 runtimePerformance*
+callgrind.*
 
 python/lsst/testing/pipeQA/pipeQaLib.py
 python/lsst/testing/pipeQA/version.py
 
+# /src/
+/src/*.os
+
+# /tests/
+/tests/.tests
+
+*.pyc
 ups/testing_pipeQA.cfgc

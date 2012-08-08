@@ -1,4 +1,5 @@
 import sys, os, re
+import time
 import lsst.meas.algorithms        as measAlg
 import lsst.testing.pipeQA.figures as qaFig
 import numpy
@@ -10,6 +11,8 @@ import lsst.testing.pipeQA.TestCode as testCode
 import QaAnalysis as qaAna
 import RaftCcdData as raftCcdData
 import QaAnalysisUtils as qaAnaUtil
+
+import lsst.testing.pipeQA.source as pqaSource
 
 import matplotlib.cm as cm
 import matplotlib.colors as colors
@@ -25,6 +28,9 @@ class PsfShapeQaAnalysis(qaAna.QaAnalysis):
         self.limitsEllip = [0.0, ellipMax]
         self.limitsFwhm = [0.0, fwhmMax]
 
+        self.sCatDummy = pqaSource.Catalog()
+        self.srefCatDummy = pqaSource.RefCatalog()
+        
         self.description = """
          For each CCD, the ellipticity of stars used in the Psf model are
          plotted as a function of position in the focal plane.  The summary FPA
@@ -49,13 +55,13 @@ class PsfShapeQaAnalysis(qaAna.QaAnalysis):
         del self.calexpDict
         
     def test(self, data, dataId):
-        
+
         # get data
         self.ssDict        = data.getSourceSetBySensor(dataId)
         self.detector      = data.getDetectorBySensor(dataId)
         self.filter        = data.getFilterBySensor(dataId)
         self.calexpDict    = data.getCalexpBySensor(dataId)
-	self.wcs           = data.getWcsBySensor(dataId)
+        self.wcs           = data.getWcsBySensor(dataId)
 
         # create containers for data in the focal plane
         self.x     = raftCcdData.RaftCcdVector(self.detector)
@@ -65,26 +71,26 @@ class PsfShapeQaAnalysis(qaAna.QaAnalysis):
 
         # compute values of interest
         filter = None
-	sigmaToFwhm = 2.0*numpy.sqrt(2.0*numpy.log(2.0))
+        sigmaToFwhm = 2.0*numpy.sqrt(2.0*numpy.log(2.0))
 
-	fwhmByKey = {}
+        fwhmByKey = {}
         for key, ss in self.ssDict.items():
-	    
-	    if self.detector.has_key(key):
-		raft = self.detector[key].getParent().getId().getName()
-		ccd  = self.detector[key].getId().getName()
-	    else:
-		continue
+            
+            if self.detector.has_key(key):
+                raft = self.detector[key].getParent().getId().getName()
+                ccd  = self.detector[key].getId().getName()
+            else:
+                continue
 
-            qaAnaUtil.isStar(ss)
+            #qaAnaUtil.isStar(ss)
 
-	    fwhmByKey[key] = 0.0
+            fwhmByKey[key] = 0.0
 
             fwhmTmp = 0.0
             for s in ss:
-                ixx = s.getIxx()
-                iyy = s.getIyy()
-                ixy = s.getIxy()
+                ixx = s.getD(self.sCatDummy.IxxKey)
+                iyy = s.getD(self.sCatDummy.IyyKey)
+                ixy = s.getD(self.sCatDummy.IxyKey)
 
                 tmp = 0.25*(ixx-iyy)**2 + ixy**2
                 if tmp < 0:
@@ -106,18 +112,18 @@ class PsfShapeQaAnalysis(qaAna.QaAnalysis):
                     theta += numpy.pi
                     
                 #print ixx, iyy, ixy, a2, b2, ellip, theta
-                isStar = s.getFlagForDetection() & measAlg.Flags.STAR
+                isStar = 0 if s.getD(self.sCatDummy.ExtendednessKey) else 1
 
-                flux = s.getPsfFlux()
+                flux = s.getD(self.sCatDummy.PsfFluxKey)
                 mag = 99.0
                 if flux > 0:
-                    mag = -2.5*numpy.log10(s.getPsfFlux())
+                    mag = -2.5*numpy.log10(s.getD(self.sCatDummy.PsfFluxKey))
                 if numpy.isfinite(ellip) and numpy.isfinite(theta) and isStar and mag < 20:
                     self.ellip.append(raft, ccd, ellip)
                     self.theta.append(raft, ccd, theta)
-                    self.x.append(raft, ccd, s.getXAstrom())
-                    self.y.append(raft, ccd, s.getYAstrom())
-		    fwhmTmp += sigmaToFwhm*numpy.sqrt(0.5*(a2 + b2))
+                    self.x.append(raft, ccd, s.getD(self.sCatDummy.XAstromKey))
+                    self.y.append(raft, ccd, s.getD(self.sCatDummy.YAstromKey))
+                    fwhmTmp += sigmaToFwhm*numpy.sqrt(0.5*(a2 + b2))
 
             nFwhm = len(self.x.get(raft,ccd))
             if nFwhm:
@@ -161,22 +167,23 @@ class PsfShapeQaAnalysis(qaAna.QaAnalysis):
         # And the Fwhm
         self.fwhm  = raftCcdData.RaftCcdData(self.detector)
         for key, item in self.calexpDict.items():
-	    if (self.detector.has_key(key) and hasattr(self.detector[key], 'getParent') and
-		hasattr(self.detector[key], 'getId')):
-		raft = self.detector[key].getParent().getId().getName()
-		ccd  = self.detector[key].getId().getName()
-	    else:
-		continue
+            if (self.detector.has_key(key) and hasattr(self.detector[key], 'getParent') and
+                hasattr(self.detector[key], 'getId')):
+                raft = self.detector[key].getParent().getId().getName()
+                ccd  = self.detector[key].getId().getName()
+            else:
+                continue
 
-	    wcs = self.wcs[key]
-	    fwhmTmp = float(fwhmByKey[key]*wcs.pixelScale().asArcseconds()) #item['fwhm']
-	    #print fwhmTmp, item['fwhm'], type(fwhmTmp), type(item['fwhm'])
+            wcs = self.wcs[key]
+            fwhmTmp = float(fwhmByKey[key]*wcs.pixelScale().asArcseconds()) #item['fwhm']
+            #print fwhmTmp, item['fwhm'], type(fwhmTmp), type(item['fwhm'])
             self.fwhm.set(raft, ccd, fwhmTmp)
             areaLabel = data.cameraInfo.getDetectorName(raft, ccd)
             label = "psf fwhm (arcsec) "
             comment = "psf fwhm (arcsec)"
             testSet.addTest( testCode.Test(label, item['fwhm'], self.limitsFwhm, comment, areaLabel=areaLabel) )
-                          
+
+
     def plot(self, data, dataId, showUndefined=False):
 
         testSet = self.getTestSet(data, dataId)
@@ -206,7 +213,7 @@ class PsfShapeQaAnalysis(qaAna.QaAnalysis):
                                                 10*vLen*self.ellipMedians.get(raft, ccd),
                                                 self.ellipMedians.get(raft, ccd)]
                     ellipFig.map[raft][ccd] = "ell/theta=%.3f/%.0f" % (self.ellipMedians.get(raft, ccd),
-                                                                       (180/numpy.pi)*self.thetaMedians.get(raft, ccd))
+                                                                       numpy.degrees(self.thetaMedians.get(raft, ccd)))
                 if not self.fwhm.get(raft, ccd) is None:
                     fwhm = self.fwhm.get(raft, ccd)
                     fwhmFig.data[raft][ccd] = fwhm

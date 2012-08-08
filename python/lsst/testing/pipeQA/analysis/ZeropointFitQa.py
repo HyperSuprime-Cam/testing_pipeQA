@@ -1,5 +1,6 @@
 import re
 import numpy as num
+import time
 
 import lsst.meas.algorithms         as measAlg
 import lsst.testing.pipeQA.TestCode as testCode
@@ -8,6 +9,8 @@ import lsst.testing.pipeQA.figures as qaFig
 import lsst.testing.pipeQA.figures.QaFigureUtils as qaFigUtils
 import QaAnalysisUtils as qaAnaUtil
 import RaftCcdData as raftCcdData
+
+import lsst.testing.pipeQA.source as pqaSource
 
 from matplotlib.font_manager import FontProperties
 from matplotlib.patches import Ellipse
@@ -18,6 +21,9 @@ class ZeropointFitQa(qaAna.QaAnalysis):
         self.figsize = figsize
         self.limits = [medOffsetMin, medOffsetMax]
 
+        self.sCatDummy = pqaSource.Catalog()
+        self.srefCatDummy = pqaSource.RefCatalog()
+        
         self.description = """
          For each CCD, the central panel shows the instrumental magnitude of
          matched stars and galaxies, plotted as a function of the catalog
@@ -49,6 +55,7 @@ class ZeropointFitQa(qaAna.QaAnalysis):
         del self.medOffset
         
     def test(self, data, dataId, fluxType = "psf"):
+
         testSet = self.getTestSet(data, dataId)
         testSet.addMetadata({"Description": self.description})
 
@@ -69,7 +76,7 @@ class ZeropointFitQa(qaAna.QaAnalysis):
         self.zeroPoint        = raftCcdData.RaftCcdData(self.detector)
         self.medOffset        = raftCcdData.RaftCcdData(self.detector)
 
-        badFlags = measAlg.Flags.INTERP_CENTER | measAlg.Flags.SATUR_CENTER | measAlg.Flags.EDGE
+        badFlags = pqaSource.INTERP_CENTER | pqaSource.SATUR_CENTER | pqaSource.EDGE
 
         for key in self.detector.keys():
             raftId     = self.detector[key].getParent().getId().getName()
@@ -104,27 +111,30 @@ class ZeropointFitQa(qaAna.QaAnalysis):
                 for m in mdict:
                     sref, s, dist = m
                     if fluxType == "psf":
-                        fref  = sref.getPsfFlux()
-                        f     = s.getPsfFlux()
-                        ferr  = s.getPsfFluxErr()
+                        fref  = sref.getD(self.srefCatDummy.PsfFluxKey)
+                        f     = s.getD(self.sCatDummy.PsfFluxKey)
+                        ferr  = s.getD(self.sCatDummy.PsfFluxErrKey)
                     else:
-                        fref  = sref.getPsfFlux()
-                        f     = s.getApFlux()
-                        ferr  = s.getApFluxErr()
+                        fref  = sref.getD(self.srefCatDummy.PsfFluxKey)
+                        f     = s.getD(self.sCatDummy.ApFluxKey)
+                        ferr  = s.getD(self.sCatDummy.ApFluxErrKey)
 
                     # un-calibrate the magnitudes
                     f *= fmag0
                     
-                    flags = s.getFlagForDetection()
-                    if (fref > 0.0 and f > 0.0 and not flags & badFlags):
+                    intcen = s.getD(self.sCatDummy.FlagPixInterpCenKey)
+                    satcen = s.getD(self.sCatDummy.FlagPixSaturCenKey)
+                    edge   = s.getD(self.sCatDummy.FlagPixEdgeKey)
+
+                    if (fref > 0.0 and f > 0.0 and not (intcen or satcen or edge)):
                         mrefmag  = -2.5*num.log10(fref)
                         mimgmag  = -2.5*num.log10(f)
                         mimgmerr =  2.5 / num.log(10.0) * ferr / f
     
-                        star = flags & measAlg.Flags.STAR
+                        star = 0 if s.getD(self.sCatDummy.ExtendednessKey) else 1
                         
                         if num.isfinite(mrefmag) and num.isfinite(mimgmag):
-                            if star > 0:
+                            if star:
                                 stars.append((mrefmag, mimgmag, mimgmerr))
                             else:
                                 galaxies.append((mrefmag, mimgmag, mimgmerr))
@@ -151,9 +161,9 @@ class ZeropointFitQa(qaAna.QaAnalysis):
                 orphans = []
                 for orphan in self.matchListDictSrc[key]['orphan']:
                     if self.fluxType == "psf":
-                        f = orphan.getPsfFlux()
+                        f = orphan.getD(self.sCatDummy.PsfFluxKey)
                     else:
-                        f = orphan.getApFlux()
+                        f = orphan.getD(self.sCatDummy.ApFluxKey)
                     if f > 0.0:
                         # un-calibrate the magnitudes
                         f *= fmag0
@@ -182,6 +192,7 @@ class ZeropointFitQa(qaAna.QaAnalysis):
                 
             
     def plot(self, data, dataId, showUndefined=False):
+
         testSet = self.getTestSet(data, dataId)
         testSet.setUseCache(self.useCache)
         isFinalDataId = False

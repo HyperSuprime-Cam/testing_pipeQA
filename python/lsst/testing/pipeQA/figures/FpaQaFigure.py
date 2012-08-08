@@ -39,7 +39,8 @@ class FpaQaFigure(QaFigure):
         self.data = {}
         self.reset()
         self.reset(data=self.map)
-
+        self.min = None
+        self.max = None
             
         # Fill the data/map values if they were provided.
         if not data is None:
@@ -54,7 +55,18 @@ class FpaQaFigure(QaFigure):
                 for ccd, value in ccdDict.items():
                     self.map[raft][ccd] = map[raft][ccd]
 
+    def getArray(self):
+        array = []
+        if not self.data is None:
+            if not self.validate():
+                raise Exception("Data did not pass validation.")
+            for raft, ccdDict in self.data.items():
+                for ccd, value in ccdDict.items():
+                    if not value is None and numpy.isfinite(value):
+                        array.append(value)
+        return numpy.array(array)
         
+                    
     def reset(self, data=None):
         """Set all values in data dictionary to None."""
         
@@ -178,7 +190,7 @@ class FpaQaFigure(QaFigure):
     def adjustTickLabels(self, sp, cb=None):
         if not cb is None:
             for tic in cb.ax.get_yticklabels():
-                tic.set_size("x-small")
+                tic.set_size("xx-small")
         for tic in sp.get_xticklabels():
             tic.set_size("x-small")
             tic.set_rotation(22)
@@ -231,14 +243,21 @@ class FpaQaFigure(QaFigure):
         @param failColor        Color to use to mark failed sensors.
         """
 
+        
         if vlimits is None:
             arr = self.getDataArray()
             vlimits = [arr.min(), arr.max()]
 
         if failLimits is None:
             failLimits = vlimits
-            
-        self.fig.subplots_adjust(left=0.195, right=0.95, bottom=0.15)
+
+        histWidth = 0.05
+        useHist = True
+        if useHist:
+            left, right, bottom, top = 0.195, 0.95-2.0*histWidth, 0.15, 0.9
+        else:
+            left, right, bottom, top = 0.195, 0.95, 0.15, 0.9
+        self.fig.subplots_adjust(left=left, right=right, bottom=bottom, top=top)
         
         sp     = self.fig.gca()
 
@@ -289,6 +308,34 @@ class FpaQaFigure(QaFigure):
         cb = self.fig.colorbar(p)
         sp.add_collection(p)
 
+        ##############################
+        # put a histogram on the side
+        if useHist:
+            nbins = 30
+            histValues = numpy.array(values)
+            finiteValues = histValues[numpy.where(numpy.isfinite(histValues))[0]]
+            left = right+0.05
+            axH = self.fig.add_axes([left, bottom, histWidth, top-bottom])
+            binwid = float(vlimits[1] - vlimits[0])/nbins
+            if binwid > 0.0 and len(finiteValues) > 0:
+                eps = 1.0e-4*binwid
+                #print finiteValues, nbins, vlimits
+                nu, bu, pu = axH.hist(finiteValues, bins=nbins,
+                                      range=[vlimits[0]-eps,vlimits[1]+eps],
+                                      orientation='horizontal', color='#aaaaaa', fill=True)
+                #nu = numpy.array([1.0])
+                axH.set_ylim(vlimits)
+                xmax = 1.2*nu.max()
+                if xmax <= 0.0:
+                    xmax = 1.0
+                axH.set_xlim([0, xmax])
+
+            axH.set_xlabel('')
+            axH.set_ylabel('')
+            axH.set_xticklabels([])
+            axH.set_yticklabels([])
+            self.fig.sca(sp)
+
         self.plotRaftBoundaries(sp, boundaryColors)
         self.plotCcdBoundaries(sp)
         self.markMissingCcds(sp, missingCcds)
@@ -297,10 +344,10 @@ class FpaQaFigure(QaFigure):
             self.labelSensors(sp)
 
         if not title is None:
-            self.fig.text(0.5, 0.94, title, horizontalalignment="center", fontsize=12)
+            self.fig.text(0.5, 0.94, title, horizontalalignment="center", fontsize=10)
             #sp.set_title(title, fontsize=12)
-        sp.set_xlabel("Focal Plane X", fontsize = 10)
-        sp.set_ylabel("Focal Plane Y", fontsize = 10)
+        sp.set_xlabel("Focal Plane X", fontsize = 9)
+        sp.set_ylabel("Focal Plane Y", fontsize = 9)
 
         self.adjustTickLabels(sp, cb)
 
@@ -358,8 +405,15 @@ class VectorFpaQaFigure(FpaQaFigure):
         if failLimits is None:
             failLimits = vlimits
 
-        self.fig.subplots_adjust(left=0.195, right=0.95, bottom=0.15)
-        sp     = self.fig.gca()
+        histWidth = 0.05
+        useHist = True
+        if useHist:
+            left, right, bottom, top = 0.195, 0.95-2.0*histWidth, 0.15, 0.9
+        else:
+            left, right, bottom, top = 0.195, 0.95, 0.15, 0.9
+            
+        self.fig.subplots_adjust(left=left, right=right, bottom=bottom, top=top)
+
         colorValues = []  # needs to be synchronized with self.rectangles
         patches = []
         allValues = []
@@ -433,6 +487,31 @@ class VectorFpaQaFigure(FpaQaFigure):
         else:
             norm = colors.Normalize()
 
+
+        sp     = self.fig.gca() #add_axes([left, bottom, right-left, top-bottom]) #gca()
+
+        ##############################
+        # put a histogram on the side
+        if useHist:
+            nbins = 30
+            histValues = numpy.array(colorValues)
+            finiteValues = histValues[numpy.where(numpy.isfinite(histValues))[0]]
+            left = right+0.05
+            axH = self.fig.add_axes([left, bottom, histWidth, top-bottom])
+            binwid = float(vlimits[1] - vlimits[0])/nbins
+            if binwid > 0.0 and len(finiteValues) > 0:
+                eps = 1.0e-4*binwid
+                nu, bu, pu = axH.hist(finiteValues, bins=nbins,
+                                      range=[vlimits[0]-eps,vlimits[1]+eps],
+                                      orientation='horizontal', color='#aaaaaa', fill=True)
+                axH.set_ylim(vlimits)
+                axH.set_xlim([0, 1.2*nu.max()])
+            axH.set_xlabel('')
+            axH.set_ylabel('')
+            axH.set_xticklabels([])
+            axH.set_yticklabels([])
+            self.fig.sca(sp)
+        
         if len(patches) > 0:
 
             cmap = getattr(cm, cmap)
@@ -470,10 +549,10 @@ class VectorFpaQaFigure(FpaQaFigure):
             self.labelSensors(sp)
 
         if not title is None:
-            self.fig.text(0.5, 0.94, title, horizontalalignment="center", fontsize=12)
+            self.fig.text(0.5, 0.94, title, horizontalalignment="center", fontsize=10)
             #sp.set_title(title, fontsize=12)
-        sp.set_xlabel("Focal Plane X", fontsize = 10)
-        sp.set_ylabel("Focal Plane Y", fontsize = 10)
+        sp.set_xlabel("Focal Plane X", fontsize = 9)
+        sp.set_ylabel("Focal Plane Y", fontsize = 9)
 
         if (not haveColors) and (vlimits is None):
             cb = None
@@ -483,5 +562,8 @@ class VectorFpaQaFigure(FpaQaFigure):
         sp.set_xlim((x0 - borderPix, x1 + borderPix))
         sp.set_ylim((y0 - borderPix, y1 + borderPix))
 
+
+
+        
         self.setMapInfo()
 

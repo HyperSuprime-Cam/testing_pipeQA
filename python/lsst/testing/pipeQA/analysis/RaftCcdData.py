@@ -30,17 +30,17 @@ class RaftCcdData(object):
 
     def reset(self, value=0.0):
         for key, detector in self.detector.items():
-	    raft = None
-	    if hasattr(detector, 'getParent'):
-		raft = detector.getParent().getId().getName()
-	    ccd = None
-	    if hasattr(detector, 'getId'):
-		ccd = detector.getId().getName()
-	    if (not raft is None) and (not ccd is None):
-		if not self.data.has_key(raft):
-		    self.data[raft] = {}
-		if not self.data[raft].has_key(ccd):
-		    self.data[raft][ccd] = value
+            raft = None
+            if hasattr(detector, 'getParent'):
+                raft = detector.getParent().getId().getName()
+            ccd = None
+            if hasattr(detector, 'getId'):
+                ccd = detector.getId().getName()
+            if (not raft is None) and (not ccd is None):
+                if not self.data.has_key(raft):
+                    self.data[raft] = {}
+                if not self.data[raft].has_key(ccd):
+                    self.data[raft][ccd] = value
 
     def set(self, raft, ccd, value):
         self.data[raft][ccd] = value

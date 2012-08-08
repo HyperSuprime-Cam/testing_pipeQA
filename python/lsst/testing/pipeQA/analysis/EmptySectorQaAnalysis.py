@@ -1,4 +1,5 @@
 import sys, os, re
+import time
 import lsst.meas.algorithms        as measAlg
 import lsst.testing.pipeQA.figures as qaFig
 import numpy
@@ -9,6 +10,8 @@ import lsst.testing.pipeQA.TestCode as testCode
 import QaAnalysis as qaAna
 import RaftCcdData as raftCcdData
 import QaAnalysisUtils as qaAnaUtil
+
+import lsst.testing.pipeQA.source as pqaSource
 
 import matplotlib.cm as cm
 import matplotlib.colors as colors
@@ -24,6 +27,9 @@ class EmptySectorQaAnalysis(qaAna.QaAnalysis):
         self.nx = nx
         self.ny = ny
 
+        self.sCatDummy = pqaSource.Catalog()
+        self.srefCatDummy = pqaSource.RefCatalog()
+        
         self.description = """
          For each CCD, the 1-to-1 matches between the reference catalog and
          sources are plotted as a function of position in the focal plane.
@@ -49,9 +55,10 @@ class EmptySectorQaAnalysis(qaAna.QaAnalysis):
         del self.emptySectorsMat
         
     def test(self, data, dataId):
-        
+
         # get data
         self.ssDict           = data.getSourceSetBySensor(dataId)
+
         self.matchListDictSrc = data.getMatchListBySensor(dataId, useRef='src')
         self.detector         = data.getDetectorBySensor(dataId)
         self.filter           = data.getFilterBySensor(dataId)
@@ -66,21 +73,27 @@ class EmptySectorQaAnalysis(qaAna.QaAnalysis):
         filter = None
         self.size = raftCcdData.RaftCcdData(self.detector, initValue=[1.0, 1.0])
         for key, ss in self.ssDict.items():
+            xKey = self.sCatDummy.XAstromKey
+            yKey = self.sCatDummy.YAstromKey
+            
             raft = self.detector[key].getParent().getId().getName()
             ccd  = self.detector[key].getId().getName()
             bbox = self.detector[key].getAllPixels(True)
             size = [bbox.getMaxX() - bbox.getMinX(), bbox.getMaxY() - bbox.getMinY()]
             self.size.set(raft, ccd, size)
             filter = self.filter[key].getName()
+            
             for s in ss:
-                self.x.append(raft, ccd, s.getXAstrom())
-                self.y.append(raft, ccd, s.getYAstrom())
+                self.x.append(raft, ccd, s.getD(xKey))
+                self.y.append(raft, ccd, s.getD(yKey))
+                
             if self.matchListDictSrc.has_key(key):
                 for m in self.matchListDictSrc[key]['matched']:
                     sref, s, dist = m
-                    self.xmat.append(raft, ccd, s.getXAstrom())
-                    self.ymat.append(raft, ccd, s.getYAstrom())
+                    self.xmat.append(raft, ccd, s.getD(xKey))
+                    self.ymat.append(raft, ccd, s.getD(yKey))
 
+                    
         # create a testset
         testSet = self.getTestSet(data, dataId)
 
@@ -145,10 +158,9 @@ class EmptySectorQaAnalysis(qaAna.QaAnalysis):
         testSet.addTest(test)
 
 
-
-
     def plot(self, data, dataId, showUndefined=False):
 
+        
         testSet = self.getTestSet(data, dataId)
         testSet.setUseCache(self.useCache)
         isFinalDataId = False
@@ -284,9 +296,16 @@ class EmptySectorQaAnalysis(qaAna.QaAnalysis):
         if len(x) == 0:
             x = numpy.array([0.0])
             y = numpy.array([0.0])
+
+        summaryLabel = "matched"
         if len(xmat) == 0:
-            xmat = numpy.array([0.0])
-            ymat = numpy.array([0.0])
+            if len(x) == 0 or not summary:
+                xmat = numpy.array([0.0])
+                ymat = numpy.array([0.0])
+            else:
+                summaryLabel = "detected"
+                xmat = x
+                ymat = y
 
         figsize = (4.0, 4.0)
 
@@ -298,10 +317,12 @@ class EmptySectorQaAnalysis(qaAna.QaAnalysis):
         
         ncol = None
         if summary:
-	    ms = 0.1
-	    if len(xmat) < 100000:
-		ms = 0.1
-            ax.plot(xmat, ymat, "k.", ms=ms, label="matched")
+            ms = 0.1
+            if len(xmat) < 10000:
+                ms = 0.2
+            if len(xmat) < 1000:
+                ms = 0.5
+            ax.plot(xmat, ymat, "k.", ms=ms, label=summaryLabel)
             ncol = 1
         else:
             ax.plot(x, y, "k.", ms=2.0, label="detected")
