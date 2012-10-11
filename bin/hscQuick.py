@@ -20,11 +20,14 @@ import datetime
 
 import numpy
 
+import lsst.daf.persistence           as dafPersist
 import lsst.testing.displayQA         as dispQA
 import lsst.testing.pipeQA.figures as qaFig
 import lsst.testing.pipeQA as pqa
 
 import hsc.pipe.base.camera as hscCamera
+
+import lsst.obs.hscSim               as hscSim
 
 class QuickInfo(object):
     def __init__(self, filename, displayName):
@@ -41,13 +44,16 @@ class QuickInfo(object):
 def main(rerun, visits, ccds, camera="suprimecam", testRegex=".*"):
 
     
-    root = os.path.join(os.getenv('SUPRIME_DATA_DIR'), "SUPA")
-    calib = os.path.join(os.getenv('SUPRIME_DATA_DIR'), "SUPA", "CALIB")
-    butler = hscCamera.getButler('suprimecam', rerun=rerun, root=root)
 
     if camera == 'suprimecam':
+        root = os.path.join(os.getenv('SUPRIME_DATA_DIR'), "SUPA")
+        calib = os.path.join(os.getenv('SUPRIME_DATA_DIR'), "SUPA", "CALIB")
+        butler = hscCamera.getButler('suprimecam', rerun=rerun, root=root)
         camInfo = pqa.SuprimecamCameraInfo(mit=False)
     elif camera == 'hsc':
+        root = os.path.join(os.getenv('SUPRIME_DATA_DIR'), "HSC")
+        outputRoot = "/data/data2/Subaru/HSC/rerun/" +  rerun
+        butler = dafPersist.ButlerFactory(mapper=hscSim.HscSimMapper(root=root, outputRoot=outputRoot)).create()
         camInfo = pqa.HscCameraInfo()
     else:
         raise ValueError, "Unknown camera."
@@ -89,30 +95,37 @@ def main(rerun, visits, ccds, camera="suprimecam", testRegex=".*"):
             if not re.search(testRegex, f):
                 continue
             
-            ts = dispQA.TestSet(group=str(visit), label=flabel)
+            ts = dispQA.TestSet(group=str(visit), label=flabel, wwwCache=True)
             print "   ..."+f
 
             nobjs = {}
             for ccd in ccds:
-                dataId = {'visit': visit, 'ccd': ccd}
+
+                ####
+                # butler.get() fails without filter and pointing ... why?
+                dataId = {'visit': visit, 'ccd': ccd, 'filter':'W-S-I+', 'pointing' : 41}
+                #### 
+
+                
                 raftName, ccdName = camInfo.getRaftAndSensorNames(dataId)
                 areaLabel = camInfo.getDetectorName(raftName, ccdName)
 
                 print "   CCD "+str(ccd)+ " " + areaLabel
 
                 meta = butler.get('calexp_md', dataId)
-                nobj = meta.get('NOBJ_MATCHED')
+                nobj = 1 #meta.get('NOBJ_MATCHED')
                 nobjs[areaLabel] = nobj
 
                 ts.addTest("nObj", nobj, [0.0, 1.0e4], "Number of matched objects", areaLabel=areaLabel)
 
                 camel = f+"_filename"
+
                 figNames = butler.get(camel, dataId)
                 caption = "Figure " + f
                 if os.path.exists(figNames[0]):
                     ts.addFigureFile(figNames[0], caption, areaLabel=areaLabel)
                 else:
-                    print "Warning: File does not exist ... "+figNames[0]
+                    print "Warning: File does not exist ... "+ "\n".join(figNames)
 
 
             base = "fpa"+f
