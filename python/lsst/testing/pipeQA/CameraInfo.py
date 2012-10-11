@@ -470,7 +470,18 @@ class HscCameraInfo(CameraInfo):
     def getDefaultRerun(self):
         return "pipeQA"
     
-
+    def getRaftAndSensorNames(self, dataId):
+            names = ["hsc%03d" % (x) for x in range(104)]
+            ccdName = None
+            if dataId.has_key('ccd'):
+                dataIdUse = dataId['ccd']
+                if isinstance(dataId['ccd'], str):
+                    dataIdUse = dataId['ccd'].strip()
+                    if re.search('^\d+$', dataIdUse):
+                        dataIdUse = int(dataIdUse)
+                ccdName = names[dataIdUse]
+            return None, ccdName
+                
     def getMapper(self, baseDir, rerun=None):
         """Get a mapper for data in specified directory
 
