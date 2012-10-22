@@ -525,6 +525,18 @@ class QaData(object):
         """
         raise NotImplementedError, "Must define getVisits in derived QaData class."
 
+        
+
+    def getSummaryDataBySensor(self, dataIdRegex):
+        """Get a dict of dict objects which contain specific summary data.
+        
+        @param dataIdRegex dataId dictionary with regular expressions to specify data to retrieve
+        """
+        raise NotImplementedError("Please define getSummaryDataBySensor() in the derived class.")
+    
+    
+            
+
     def loadCalexp(self, dataIdRegex):
         """Load the calexp data for data matching dataIdRegex.
 

@@ -1150,6 +1150,25 @@ class HscDbQaData(QaData):
         return copy.copy(self.brokenDataIdList)
 
 
+    def getSummaryDataBySensor(self, dataIdRegex):
+        """Get a dict of dict objects which contain specific summary data.
+        
+        @param dataIdRegex dataId dictionary with regular expressions to specify data to retrieve
+        """
+        calexp = self.getCalexpBySensor(dataIdRegex)
+        summary = {}
+        for dataId, ce in calexp.items():
+            if not dataId in summary:
+                summary[dataId] = {}
+            summary[dataId]["DATE_OBS"] = ce['date_obs']
+            summary[dataId]["EXPTIME"]  = ce['exptime']
+            summary[dataId]['RA']       = ce['ra']
+            summary[dataId]['DEC']      = ce['decl']
+            summary[dataId]['ALT']      = "xx"
+            summary[dataId]['AZ']       = "xxx"
+            
+        return summary
+
 
     def loadCalexp(self, dataIdRegex):
         """Load the calexp data for data matching dataIdRegex.
@@ -1261,7 +1280,7 @@ class HscDbQaData(QaData):
                 
                 calib.setFluxMag0(fmag0, fmag0Err)
                 self.calibCache[key] = calib
-
+                
             self.calexpCache[key] = rowDict
             self.calexpQueryCache[key] = True
 

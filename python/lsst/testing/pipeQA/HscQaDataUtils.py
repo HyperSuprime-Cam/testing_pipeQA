@@ -157,6 +157,7 @@ class HscQaDataUtils(QaDataUtils):
             #['lrcRa',                'lrcRa'                ],
             #['lrcDecl',              'lrcDecl'              ],
             #['taiMjd',               'taiMjd'               ],
+            ['date_obs',             'date_obs'             ],
             #['obsStart',             'obsStart'             ],
             #['expMidpt',             'expMidpt'             ],
             ['expTime',              'exptime'              ],

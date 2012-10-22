@@ -22,6 +22,7 @@ from .VignettingQaTask         import VignettingQaTask
 from .VisitToVisitPhotQaTask   import VisitToVisitPhotQaTask
 from .VisitToVisitAstromQaTask import VisitToVisitAstromQaTask
 
+from .SummaryQaTask            import SummaryQaTask
 
 
 class PipeQaConfig(pexConfig.Config):
@@ -50,6 +51,10 @@ class PipeQaConfig(pexConfig.Config):
                                       doc = "Visit to visit: qaAnalysis.VisitToVisitPhotQaTask and "+
                                       "qaAnalysis.VisitToVisitAstromQaTask", default = False)
 
+    doSummaryQa     = pexConfig.Field(dtype = bool,
+                                      doc = "Include a Summary Qa Page.",
+                                      default = True)
+
     
     zptFitQa        = pexConfig.ConfigurableField(target = ZeropointFitQaTask,
                                                   doc = "Quality of zeropoint fit")
@@ -69,8 +74,11 @@ class PipeQaConfig(pexConfig.Config):
                                                   doc = "Look for residual vignetting features")
     vvPhotQa        = pexConfig.ConfigurableField(target = VisitToVisitPhotQaTask,
                                                   doc = "Visit to visit photometry")
-    vvAstromQa     = pexConfig.ConfigurableField(target = VisitToVisitAstromQaTask,
-                                                 doc = "Visit to visit astrometry")
+    vvAstromQa      = pexConfig.ConfigurableField(target = VisitToVisitAstromQaTask,
+                                                  doc = "Visit to visit astrometry")
+
+    summaryQa       = pexConfig.ConfigurableField(target = SummaryQaTask,
+                                                  doc = "Include Summary QA information")
 
     shapeAlgorithm = pexConfig.ChoiceField(
         dtype = str,
@@ -311,7 +319,8 @@ class PipeQaTask(pipeBase.Task):
                                  (self.config.doAstromQa,      "astromQa"),
                                  (self.config.doPsfShapeQa,    "psfShapeQa"),
                                  (self.config.doCompleteQa,    "completeQa"),
-                                 (self.config.doVignettingQa,  "vignettingQa") ):
+                                 (self.config.doVignettingQa,  "vignettingQa"),
+                                 (self.config.doSummaryQa,     "summaryQa") ):
             
             if doTask and (data.cameraInfo.name in eval("self.config.%s.cameras" % (taskStr))):
                 stask = self.makeSubtask(taskStr, useCache=keep, wwwCache=wwwCache,

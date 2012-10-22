@@ -62,6 +62,15 @@ class QaAnalysisTask(pipeBase.Task):
         if not filter[key] is None:
             filterName = filter[key].getName()
 
+        summaryInfo = data.getSummaryDataBySensor(dataId)[key]
+
+        dateObs = summaryInfo['DATE_OBS']
+        expTime = summaryInfo['EXPTIME']
+        raDec   = summaryInfo['RA'] + " " + summaryInfo['DEC']
+        altAz   = summaryInfo['ALT'] + " " + summaryInfo['AZ']
+        
+        
+
         if not label is None:
             label = self.__class__.__name__ + "."+ label
         else:
@@ -77,6 +86,14 @@ class QaAnalysisTask(pipeBase.Task):
                                                    wwwCache=self.wwwCache)
             self.testSets[tsId].addMetadata('dataset', data.getDataName())
             self.testSets[tsId].addMetadata(tsIdLabel, tsId)
+
+            self.testSets[tsId].addMetadata('DATE_OBS', dateObs)
+            self.testSets[tsId].addMetadata('EXPTIME', expTime)
+            self.testSets[tsId].addMetadata('RaDec', raDec)
+            self.testSets[tsId].addMetadata('AltAz', altAz)
+            
+
+            # version info
             pqaVersion = eups.getSetupVersion('testing_pipeQA')
             dqaVersion = eups.getSetupVersion('testing_displayQA')
             self.testSets[tsId].addMetadata('PipeQA', pqaVersion)
