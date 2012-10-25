@@ -76,10 +76,15 @@ class HscDbQaData(QaData):
         self.refStr = {'obj' : ('Obj', 'object'), 'src' : ('Src', 'source') }
 
 
+        self.tableSuffix = ""
+        if cameraInfo.name == 'suprimecam':
+            self.tableSuffix = "_sup"
+
 
         # handle backward compatibility of database names
         keyList = []
-        sql = "select column_name from information_schema.columns where table_name = 'frame_sourcelist_sup';"
+        tname = 'frame_sourcelist' + self.tableSuffix
+        sql = "select column_name from information_schema.columns where table_name = '"+tname+"';"
         results = self.dbInterface.execute(sql)
         for r in results:
             keyList.append(r[0])
@@ -137,8 +142,9 @@ class HscDbQaData(QaData):
         setMethods = [x for x in qaDataUtils.getSourceSetAccessors()]
         selectList = ["s."+x for x in qaDataUtils.getSourceSetDbNames(self.dbAliases)]
         selectStr  = ", ".join(selectList)
-        
-        sql  = 'select sce.filter from frame_sup as sce'
+
+        tname = 'frame' + self.tableSuffix
+        sql  = 'select sce.filter from '+tname+' as sce'
         sql += ' where '
         haveAllKeys = True
 
@@ -195,14 +201,18 @@ class HscDbQaData(QaData):
         flagEdge  = "s.flag_pixedg"
         flagNeg   = "s.flag_neg"
 
-            
+
+        slist = 'frame_sourcelist' + self.tableSuffix
+        mlist = 'frame_matchlist' + self.tableSuffix
+        ftab  = 'frame' + self.tableSuffix
+        
         if True:
             sql  = 'select '+','.join(zip(*sceNames)[1])+', m.ref_flux, '
             sql += 'm.ref_ra2000, m.ref_dec2000, m.ra2000, m.dec2000, '
             sql += ", ".join([flagBad,flagSat,flagIntrp,flagEdge,flagNeg]) + ", "
             sql += 'm.classification_extendedness, m.ref_id, m.obj_id, '
             sql += selectStr
-            sql += '  from frame_sourcelist_sup as s, frame_sup as sce, frame_matchlist_sup as m'
+            sql += '  from '+slist+' as s, '+ftab+' as sce, '+mlist+' as m'
             #sql += '  where (sce.frame_id = m.frame_id) and (s.obj_id = m.obj_id) '
             sql += '  where (sce.frame_id = m.frame_id) and '
             sql += '        (sce.frame_id = s.frame_id) and '
@@ -510,8 +520,11 @@ class HscDbQaData(QaData):
             ]
         
         # this will have to be updated for the different dataIdNames when non-lsst cameras get used.
+        slist = 'frame_sourcelist' + self.tableSuffix
+        ftab = 'frame' + self.tableSuffix
+        
         sql  = 'select '+", ".join(zip(*sceNames)[1])+',s.obj_id,'+selectStr
-        sql += '  from frame_sourcelist_sup as s, frame_sup as sce'
+        sql += '  from '+slist+' as s, '+ftab+' as sce'
         sql += '  where (s.frame_id = sce.frame_id)'
         haveAllKeys = True
 
@@ -678,8 +691,10 @@ class HscDbQaData(QaData):
                 haveAllKeys = False
         sqlDataId = " and ".join(sqlDataId)
 
+        ftab = 'frame' + self.tableSuffix
+        
         sql  = "select "+", ".join(zip(*sceNames)[1])
-        sql += "  from frame_sup as sce "
+        sql += "  from "+ftab+" as sce "
         sql += "  where " + sqlDataId
 
         dataIdList = []
@@ -1059,8 +1074,10 @@ class HscDbQaData(QaData):
             if not re.search("snap", c) and n > 0:
                 columns.append(self.cameraInfo.dataIdDbNames[c])
                 dbNames.append([c, self.cameraInfo.dataIdDbNames[c]])
-                
-        sql = "select distinct "+", ".join(columns)+" from frame_sup"
+
+        ftab = 'frame' + self.tableSuffix
+        
+        sql = "select distinct "+", ".join(columns)+" from "+ftab
         sql += "   where "
         haveAllKeys = True
 
@@ -1110,7 +1127,8 @@ class HscDbQaData(QaData):
             ]
         
 
-        sql = "select "+", ".join(zip(*sceNames)[1])+" from frame_sup as sce"
+        ftab = 'frame' + self.tableSuffix
+        sql = "select "+", ".join(zip(*sceNames)[1])+" from "+ftab+" as sce"
         sql += "   where "
         whereList = []
         for keyNames in sceNames:
@@ -1171,8 +1189,9 @@ class HscDbQaData(QaData):
         selectList = ["sce."+x for x in qaDataUtils.getSceDbNames(sceDataIdNames)]
         selectStr = ", ".join(selectList)
 
+        ftab = 'frame' + self.tableSuffix
         sql  = 'select '+selectStr
-        sql += '  from frame_sup as sce'
+        sql += '  from '+ftab+' as sce'
         sql += '  where '
 
         haveAllKeys = True
