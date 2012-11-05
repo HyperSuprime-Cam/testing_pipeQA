@@ -20,7 +20,7 @@ class QaAnalysisTask(pipeBase.Task):
     _DefaultName = "qaAnalysis"
 
 
-    def __init__(self, testLabel=None, useCache=False, wwwCache=True, delaySummary=False,
+    def __init__(self, testLabel=None, useCache=False, wwwCache=True, summaryProcessing="delay",
                  lazyPlot='sensor', *args, **kwargs):
         """
         @param testLabel   A name for this kind of analysis test.
@@ -32,10 +32,20 @@ class QaAnalysisTask(pipeBase.Task):
 
         # if we're not going to use the cached values
         # we'll have to clean the output directory on our first call
-        self.useCache = useCache
-        self.clean    = not useCache
-        self.wwwCache = wwwCache
-        self.delaySummary = delaySummary
+        self.useCache     = useCache
+        self.clean        = not useCache
+        self.wwwCache     = wwwCache
+        self.summaryProcessing = summaryProcessing
+
+        self.summOpt = {
+            'delay'     : 'delay',  # make summary figures after the final CCD is processed
+            'summOnly'  : 'summOnly',   # only make summary figures
+            'none'      : 'none'    # don't make summary figures
+            }
+        
+        #self.delaySummary = delaySummary
+        #self.noSummary    = noSummary
+        #self.onlySummary  = onlySummary
 
         options = ['none', 'sensor', 'all']
         if not lazyPlot in options:

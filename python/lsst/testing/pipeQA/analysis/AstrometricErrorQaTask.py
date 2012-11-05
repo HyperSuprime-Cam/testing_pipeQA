@@ -167,100 +167,113 @@ class AstrometricErrorQaTask(QaAnalysisTask):
         if len(data.brokenDataIdList) == 0 or data.brokenDataIdList[-1] == dataId:
             isFinalDataId = True
 
-        medAstBase = "medAstError"
-        medAstData, medAstMap = testSet.unpickle(medAstBase, default=[None, None])
 
-        # fpa figure
-        astFig = qaFig.VectorFpaQaFigure(data.cameraInfo, data=medAstData, map=medAstMap)
+        astFig = qaFig.VectorFpaQaFigure(data.cameraInfo, data=None, map=None)
 
         vLen = 5000 # length in pixels for 1 arcsec error vector
-        for raft, ccdDict in astFig.data.items():
-            for ccd, value in ccdDict.items():
-                if not self.medErrArcsec.get(raft, ccd) is None:
-                    astErrArcsec = self.medErrArcsec.get(raft, ccd)
-                    thetaRad = self.medThetaRad.get(raft, ccd)
-                    astFig.data[raft][ccd] = [thetaRad, vLen*astErrArcsec, astErrArcsec]
-                    astFig.map[raft][ccd] = "\"/theta=%.2f/%.0f" % (astErrArcsec, numpy.degrees(thetaRad))
-                
-        testSet.pickle(medAstBase, [astFig.data, astFig.map])
-        
-        if not self.delaySummary or isFinalDataId:
-            self.log.log(self.log.INFO, "plotting FPAs")
-            astFig.makeFigure(showUndefined=showUndefined, cmap="Reds", vlimits=[0.0, 2.0*self.limits[1]],
-                              title="Median astrometric error", cmapOver='#ff0000', failLimits=self.limits,
-                              cmapUnder="#ff0000")
-            testSet.addFigure(astFig, medAstBase+".png", "Median astrometric error",  navMap=True)
+        if self.summaryProcessing != self.summOpt['summOnly']:
+            for raft, ccdDict in astFig.data.items():
+                for ccd, value in ccdDict.items():
+                    if not self.medErrArcsec.get(raft, ccd) is None:
+                        astErrArcsec = self.medErrArcsec.get(raft, ccd)
+                        thetaRad = self.medThetaRad.get(raft, ccd)
+                        astFig.data[raft][ccd] = [thetaRad, vLen*astErrArcsec, astErrArcsec]
+                        astFig.map[raft][ccd] = "\"/theta=%.2f/%.0f" % (astErrArcsec, numpy.degrees(thetaRad))
+
+                        label = data.cameraInfo.getDetectorName(raft, ccd)
+                        medAstBase = "medAstError" + label
+                        testSet.pickle(medAstBase, [astFig.data, astFig.map])
+
+        # only make the FPA figure if this is a 'summary' run, or the final CCD
+        if (self.summaryProcessing in [self.summOpt['summOnly'], self.summOpt['delay']]) and isFinalDataId:
+
+                for raft, ccdDict in astFig.data.items():
+                    for ccd, value in ccdDict.items():
+                        label = data.cameraInfo.getDetectorName(raft, ccd)
+                        medAstBase = "medAstError" + label
+                        medAstDataTmp, medAstMapTmp = testSet.unpickle(medAstBase, default=[None, None])
+                        astFig.mergeValues(medAstDataTmp, medAstMapTmp)
+
+                medAstBase = "medAstError"
+                self.log.log(self.log.INFO, "plotting FPAs")
+                astFig.makeFigure(showUndefined=showUndefined, cmap="Reds", vlimits=[0.0, 2.0*self.limits[1]],
+                                  title="Median astrometric error", cmapOver='#ff0000', failLimits=self.limits,
+                                  cmapUnder="#ff0000")
+                testSet.addFigure(astFig, medAstBase+".png", "Median astrometric error",  navMap=True)
             
         del astFig
 
         prePlot = False
 
         cacheLabel = "astromError"
-        shelfData = {}
 
 
-        xlo, xhi, ylo, yhi = 1.e10, -1.e10, 1.e10, -1.e10
-        for raft,ccd in data.cameraInfo.raftCcdKeys:
-            if data.cameraInfo.name == 'coadd':
-                xtmp, ytmp = self.x.get(raft, ccd), self.y.get(raft, ccd)
-                xxlo, yylo, xxhi, yyhi = xtmp.min(), ytmp.min(), xtmp.max(), ytmp.max()
-            else:
-                xxlo, yylo, xxhi, yyhi = data.cameraInfo.getBbox(raft, ccd)
-            if xxlo < xlo: xlo = xxlo
-            if xxhi > xhi: xhi = xxhi
-            if yylo < ylo: ylo = yylo
-            if yyhi > yhi: yhi = yyhi
+        if self.summaryProcessing != self.summOpt['summOnly']:
 
-        
-        for raft, ccd in self.dRa.raftCcdKeys():
-            ra = self.dRa.get(raft, ccd)
-            dec = self.dDec.get(raft, ccd)
-            dAngle = numpy.sqrt(ra**2 + dec**2)
-            eLen = 3600.0*numpy.degrees(dAngle)
-            #eLen = 3600.0*numpy.sqrt(ra**2 + dec**2)
-            t = numpy.arctan2(dec, ra)
+
+            xlo, xhi, ylo, yhi = 1.e10, -1.e10, 1.e10, -1.e10
+            for raft,ccd in data.cameraInfo.raftCcdKeys:
+                if data.cameraInfo.name == 'coadd':
+                    xtmp, ytmp = self.x.get(raft, ccd), self.y.get(raft, ccd)
+                    xxlo, yylo, xxhi, yyhi = xtmp.min(), ytmp.min(), xtmp.max(), ytmp.max()
+                else:
+                    xxlo, yylo, xxhi, yyhi = data.cameraInfo.getBbox(raft, ccd)
+                if xxlo < xlo: xlo = xxlo
+                if xxhi > xhi: xhi = xxhi
+                if yylo < ylo: ylo = yylo
+                if yyhi > yhi: yhi = yyhi
+
+
+            for raft, ccd in self.dRa.raftCcdKeys():
+                ra = self.dRa.get(raft, ccd)
+                dec = self.dDec.get(raft, ccd)
+                dAngle = numpy.sqrt(ra**2 + dec**2)
+                eLen = 3600.0*numpy.degrees(dAngle)
+                #eLen = 3600.0*numpy.sqrt(ra**2 + dec**2)
+                t = numpy.arctan2(dec, ra)
+
+                dx = eLen*numpy.cos(t)
+                w = numpy.where(numpy.abs(dx) < 10.0)
+
+                dx = dx[w]
+                dy = (eLen*numpy.sin(t))[w]
+                x = (self.x.get(raft, ccd))[w]
+                y = (self.y.get(raft, ccd))[w]                
+
+                self.log.log(self.log.INFO, "plotting %s" % (ccd))
+
+
+                if data.cameraInfo.name == 'coadd':
+                    xmin, ymin, xmax, ymax = x.min(), y.min(), x.max(), y.max()
+                    x -= xmin
+                    y -= ymin
+                    xxlo, yylo, xxhi, yyhi = xmin, ymin, xmax, ymax
+                else:
+                    xxlo, yylo, xxhi, yyhi = data.cameraInfo.getBbox(raft, ccd)
+
+
+                import AstrometricErrorQaPlot as plotModule
+                label = data.cameraInfo.getDetectorName(raft, ccd)
+                dataDict = {'x': x, 'y':y, 'dx':dx, 'dy':dy,
+                            'limits' : [0, xxhi-xxlo, 0, yyhi-yylo],
+                            'bbox' : [0, xxhi-xxlo, 0, yyhi-yylo],
+                            'gridVectors':False }
+                caption = "Astrometric error" + label
+                pngFile = cacheLabel+".png"
+
+
+                if self.lazyPlot.lower() in ['sensor', 'all']:
+                    testSet.addLazyFigure(dataDict, pngFile, caption,
+                                          plotModule, areaLabel=label, plotargs="")
+                else:
+                    testSet.cacheLazyData(dataDict, pngFile, areaLabel=label)
+                    fig = plotModule.plot(dataDict)
+                    testSet.addFigure(fig, pngFile, caption, areaLabel=label)
+                    del fig
+
+
+        if (self.summaryProcessing in [self.summOpt['summOnly'], self.summOpt['delay']]) and isFinalDataId:
             
-            dx = eLen*numpy.cos(t)
-            w = numpy.where(numpy.abs(dx) < 10.0)
-            
-            dx = dx[w]
-            dy = (eLen*numpy.sin(t))[w]
-            x = (self.x.get(raft, ccd))[w]
-            y = (self.y.get(raft, ccd))[w]                
-
-            self.log.log(self.log.INFO, "plotting %s" % (ccd))
-
-
-            if data.cameraInfo.name == 'coadd':
-                xmin, ymin, xmax, ymax = x.min(), y.min(), x.max(), y.max()
-                x -= xmin
-                y -= ymin
-                xxlo, yylo, xxhi, yyhi = xmin, ymin, xmax, ymax
-            else:
-                xxlo, yylo, xxhi, yyhi = data.cameraInfo.getBbox(raft, ccd)
-
-
-            import AstrometricErrorQaPlot as plotModule
-            label = data.cameraInfo.getDetectorName(raft, ccd)
-            dataDict = {'x': x, 'y':y, 'dx':dx, 'dy':dy,
-                        'limits' : [0, xxhi-xxlo, 0, yyhi-yylo],
-                        'bbox' : [0, xxhi-xxlo, 0, yyhi-yylo],
-                        'gridVectors':False }
-            caption = "Astrometric error" + label
-            pngFile = cacheLabel+".png"
-            
-
-            if self.lazyPlot.lower() in ['sensor', 'all']:
-                testSet.addLazyFigure(dataDict, pngFile, caption,
-                                      plotModule, areaLabel=label, plotargs="")
-            else:
-                testSet.cacheLazyData(dataDict, pngFile, areaLabel=label)
-                fig = plotModule.plot(dataDict)
-                testSet.addFigure(fig, pngFile, caption, areaLabel=label)
-                del fig
-            
-
-        if not self.delaySummary or isFinalDataId:
             self.log.log(self.log.INFO, "plotting Summary figure")
             
             import AstrometricErrorQaPlot as plotModule

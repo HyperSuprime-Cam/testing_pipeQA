@@ -113,7 +113,7 @@ class PipeQaTask(pipeBase.Task):
         parser.add_argument("-f", "--forkFigure", default=False, action='store_true',
                             help="Make figures in separate process (default=%(default)s)")
         parser.add_argument("-F", "--useForced", default=False, action='store_true',
-                            help="Use forced photometry (default=%default)")        
+                            help="Use forced photometry (default=%(default)s)")        
         parser.add_argument("-g", "--group", default=None,
                             help="Specify sub-group of visits 'groupSize:whichGroup' (default=%(default)s)")
         parser.add_argument("-k", "--keep", default=False, action="store_true",
@@ -124,17 +124,19 @@ class PipeQaTask(pipeBase.Task):
                             help="Rerun to analyse - only valid for hsc/suprimecam (default=%(default)s)")
         parser.add_argument("-s", "--snap", default=".*",
                             help="Specify snap as regex (default=%(default)s)")
+        parser.add_argument("-S", "--summaryProcessing", default="delay",
+                            help="Processing summary figures ['delay', 'none', or 'summOnly'] (default=%(default)s)")
         parser.add_argument("-t", "--test", default=".*",
                             help="Regex specifying which QaAnalysis to run (default=%(default)s)")
         parser.add_argument("-T", "--coaddTable", default="goodSeeing",
-                            help="Specify coadd table to use (default=%default)")        
+                            help="Specify coadd table to use (default=%(default)s)")        
         parser.add_argument("-V", "--verbosity", default=1,
                             help="Trace level for lsst.testing.pipeQA")
         parser.add_argument("-v", "--visit", default=".*",
                             help="Specify visit as regex OR color separated list. (default=%(default)s)")
         parser.add_argument("-z", "--lazyPlot", default='sensor',
                             help="Figures to be generated dynamically online "+
-                            "[options: none, sensor, all] (default=%default)")
+                            "[options: none, sensor, all] (default=%(default)s)")
 
         
         # visit-to-visit
@@ -245,7 +247,7 @@ class PipeQaTask(pipeBase.Task):
         keep         = parsedCmd.keep
         breakBy      = parsedCmd.breakBy
         groupInfo    = parsedCmd.group
-        delaySummary = parsedCmd.delaySummary
+        summaryProcessing = parsedCmd.summaryProcessing
         forkFigure   = parsedCmd.forkFigure
         wwwCache     = not parsedCmd.noWwwCache
         useForced    = parsedCmd.useForced
@@ -253,6 +255,12 @@ class PipeQaTask(pipeBase.Task):
         lazyPlot     = parsedCmd.lazyPlot
         verbosity    = parsedCmd.verbosity
 
+        if parsedCmd.delaySummary:
+            summaryProcessing = "delay"
+        summOpts = ["delay", "none", "summOnly"]
+        if not summaryProcessing in summOpts:
+            raise ValueError("summaryProcessing must be: "+", ".join(summOpts))
+            
         # optional visitQA info
         matchDset    = parsedCmd.matchDataset
         matchVisits  = parsedCmd.matchVisits
@@ -315,7 +323,7 @@ class PipeQaTask(pipeBase.Task):
             
             if doTask and (data.cameraInfo.name in eval("self.config.%s.cameras" % (taskStr))):
                 stask = self.makeSubtask(taskStr, useCache=keep, wwwCache=wwwCache,
-                                         delaySummary=delaySummary, lazyPlot=lazyPlot)
+                                         summaryProcessing=summaryProcessing, lazyPlot=lazyPlot)
                 taskList.append(stask)
 
                 
@@ -326,7 +334,7 @@ class PipeQaTask(pipeBase.Task):
                 starGxyToggle = types in self.config.photCompareQa.starGalaxyToggle
                 stask = self.makeSubtask("photCompareQa", magType1=mag1, magType2=mag2,
                                          starGalaxyToggle=starGxyToggle, useCache=keep, wwwCache=wwwCache,
-                                         delaySummary=delaySummary, lazyPlot=lazyPlot)
+                                         summaryProcessing=summaryProcessing, lazyPlot=lazyPlot)
                 taskList.append(stask)
 
 
@@ -348,12 +356,12 @@ class PipeQaTask(pipeBase.Task):
                 for mType in self.config.vvPhotQa.magTypes:
                     stask = self.makeSubtask("vvPhotQa", matchDset=matchDset, matchVisits=matchVisits,
                                              mType=mType, useCache=keep, wwwCache=wwwCache,
-                                             delaySummary=delaySummary, lazyPlot=lazyPlot)
+                                             summaryProcessing=summaryProcessing, lazyPlot=lazyPlot)
                     taskList.append(stask)
 
             if data.cameraInfo.name in self.config.vvAstromQa.cameras:
                 stask = self.makeSubtask("vvAstromQa", matchDset = matchDset, matchVisits = matchVisits, 
-                                         useCache=keep, wwwCache=wwwCache, delaySummary=delaySummary,
+                                         useCache=keep, wwwCache=wwwCache, summaryProcessing=summaryProcessing,
                                          lazyPlot=lazyPlot)
                 taskList.append(stask)
                 
@@ -361,7 +369,7 @@ class PipeQaTask(pipeBase.Task):
         # the performance task should run last as it summarizes performance of all tasks
         if self.config.doPerformanceQa:
             performTask = self.makeSubtask("performanceQa", useCache=keep, wwwCache=wwwCache,
-                                           delaySummary=delaySummary, lazyPlot=lazyPlot)
+                                           summaryProcessing=summaryProcessing, lazyPlot=lazyPlot)
             taskList.append(performTask)
                 
                 
@@ -434,7 +442,8 @@ class PipeQaTask(pipeBase.Task):
     
                     # try the test() method
                     t0 = time.time()
-                    self.runSubtask(task.test, data, thisDataId, visit, test, testset, exceptExit)
+                    if summaryProcessing in ['delay', 'none']:
+                        self.runSubtask(task.test, data, thisDataId, visit, test, testset, exceptExit)
                     data.cachePerformance(thisDataId, test, "test-runtime", time.time() - t0)
 
                     t0 = time.time()
@@ -454,7 +463,9 @@ class PipeQaTask(pipeBase.Task):
                     data.cachePerformance(thisDataId, test, "plot-runtime", time.time() - t0)
                     
                     # try the free() method
-                    self.runSubtask(task.free, data, thisDataId, visit, test, testset, exceptExit)
+                    # test() method only ran for 'delay' and 'none'.  Only then is there stuff to free
+                    if summaryProcessing in ['delay', 'none']:
+                        self.runSubtask(task.free, data, thisDataId, visit, test, testset, exceptExit)
     
     
                     memory = self._getMemUsageThisPid()
