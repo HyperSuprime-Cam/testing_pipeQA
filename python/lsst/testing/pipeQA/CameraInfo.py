@@ -326,6 +326,14 @@ class LsstSimCameraInfo(CameraInfo):
             'raft'   : 'raft',
             'sensor'    : 'sensor',
             }
+
+        self.dataIdDbNames = {
+            'visit' : 'visit',
+            'raft'  : 'raftName',
+            'sensor' : 'ccdName',
+            'snap'  : 'snap',
+            }
+
         
     def getRoots(self, baseDir, output=None):
         """Get data directories in a dictionary
