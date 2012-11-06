@@ -168,6 +168,7 @@ class AstrometricErrorQaTask(QaAnalysisTask):
             isFinalDataId = True
 
 
+        medAstBase = "medAstError"
         astFig = qaFig.VectorFpaQaFigure(data.cameraInfo, data=None, map=None)
 
         vLen = 5000 # length in pixels for 1 arcsec error vector
@@ -181,26 +182,24 @@ class AstrometricErrorQaTask(QaAnalysisTask):
                         astFig.map[raft][ccd] = "\"/theta=%.2f/%.0f" % (astErrArcsec, numpy.degrees(thetaRad))
 
                         label = data.cameraInfo.getDetectorName(raft, ccd)
-                        medAstBase = "medAstError" + label
-                        testSet.pickle(medAstBase, [astFig.data, astFig.map])
+                        testSet.pickle(medAstBase + label, [astFig.data, astFig.map])
 
         # only make the FPA figure if this is a 'summary' run, or the final CCD
         if (self.summaryProcessing in [self.summOpt['summOnly'], self.summOpt['delay']]) and isFinalDataId:
 
-                for raft, ccdDict in astFig.data.items():
-                    for ccd, value in ccdDict.items():
-                        label = data.cameraInfo.getDetectorName(raft, ccd)
-                        medAstBase = "medAstError" + label
-                        medAstDataTmp, medAstMapTmp = testSet.unpickle(medAstBase, default=[None, None])
-                        astFig.mergeValues(medAstDataTmp, medAstMapTmp)
+            for raft, ccdDict in astFig.data.items():
+                for ccd, value in ccdDict.items():
+                    label = data.cameraInfo.getDetectorName(raft, ccd)
+                    medAstDataTmp, medAstMapTmp = testSet.unpickle(medAstBase+label, default=[None, None])
+                    astFig.mergeValues(medAstDataTmp, medAstMapTmp)
 
-                medAstBase = "medAstError"
-                self.log.log(self.log.INFO, "plotting FPAs")
-                astFig.makeFigure(showUndefined=showUndefined, cmap="Reds", vlimits=[0.0, 2.0*self.limits[1]],
-                                  title="Median astrometric error", cmapOver='#ff0000', failLimits=self.limits,
-                                  cmapUnder="#ff0000")
-                testSet.addFigure(astFig, medAstBase+".png", "Median astrometric error",  navMap=True)
-            
+            self.log.log(self.log.INFO, "plotting FPAs")
+            astFig.makeFigure(showUndefined=showUndefined, cmap="Reds", vlimits=[0.0, 2.0*self.limits[1]],
+                              title="Median astrometric error", cmapOver='#ff0000', failLimits=self.limits,
+                              cmapUnder="#ff0000")
+            testSet.addFigure(astFig, medAstBase+".png", "Median astrometric error",  navMap=True)
+
+
         del astFig
 
         prePlot = False

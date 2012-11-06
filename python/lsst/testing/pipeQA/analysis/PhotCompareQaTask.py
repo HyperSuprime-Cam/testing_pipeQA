@@ -414,72 +414,79 @@ class PhotCompareQaTask(QaAnalysisTask):
         stdFilebase  = "std"+wtag
         derrFilebase  = "derr"+wtag
         slopeFilebase  = "slope"+wtag
-        meanData, meanMap   = testSet.unpickle(meanFilebase, default=[None, None])
-        stdData, stdMap     = testSet.unpickle(stdFilebase, default=[None, None])
-        derrData, derrMap   = testSet.unpickle(derrFilebase, default=[None, None])
-        slopeData, slopeMap = testSet.unpickle(slopeFilebase, default=[None, None])
 
-        meanFig  = qaFig.FpaQaFigure(data.cameraInfo, data=meanData, map=meanMap)
-        stdFig   = qaFig.FpaQaFigure(data.cameraInfo, data=stdData, map=stdMap)
-        derrFig  = qaFig.FpaQaFigure(data.cameraInfo, data=derrData, map=derrMap)
-        slopeFig = qaFig.VectorFpaQaFigure(data.cameraInfo, data=slopeData, map=slopeMap)
+        meanFig  = qaFig.FpaQaFigure(data.cameraInfo, data=None, map=None)
+        stdFig   = qaFig.FpaQaFigure(data.cameraInfo, data=None, map=None)
+        derrFig  = qaFig.FpaQaFigure(data.cameraInfo, data=None, map=None)
+        slopeFig = qaFig.VectorFpaQaFigure(data.cameraInfo, data=None, map=None)
 
-        for raft, ccd in self.means.raftCcdKeys():
+        if self.summaryProcessing != self.summOpt['summOnly']:
+            for raft, ccd in self.means.raftCcdKeys():
 
-            meanFig.data[raft][ccd] = self.means.get(raft, ccd)
-            stdFig.data[raft][ccd] = self.stds.get(raft, ccd)
-            derrFig.data[raft][ccd] = self.derrs.get(raft, ccd)
-            slope = self.trend.get(raft, ccd)[0]
+                meanFig.data[raft][ccd] = self.means.get(raft, ccd)
+                stdFig.data[raft][ccd]  = self.stds.get(raft, ccd)
+                derrFig.data[raft][ccd] = self.derrs.get(raft, ccd)
+                slope = self.trend.get(raft, ccd)[0]
 
-            if not slope is None and not slope[1] == 0:
-                # aspRatio will make the vector have the same angle as the line in the figure
-                slopeSigma = slope[0]/slope[1]
-                slopeFig.data[raft][ccd] = [numpy.arctan2(aspRatio*slope[0],1.0), None, slopeSigma]
-            else:
-                slopeSigma = None
-                slopeFig.data[raft][ccd] = [None, None, None]
+                if not slope is None and not slope[1] == 0:
+                    # aspRatio will make the vector have the same angle as the line in the figure
+                    slopeSigma = slope[0]/slope[1]
+                    slopeFig.data[raft][ccd] = [numpy.arctan2(aspRatio*slope[0],1.0), None, slopeSigma]
+                else:
+                    slopeSigma = None
+                    slopeFig.data[raft][ccd] = [None, None, None]
 
-            if not self.means.get(raft, ccd) is None:
-                meanFig.map[raft][ccd] = "mean=%.4f" % (self.means.get(raft, ccd))
-                stdFig.map[raft][ccd] = "std=%.4f" % (self.stds.get(raft, ccd))
-                derrFig.map[raft][ccd] = "derr=%.4f" % (self.derrs.get(raft, ccd))
-                fmt0, fmt1, fmtS = "%.4f", "%.4f", "%.1f"
-                if slope[0] is None:
-                    fmt0 = "%s"
-                if slope[1] is None:
-                    fmt1 = "%s"
-                if slopeSigma is None:
-                    fmtS = "%s"
-                fmt = "slope="+fmt0+"+/-"+fmt1+"("+fmtS+"sig)"
-                slopeFig.map[raft][ccd] = fmt % (slope[0], slope[1], slopeSigma)
+                if not self.means.get(raft, ccd) is None:
+                    meanFig.map[raft][ccd] = "mean=%.4f" % (self.means.get(raft, ccd))
+                    stdFig.map[raft][ccd] = "std=%.4f" % (self.stds.get(raft, ccd))
+                    derrFig.map[raft][ccd] = "derr=%.4f" % (self.derrs.get(raft, ccd))
+                    fmt0, fmt1, fmtS = "%.4f", "%.4f", "%.1f"
+                    if slope[0] is None:
+                        fmt0 = "%s"
+                    if slope[1] is None:
+                        fmt1 = "%s"
+                    if slopeSigma is None:
+                        fmtS = "%s"
+                    fmt = "slope="+fmt0+"+/-"+fmt1+"("+fmtS+"sig)"
+                    slopeFig.map[raft][ccd] = fmt % (slope[0], slope[1], slopeSigma)
 
-        blue, red = '#0000ff', '#ff0000'
+                    label = data.cameraInfo.getDetectorName(raft, ccd)
+
+                    testSet.pickle(meanFilebase+label,  [meanFig.data, meanFig.map])
+                    testSet.pickle(stdFilebase+label,   [stdFig.data, stdFig.map])
+                    testSet.pickle(derrFilebase+label,  [derrFig.data, derrFig.map])
+                    testSet.pickle(slopeFilebase+label, [slopeFig.data, slopeFig.map])
 
 
-        testSet.pickle(meanFilebase, [meanFig.data, meanFig.map])
-        testSet.pickle(stdFilebase, [stdFig.data, stdFig.map])
-        testSet.pickle(derrFilebase, [derrFig.data, derrFig.map])
-        testSet.pickle(slopeFilebase, [slopeFig.data, slopeFig.map])
+        if (self.summaryProcessing in [self.summOpt['summOnly'], self.summOpt['delay']]) and isFinalDataId:
+            for raft, ccdDict in meanFig.data.items():
+                for ccd, value in ccdDict.items():
+                    label = data.cameraInfo.getDetectorName(raft, ccd)
+                    meanDataTmp, meanMapTmp   = testSet.unpickle(meanFilebase+label, default=[None, None])
+                    stdDataTmp, stdMapTmp     = testSet.unpickle(stdFilebase+label, default=[None, None])
+                    derrDataTmp, derrMapTmp   = testSet.unpickle(derrFilebase+label, default=[None, None])
+                    slopeDataTmp, slopeMapTmp = testSet.unpickle(slopeFilebase+label, default=[None, None])
+                    meanFig.mergeValues(meanDataTmp, meanMapTmp)
+                    stdFig.mergeValues(stdDataTmp, stdMapTmp)
+                    derrFig.mergeValues(derrDataTmp, derrMapTmp)
+                    slopeFig.mergeValues(slopeDataTmp, slopeMapTmp)
 
-        if not self.delaySummary or isFinalDataId:
             self.log.log(self.log.INFO, "plotting FPAs")
+            blue, red = '#0000ff', '#ff0000'
             meanFig.makeFigure(showUndefined=showUndefined, cmap="RdBu_r", vlimits=[-0.03, 0.03],
                                title="Mean "+tag, cmapOver=red, cmapUnder=blue, failLimits=self.deltaLimits)
             testSet.addFigure(meanFig, "f01"+meanFilebase+".png",
                               "mean "+dtag+" mag   (brighter than %.1f)" % (self.magCut), navMap=True)
-            del meanFig
             
             stdFig.makeFigure(showUndefined=showUndefined, cmap="Reds", vlimits=[0.0, 0.03],
                               title="Stdev "+tag, cmapOver=red, failLimits=self.rmsLimits)
             testSet.addFigure(stdFig, "f02"+stdFilebase+".png",
                               "stdev "+dtag+" mag  (brighter than %.1f)" % (self.magCut), navMap=True)
-            del stdFig
 
             derrFig.makeFigure(showUndefined=showUndefined, cmap="Reds", vlimits=[0.0, 0.01],
                               title="Derr "+tag, cmapOver=red, failLimits=self.derrLimits)
             testSet.addFigure(derrFig, "f03"+derrFilebase+".png",
                               "derr "+dtag+" mag (brighter than %.1f)" % (self.magCut), navMap=True)
-            del derrFig
             
             cScale = 2.0
             slopeFig.makeFigure(cmap="RdBu_r",
@@ -487,12 +494,12 @@ class PhotCompareQaTask(QaAnalysisTask):
                                 title="Slope "+tag, failLimits=self.slopeLimits)
             testSet.addFigure(slopeFig, "f04"+slopeFilebase+".png",
                               "slope "+dtag+" mag (brighter than %.1f)" % (self.magCut), navMap=True)
-            del slopeFig
-        else:
-            del meanFig
-            del stdFig
-            del derrFig
-            del slopeFig
+
+        del meanFig
+        del stdFig
+        del derrFig
+        del slopeFig
+
 
 
         #############################################
@@ -510,147 +517,149 @@ class PhotCompareQaTask(QaAnalysisTask):
 
         figbase = "diff_" + dtag
 
-        shelfData = {}
 
-        for raft, ccd in self.mag.raftCcdKeys():
-            mag0  = self.mag.get(raft, ccd)
-            diff0 = self.diff.get(raft, ccd)
-            star0 = self.star.get(raft, ccd)
-            derr0 = self.derr.get(raft, ccd)
-
-            self.log.log(self.log.INFO, "plotting %s" % (ccd))
-
-            areaLabel = data.cameraInfo.getDetectorName(raft, ccd)
-            statBlurb = "Points used for statistics/trendline shown in red."
-
-            dataDict = {
-                'mag0'      : mag0,
-                'diff0'     : diff0,
-                'star0'     : star0,
-                'derr0'     : derr0,
-                'areaLabel' : areaLabel,
-                'raft'      : raft,
-                'ccd'       : ccd,
-                'figsize'   : figsize,
-                'xlim'      : xlim,
-                'ylim'      : ylim,
-                'xlim2'     : xlim2,
-                'ylim2'     : ylim2,
-                'ylimStep'  : ylimStep,
-                'tag1'      : tag1,
-                'tag'       : tag,
-
-                'x'         : self.y.get(raft,ccd), 
-                'y'         : self.x.get(raft,ccd),
-                'trend'     : self.trend.get(raft,ccd),
-                'magCut'    : self.magCut,
-                'summary'   : False,
-                }
-
+        if self.summaryProcessing != self.summOpt['summOnly']:
             
-            masterToggle = None            
-            if self.starGalaxyToggle:
+            for raft, ccd in self.mag.raftCcdKeys():
+                mag0  = self.mag.get(raft, ccd)
+                diff0 = self.diff.get(raft, ccd)
+                star0 = self.star.get(raft, ccd)
+                derr0 = self.derr.get(raft, ccd)
 
-                masterToggle = '0_stars'
-                
-                import PhotCompareQaAnalysisPlot as plotModule
-                label = areaLabel
-                pngFile = figbase+".png"
+                self.log.log(self.log.INFO, "plotting %s" % (ccd))
 
-                ##############################################
-                caption = dtag + " vs. " +self.magType1 + "(stars). "+statBlurb
-                toggle = '0_stars'
-                if self.lazyPlot.lower() in ['sensor', 'all']:
-                    testSet.addLazyFigure(dataDict, pngFile, caption,
-                                          plotModule, areaLabel=label, plotargs="stars standard",
-                                          toggle=toggle,
-                                          masterToggle=masterToggle)
+                areaLabel = data.cameraInfo.getDetectorName(raft, ccd)
+                statBlurb = "Points used for statistics/trendline shown in red."
+
+                dataDict = {
+                    'mag0'      : mag0,
+                    'diff0'     : diff0,
+                    'star0'     : star0,
+                    'derr0'     : derr0,
+                    'areaLabel' : areaLabel,
+                    'raft'      : raft,
+                    'ccd'       : ccd,
+                    'figsize'   : figsize,
+                    'xlim'      : xlim,
+                    'ylim'      : ylim,
+                    'xlim2'     : xlim2,
+                    'ylim2'     : ylim2,
+                    'ylimStep'  : ylimStep,
+                    'tag1'      : tag1,
+                    'tag'       : tag,
+
+                    'x'         : self.y.get(raft,ccd), 
+                    'y'         : self.x.get(raft,ccd),
+                    'trend'     : self.trend.get(raft,ccd),
+                    'magCut'    : self.magCut,
+                    'summary'   : False,
+                    }
+
+
+                masterToggle = None            
+                if self.starGalaxyToggle:
+
+                    masterToggle = '0_stars'
+
+                    import PhotCompareQaAnalysisPlot as plotModule
+                    label = areaLabel
+                    pngFile = figbase+".png"
+
+                    ##############################################
+                    caption = dtag + " vs. " +self.magType1 + "(stars). "+statBlurb
+                    toggle = '0_stars'
+                    if self.lazyPlot.lower() in ['sensor', 'all']:
+                        testSet.addLazyFigure(dataDict, pngFile, caption,
+                                              plotModule, areaLabel=label, plotargs="stars standard",
+                                              toggle=toggle,
+                                              masterToggle=masterToggle)
+                    else:
+                        testSet.cacheLazyData(dataDict, pngFile, areaLabel=label, toggle=toggle,
+                                              masterToggle=masterToggle)
+                        dataDict['mode'] = 'stars'
+                        dataDict['figType'] = 'standard'
+                        fig = plotModule.plot(dataDict)
+                        testSet.addFigure(fig, pngFile, caption, areaLabel=label, toggle=toggle)
+                        del fig
+
+
+                    ##############################################
+                    caption = dtag + " vs. " +self.magType1 + "(galaxies). "+statBlurb
+                    toggle = '1_galaxies'
+                    if self.lazyPlot.lower() in ['sensor', 'all']:
+                        testSet.addLazyFigure(dataDict, pngFile, caption,
+                                              plotModule, areaLabel=label, plotargs="galaxies standard",
+                                              toggle=toggle,
+                                              masterToggle=masterToggle)
+                    else:
+                        testSet.cacheLazyData(dataDict, pngFile, areaLabel=label, toggle=toggle,
+                                              masterToggle=masterToggle)
+                        dataDict['mode'] = 'galaxies'
+                        dataDict['figType'] = 'standard'
+                        fig = plotModule.plot(dataDict)
+                        testSet.addFigure(fig, pngFile, caption, areaLabel=label, toggle=toggle)
+                        del fig
+
+
+                    ##############################################
+                    caption = dtag + " vs. " +self.magType1 + "(everything). "+statBlurb
+                    toggle = '2_everything'
+                    if self.lazyPlot.lower() in ['sensor', 'all']:
+                        testSet.addLazyFigure(dataDict, pngFile, caption,
+                                              plotModule, areaLabel=label, plotargs="all standard",
+                                              toggle=toggle,
+                                              masterToggle=masterToggle)
+                    else:
+                        testSet.cacheLazyData(dataDict, pngFile, areaLabel=label, toggle=toggle,
+                                              masterToggle=masterToggle)
+                        dataDict['mode'] = 'all'
+                        dataDict['figType'] = 'standard'
+                        fig = plotModule.plot(dataDict)
+                        testSet.addFigure(fig, pngFile, caption, areaLabel=label, toggle=toggle)
+                        del fig
+
+
+                    ##############################################
+                    caption = dtag + " vs. " +self.magType1 + "(star derr). "+statBlurb
+                    toggle = '3_derr'
+                    if self.lazyPlot.lower() in ['sensor', 'all']:
+                        testSet.addLazyFigure(dataDict, pngFile, caption,
+                                              plotModule, areaLabel=label, plotargs="stars derr",
+                                              toggle=toggle,
+                                              masterToggle=masterToggle)
+                    else:
+                        testSet.cacheLazyData(dataDict, pngFile, areaLabel=label, toggle=toggle,
+                                              masterToggle=masterToggle)
+                        dataDict['mode'] = 'stars'
+                        dataDict['figType'] = 'derr'
+                        fig = plotModule.plot(dataDict)
+                        testSet.addFigure(fig, pngFile, caption, areaLabel=label, toggle=toggle)
+                        del fig
+
+
+
                 else:
-                    testSet.cacheLazyData(dataDict, pngFile, areaLabel=label, toggle=toggle,
-                                          masterToggle=masterToggle)
-                    dataDict['mode'] = 'stars'
-                    dataDict['figType'] = 'standard'
-                    fig = plotModule.plot(dataDict)
-                    testSet.addFigure(fig, pngFile, caption, areaLabel=label, toggle=toggle)
-                    del fig
-
-                    
-                ##############################################
-                caption = dtag + " vs. " +self.magType1 + "(galaxies). "+statBlurb
-                toggle = '1_galaxies'
-                if self.lazyPlot.lower() in ['sensor', 'all']:
-                    testSet.addLazyFigure(dataDict, pngFile, caption,
-                                          plotModule, areaLabel=label, plotargs="galaxies standard",
-                                          toggle=toggle,
-                                          masterToggle=masterToggle)
-                else:
-                    testSet.cacheLazyData(dataDict, pngFile, areaLabel=label, toggle=toggle,
-                                          masterToggle=masterToggle)
-                    dataDict['mode'] = 'galaxies'
-                    dataDict['figType'] = 'standard'
-                    fig = plotModule.plot(dataDict)
-                    testSet.addFigure(fig, pngFile, caption, areaLabel=label, toggle=toggle)
-                    del fig
 
 
-                ##############################################
-                caption = dtag + " vs. " +self.magType1 + "(everything). "+statBlurb
-                toggle = '2_everything'
-                if self.lazyPlot.lower() in ['sensor', 'all']:
-                    testSet.addLazyFigure(dataDict, pngFile, caption,
-                                          plotModule, areaLabel=label, plotargs="all standard",
-                                          toggle=toggle,
-                                          masterToggle=masterToggle)
-                else:
-                    testSet.cacheLazyData(dataDict, pngFile, areaLabel=label, toggle=toggle,
-                                          masterToggle=masterToggle)
-                    dataDict['mode'] = 'all'
-                    dataDict['figType'] = 'standard'
-                    fig = plotModule.plot(dataDict)
-                    testSet.addFigure(fig, pngFile, caption, areaLabel=label, toggle=toggle)
-                    del fig
+                    import PhotCompareQaAnalysisPlot as plotModule
+                    label = areaLabel
+                    caption = dtag + " vs. " +self.magType1 + ". "+statBlurb
+                    pngFile = figbase+".png"
+
+                    if self.lazyPlot.lower() in ['sensor', 'all']:
+                        testSet.addLazyFigure(dataDict, pngFile, caption,
+                                              plotModule, areaLabel=label, plotargs="all standard")
+                    else:
+                        testSet.cacheLazyData(dataDict, pngFile, areaLabel=label)
+                        dataDict['mode'] = 'all'
+                        dataDict['figType'] = 'standard'
+                        fig = plotModule.plot(dataDict)
+                        testSet.addFigure(fig, pngFile, caption, areaLabel=label)
+                        del fig
 
 
-                ##############################################
-                caption = dtag + " vs. " +self.magType1 + "(star derr). "+statBlurb
-                toggle = '3_derr'
-                if self.lazyPlot.lower() in ['sensor', 'all']:
-                    testSet.addLazyFigure(dataDict, pngFile, caption,
-                                          plotModule, areaLabel=label, plotargs="stars derr",
-                                          toggle=toggle,
-                                          masterToggle=masterToggle)
-                else:
-                    testSet.cacheLazyData(dataDict, pngFile, areaLabel=label, toggle=toggle,
-                                          masterToggle=masterToggle)
-                    dataDict['mode'] = 'stars'
-                    dataDict['figType'] = 'derr'
-                    fig = plotModule.plot(dataDict)
-                    testSet.addFigure(fig, pngFile, caption, areaLabel=label, toggle=toggle)
-                    del fig
+        if (self.summaryProcessing in [self.summOpt['summOnly'], self.summOpt['delay']]) and isFinalDataId:
 
-
-                
-            else:
-
-
-                import PhotCompareQaAnalysisPlot as plotModule
-                label = areaLabel
-                caption = dtag + " vs. " +self.magType1 + ". "+statBlurb
-                pngFile = figbase+".png"
-
-                if self.lazyPlot.lower() in ['sensor', 'all']:
-                    testSet.addLazyFigure(dataDict, pngFile, caption,
-                                          plotModule, areaLabel=label, plotargs="all standard")
-                else:
-                    testSet.cacheLazyData(dataDict, pngFile, areaLabel=label)
-                    dataDict['mode'] = 'all'
-                    dataDict['figType'] = 'standard'
-                    fig = plotModule.plot(dataDict)
-                    testSet.addFigure(fig, pngFile, caption, areaLabel=label)
-                    del fig
-
-
-        if not self.delaySummary or isFinalDataId:
             self.log.log(self.log.INFO, "plotting Summary figure")
 
 

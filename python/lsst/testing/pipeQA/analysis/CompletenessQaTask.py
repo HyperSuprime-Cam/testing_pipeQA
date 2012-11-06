@@ -277,42 +277,39 @@ class CompletenessQaTask(QaAnalysisTask):
             
         # fpa figure
         filebase = "completenessDepth"
-        depthData, depthMap = testSet.unpickle(filebase, default=[None, None])
         depths = []
         depthFig = qaFig.FpaQaFigure(data.cameraInfo, data=depthData, map=depthMap)
-        for raft, ccdDict in depthFig.data.items():
-            for ccd, value in ccdDict.items():
-                if not self.depth.get(raft, ccd) is None:
-                    depth = self.depth.get(raft, ccd)
-                    depths.append(depth)
-                    depthFig.data[raft][ccd] = depth
-                    if num.isfinite(depth):
-                        depthFig.map[raft][ccd] = 'mag=%.2f'%(depth)
-                    else:
-                        depthFig.map[raft][ccd] = 'mag=nan'
-                        
-        testSet.pickle(filebase, [depthFig.data, depthFig.map])
+
+        if self.summaryProcessing != self.summOpt['summOnly']:
+            for raft, ccdDict in depthFig.data.items():
+                for ccd, value in ccdDict.items():
+                    if not self.depth.get(raft, ccd) is None:
+                        depth = self.depth.get(raft, ccd)
+                        depths.append(depth)
+                        depthFig.data[raft][ccd] = depth
+                        if num.isfinite(depth):
+                            depthFig.map[raft][ccd] = 'mag=%.2f'%(depth)
+                        else:
+                            depthFig.map[raft][ccd] = 'mag=nan'
+                        label = data.cameraInfo.getDetectorName(raft, ccd)
+                        testSet.pickle(filebase+label, [depthFig.data, depthFig.map])
 
         blue = '#0000ff'
         red  = '#ff0000'
+
         
-        if False:
-            if len(depths) >= 2:
-                vmin = max(num.min(depths), self.limits[0])
-                vmax = min(num.max(depths), self.limits[1])
-            else:
-                vmin = self.limits[0]
-                vmax = self.limits[1]
+        if (self.summaryProcessing in [self.summOpt['summOnly'], self.summOpt['delay']]) and isFinalDataId:
 
-            if vmax <= vmin:
-                vmin = self.limits[0]
-                vmax = self.limits[1]
-        else:
+            for raft, ccdDict in depthFig.data.items():
+                for ccd, value in ccdDict.items():
+                    if not self.depth.get(raft, ccd) is None:
+                        label = data.cameraInfo.getDetectorName(raft, ccd)
+                        depthDataTmp, depthMapTmp = testSet.unpickle(filebase+label, default=[None, None])
+                        depthFig.mergeValues(depthDataTmp, depthMapTmp)
+                        
             vmin, vmax = 1.0*limitsToUse[0], 1.0*limitsToUse[1]
-
-        if vmin > vmax:
-            vmax = vmin + (self.limits[1] - self.limits[0])
-        if not self.delaySummary or isFinalDataId:
+            if vmin > vmax:
+                vmax = vmin + (self.limits[1] - self.limits[0])
             self.log.log(self.log.INFO, "plotting FPAs")
             depthFig.makeFigure(showUndefined=showUndefined, cmap="RdBu_r", vlimits=[vmin, vmax],
                                 title="Photometric Depth", cmapOver=red, cmapUnder=blue,
@@ -321,54 +318,55 @@ class CompletenessQaTask(QaAnalysisTask):
 
         del depthFig
 
-
         cacheLabel = "completeness"
-        shelfData = {}
-        
-        # Each CCD
-        for raft, ccd in self.depth.raftCcdKeys():
-            orphan           = self.orphan.get(raft, ccd)
-            matchedStar      = self.matchedStar.get(raft, ccd)
-            blendedStar      = self.blendedStar.get(raft, ccd)
-            undetectedStar   = self.undetectedStar.get(raft, ccd)
-            matchedGalaxy    = self.matchedGalaxy.get(raft, ccd)
-            blendedGalaxy    = self.blendedGalaxy.get(raft, ccd)
-            undetectedGalaxy = self.undetectedGalaxy.get(raft, ccd)
-            depth            = self.depth.get(raft, ccd)
 
-            self.log.log(self.log.INFO, "Plotting %s" % (ccd))
-            label = data.cameraInfo.getDetectorName(raft, ccd)
 
-            dataDict = {
-                'title'                     :        label           ,
-                'orphan'                    :        orphan          ,
-                'depth'                     :        depth           ,
-                'matchedStar'               :        matchedStar     ,
-                'blendedStar'               :        blendedStar     ,
-                'undetectedStar'            :        undetectedStar  ,
-                'matchedGalaxy'             :        matchedGalaxy   ,
-                'blendedGalaxy'             :        blendedGalaxy   ,
-                'undetectedGalaxy'          :        undetectedGalaxy,
-                'bins'                      :        self.bins.tolist(),
-                }
+        if self.summaryProcessing != self.summOpt['summOnly']:
+            # Each CCD
+            for raft, ccd in self.depth.raftCcdKeys():
+                orphan           = self.orphan.get(raft, ccd)
+                matchedStar      = self.matchedStar.get(raft, ccd)
+                blendedStar      = self.blendedStar.get(raft, ccd)
+                undetectedStar   = self.undetectedStar.get(raft, ccd)
+                matchedGalaxy    = self.matchedGalaxy.get(raft, ccd)
+                blendedGalaxy    = self.blendedGalaxy.get(raft, ccd)
+                undetectedGalaxy = self.undetectedGalaxy.get(raft, ccd)
+                depth            = self.depth.get(raft, ccd)
 
-            import CompletenessQaPlot as plotModule
-            caption = "Photometric detections " + label
-            pngFile = cacheLabel + ".png"
-            
+                self.log.log(self.log.INFO, "Plotting %s" % (ccd))
+                label = data.cameraInfo.getDetectorName(raft, ccd)
 
-            if self.lazyPlot.lower() in ['sensor', 'all']:
-                testSet.addLazyFigure(dataDict, pngFile, caption,
-                                      plotModule, areaLabel=label, plotargs="")
-            else:
-                testSet.cacheLazyData(dataDict, pngFile, areaLabel=label)
-                fig = plotModule.plot(dataDict)
-                testSet.addFigure(fig, pngFile, caption, areaLabel=label)
-                del fig
+                dataDict = {
+                    'title'                     :        label           ,
+                    'orphan'                    :        orphan          ,
+                    'depth'                     :        depth           ,
+                    'matchedStar'               :        matchedStar     ,
+                    'blendedStar'               :        blendedStar     ,
+                    'undetectedStar'            :        undetectedStar  ,
+                    'matchedGalaxy'             :        matchedGalaxy   ,
+                    'blendedGalaxy'             :        blendedGalaxy   ,
+                    'undetectedGalaxy'          :        undetectedGalaxy,
+                    'bins'                      :        self.bins.tolist(),
+                    }
+
+                import CompletenessQaPlot as plotModule
+                caption = "Photometric detections " + label
+                pngFile = cacheLabel + ".png"
+
+
+                if self.lazyPlot.lower() in ['sensor', 'all']:
+                    testSet.addLazyFigure(dataDict, pngFile, caption,
+                                          plotModule, areaLabel=label, plotargs="")
+                else:
+                    testSet.cacheLazyData(dataDict, pngFile, areaLabel=label)
+                    fig = plotModule.plot(dataDict)
+                    testSet.addFigure(fig, pngFile, caption, areaLabel=label)
+                    del fig
 
 
                 
-        if not self.delaySummary or isFinalDataId:
+        if (self.summaryProcessing in [self.summOpt['summOnly'], self.summOpt['delay']]) and isFinalDataId:
+
             self.log.log(self.log.INFO, "plotting Summary figure")
 
             label = 'all'

@@ -190,40 +190,54 @@ class VignettingQaTask(QaAnalysisTask):
         if len(data.brokenDataIdList) == 0 or data.brokenDataIdList[-1] == dataId:
             isFinalDataId = True
 
+
         # fpa figures
         medFigbase = "vignettingMedianPhotOffset" #cache
-        medFigData, medFigMap = testSet.unpickle(medFigbase, [None, None]) #cache
-        medFig = qaFig.FpaQaFigure(data.cameraInfo, data=medFigData, map=medFigMap) #cache
-        for raft, ccdDict in medFig.data.items():
-            for ccd, value in ccdDict.items():
-                if not self.medianOffset.get(raft, ccd) is None:
-                    med = self.medianOffset.get(raft, ccd)
-                    medFig.data[raft][ccd] = med
-                    if num.isfinite(med):
-                        medFig.map[raft][ccd] = 'med=%.2f'%(med)
-                    else:
-                        medFig.map[raft][ccd] = 'med=nan'
-
         stdFigbase = "vignettingRmsPhotOffset" #cache
-        stdFigData, stdFigMap = testSet.unpickle(stdFigbase, [None, None]) #cache
-        stdFig = qaFig.FpaQaFigure(data.cameraInfo, data=stdFigData, map=stdFigMap) #cache
-        for raft, ccdDict in stdFig.data.items():
-            for ccd, value in ccdDict.items():
-                if not self.rmsOffset.get(raft, ccd) is None:
-                    std = self.rmsOffset.get(raft, ccd)
-                    stdFig.data[raft][ccd] = std
-                    if num.isfinite(std):
-                        stdFig.map[raft][ccd] = 'stddev=%.2f'%(std)
-                    else:
-                        stdFig.map[raft][ccd] = 'stddev=nan'
-                        
+        #medFigData, medFigMap = testSet.unpickle(medFigbase, [None, None]) #cache
+        medFig = qaFig.FpaQaFigure(data.cameraInfo, data=None, map=None)
+        stdFig = qaFig.FpaQaFigure(data.cameraInfo, data=None, map=None)
+            
+        if self.summaryProcessing != self.summOpt['summOnly']:
+            for raft, ccdDict in medFig.data.items():
+                for ccd, value in ccdDict.items():
+                    label = data.cameraInfo.getDetectorName(raft, ccd)
+                    
+                    if not self.medianOffset.get(raft, ccd) is None:
+                        med = self.medianOffset.get(raft, ccd)
+                        medFig.data[raft][ccd] = med
+                        if num.isfinite(med):
+                            medFig.map[raft][ccd] = 'med=%.2f'%(med)
+                        else:
+                            medFig.map[raft][ccd] = 'med=nan'
+                            
+                        testSet.pickle(medFigbase + label, [medFig.data, medFig.map]) #cache
 
-        testSet.pickle(medFigbase, [medFig.data, medFig.map]) #cache
-        testSet.pickle(stdFigbase, [stdFig.data, stdFig.map]) #cache 
-        blue = '#0000ff'
-        red  = '#ff0000'
+            #stdFigData, stdFigMap = testSet.unpickle(stdFigbase, [None, None]) #cache
+                    if not self.rmsOffset.get(raft, ccd) is None:
+                        std = self.rmsOffset.get(raft, ccd)
+                        stdFig.data[raft][ccd] = std
+                        if num.isfinite(std):
+                            stdFig.map[raft][ccd] = 'stddev=%.2f'%(std)
+                        else:
+                            stdFig.map[raft][ccd] = 'stddev=nan'
+
+                        testSet.pickle(stdFigbase + label, [stdFig.data, stdFig.map]) #cache
+
+
+            
+        if (self.summaryProcessing in [self.summOpt['summOnly'], self.summOpt['delay']]) and isFinalDataId:
+            blue = '#0000ff'
+            red  = '#ff0000'
+
+            for raft, ccdDict in medFig.data.items():
+                for ccd, value in ccdDict.items():
+                    label = data.cameraInfo.getDetectorName(raft, ccd)
+                    medFigDataTmp, medFigMapTmp = testSet.unpickle(medFigbase + label, default=[None, None])
+                    medFig.mergeValues(medFigDataTmp, medFigMapTmp)
+                    stdFigDataTmp, stdFigMapTmp = testSet.unpickle(stdFigbase + label, default=[None, None])
+                    medFig.mergeValues(stdFigDataTmp, stdFigMapTmp)
         
-        if not self.delaySummary or isFinalDataId:
             self.log.log(self.log.INFO, "plotting FPAs")
             medFig.makeFigure(showUndefined=showUndefined, cmap="RdBu_r", vlimits=self.medLimits,
                               title="Median offset", cmapOver=red, cmapUnder=blue,
@@ -231,53 +245,56 @@ class VignettingQaTask(QaAnalysisTask):
             testSet.addFigure(medFig, medFigbase+".png",
                               "Median offset of bright (m<%d) stars versus radius" % (self.maxMag), 
                               navMap=True)
-            del medFig
+
             stdFig.makeFigure(showUndefined=showUndefined, cmap="RdBu_r", vlimits=self.rmsLimits,
                               title="Stddev offset", cmapOver=red, cmapUnder=blue,
                               failLimits=self.rmsLimits)
             testSet.addFigure(stdFig, stdFigbase+".png",
                               "Stddev of bright (m < %d) stars as a function of radius" % (self.maxMag), 
                               navMap=True)
-            del stdFig
-        else:
-            del medFig
-            del stdFig
+
+        del medFig
+        del stdFig
 
         cacheLabel = "vignetting_dmag" #cache
-        shelfData = {}
 
-        # make any individual (ie. per sensor) plots
-        for raft, ccd in self.dmag.raftCcdKeys():
 
-            dmags = self.dmag.get(raft, ccd)
-            radii = self.radius.get(raft, ccd)
-            ids   = self.ids.get(raft, ccd)
-            med   = self.medianOffset.get(raft, ccd)
-            std   = self.rmsOffset.get(raft, ccd)
+        if self.summaryProcessing != self.summOpt['summOnly']:
 
-            dataDict = {'dmags' : dmags, 'radii' : radii, 'ids' : ids,
-                        'offsetStats' : [med, std],
-                        'magTypes' : [self.magType1, self.magType2],
-                        'summary' : False,
-                        }
+            # make any individual (ie. per sensor) plots
+            for raft, ccd in self.dmag.raftCcdKeys():
+
+                dmags = self.dmag.get(raft, ccd)
+                radii = self.radius.get(raft, ccd)
+                ids   = self.ids.get(raft, ccd)
+                med   = self.medianOffset.get(raft, ccd)
+                std   = self.rmsOffset.get(raft, ccd)
+
+                dataDict = {'dmags' : dmags, 'radii' : radii, 'ids' : ids,
+                            'offsetStats' : [med, std],
+                            'magTypes' : [self.magType1, self.magType2],
+                            'summary' : False,
+                            }
+
+                self.log.log(self.log.INFO, "plotting %s" % (ccd))
+                import VignettingQaPlot as plotModule
+                label = data.cameraInfo.getDetectorName(raft, ccd)
+                caption = "Delta magnitude vs. radius " + label
+                pngFile = cacheLabel+".png"
+
+                if self.lazyPlot.lower() in ['sensor', 'all']:
+                    testSet.addLazyFigure(dataDict, pngFile, caption,
+                                          plotModule, areaLabel=label, plotargs="")
+                else:
+                    testSet.cacheLazyData(dataDict, pngFile, areaLabel=label)
+                    fig = plotModule.plot(dataDict)
+                    testSet.addFigure(fig, pngFile, caption, areaLabel=label)
+                    del fig
+
             
-            self.log.log(self.log.INFO, "plotting %s" % (ccd))
-            import VignettingQaPlot as plotModule
-            label = data.cameraInfo.getDetectorName(raft, ccd)
-            caption = "Delta magnitude vs. radius " + label
-            pngFile = cacheLabel+".png"
 
-            if self.lazyPlot.lower() in ['sensor', 'all']:
-                testSet.addLazyFigure(dataDict, pngFile, caption,
-                                      plotModule, areaLabel=label, plotargs="")
-            else:
-                testSet.cacheLazyData(dataDict, pngFile, areaLabel=label)
-                fig = plotModule.plot(dataDict)
-                testSet.addFigure(fig, pngFile, caption, areaLabel=label)
-                del fig
+        if (self.summaryProcessing in [self.summOpt['summOnly'], self.summOpt['delay']]) and isFinalDataId:
 
-            
-        if not self.delaySummary or isFinalDataId:
             self.log.log(self.log.INFO, "plotting Summary figure")
 
 
