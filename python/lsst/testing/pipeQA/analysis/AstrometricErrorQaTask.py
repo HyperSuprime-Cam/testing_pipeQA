@@ -290,6 +290,7 @@ class AstrometricErrorQaTask(QaAnalysisTask):
                 testSet.addFigure(fig, pngFile, caption, areaLabel=label)
                 del fig
 
+            self.combineOutputs(data, dataId)
                     
             
 

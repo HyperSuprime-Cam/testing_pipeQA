@@ -66,9 +66,9 @@ class FpaQaFigure(QaFigure):
     def mergeValues(self, data, map):
         for raft, ccdDict in self.data.items():
             for ccd, value in ccdDict.items():
-                if (raft in data) and (ccd in data[raft]) and (not data[raft][ccd] is None):
+                if data and (raft in data) and (ccd in data[raft]) and (not data[raft][ccd] is None):
                     self.data[raft][ccd] = copy.copy(data[raft][ccd])
-                if (raft in map) and (ccd in map[raft]) and (not map[raft][ccd] is None):
+                if map and (raft in map) and (ccd in map[raft]) and (not map[raft][ccd] is None):
                     self.map[raft][ccd] = copy.copy(map[raft][ccd])
 
                     

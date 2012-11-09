@@ -324,7 +324,8 @@ class ZeropointFitQaTask(QaAnalysisTask):
                 del fig
             
 
-        if not self.delaySummary or isFinalDataId:
+        if (self.summaryProcessing in [self.summOpt['summOnly'], self.summOpt['delay']]) and isFinalDataId:
+
             self.log.log(self.log.INFO, "plotting Summary figure")
 
             label = 'all'
@@ -342,3 +343,5 @@ class ZeropointFitQaTask(QaAnalysisTask):
                 testSet.addFigure(fig, pngFile, caption, areaLabel=label)
                 del fig
             
+
+            self.combineOutputs(data, dataId)

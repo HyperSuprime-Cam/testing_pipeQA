@@ -278,7 +278,7 @@ class PhotCompareQaTask(QaAnalysisTask):
                             self.y.append(raft, ccd, s.getD(data.k_y))
                             self.star.append(raft, ccd, star)
                             
-        testSet = self.getTestSet(data, dataId, label=self.magType1+"-"+self.magType2)
+        testSet = self.getTestSet(data, dataId, label=self.testLabel)
 
         testSet.addMetadata('magType1', self.magType1)
         testSet.addMetadata('magType2', self.magType2)
@@ -392,7 +392,7 @@ class PhotCompareQaTask(QaAnalysisTask):
 
     def plot(self, data, dataId, showUndefined=False):
 
-        testSet = self.getTestSet(data, dataId, label=self.magType1+"-"+self.magType2)
+        testSet = self.getTestSet(data, dataId, label=self.testLabel)
         testSet.setUseCache(self.useCache)
 
         isFinalDataId = False
@@ -680,6 +680,7 @@ class PhotCompareQaTask(QaAnalysisTask):
                 testSet.addFigure(fig, pngFile, caption, areaLabel=label)
                 del fig
 
+            self.combineOutputs(data, dataId, label=self.testLabel)
             
 
                     

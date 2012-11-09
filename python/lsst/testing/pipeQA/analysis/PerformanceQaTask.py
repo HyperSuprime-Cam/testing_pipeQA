@@ -225,3 +225,5 @@ class PerformanceQaTask(QaAnalysisTask):
         del runtimeFig
 
 
+        if (self.summaryProcessing in [self.summOpt['summOnly'], self.summOpt['delay']]) and isFinalDataId:
+            self.combineOutputs(data, dataId)

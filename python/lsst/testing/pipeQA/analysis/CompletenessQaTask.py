@@ -385,6 +385,7 @@ class CompletenessQaTask(QaAnalysisTask):
                 del fig
 
 
+            self.combineOutputs(data, dataId)
                 
             
 

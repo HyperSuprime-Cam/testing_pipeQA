@@ -53,8 +53,14 @@ class QaAnalysisTask(pipeBase.Task):
         
         self.lazyPlot  = lazyPlot
 
+
+    def combineOutputs(self, data, dataId, label=None):
+        ts = self.getTestSet(data, dataId, label, noSuffix=True)
+        ts.accrete()
+        #pass
+
         
-    def getTestSet(self, data, dataId, label=None):
+    def getTestSet(self, data, dataId, label=None, noSuffix=False):
         """Get a TestSet object in the correct group.
 
         @param data    a QaData object
@@ -64,7 +70,10 @@ class QaAnalysisTask(pipeBase.Task):
 
         dataIdStd = data.cameraInfo.dataIdCameraToStandard(dataId)
         group = dataIdStd['visit']
-        
+
+
+        raftName, ccdName = data.cameraInfo.getRaftAndSensorNames(dataId)
+            
         filter = data.getFilterBySensor(dataId)
         # all sensors have the same filter, so just grab one
         key = filter.keys()[0]
@@ -78,13 +87,20 @@ class QaAnalysisTask(pipeBase.Task):
             label = self.__class__.__name__
 
         tsIdLabel = "visit-filter"
-        tsId = str(group)+ '-' + filterName
+        tsId = str(group) + '-' + filterName
         if data.cameraInfo.name == 'sdss':
             tsId = group
+
+        if noSuffix:
+            return testCode.TestSet(label, group=tsId, clean=self.clean, wwwCache=self.wwwCache, sqliteSuffix="")
+        else:
+            sqliteSuffix = ccdName
+
             
         if not self.testSets.has_key(tsId):
             self.testSets[tsId] = testCode.TestSet(label, group=tsId, clean=self.clean,
-                                                   wwwCache=self.wwwCache)
+                                                   wwwCache=self.wwwCache, sqliteSuffix=sqliteSuffix)
+            
             self.testSets[tsId].addMetadata('dataset', data.getDataName())
             self.testSets[tsId].addMetadata(tsIdLabel, tsId)
             pqaVersion = eups.getSetupVersion('testing_pipeQA')

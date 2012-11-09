@@ -314,4 +314,5 @@ class VignettingQaTask(QaAnalysisTask):
                 del fig
 
 
+            self.combineOutputs(data, dataId)
             

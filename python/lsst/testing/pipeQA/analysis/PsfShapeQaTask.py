@@ -369,3 +369,4 @@ class PsfShapeQaTask(QaAnalysisTask):
                 del fig
 
 
+            self.combineOutputs(data, dataId)
