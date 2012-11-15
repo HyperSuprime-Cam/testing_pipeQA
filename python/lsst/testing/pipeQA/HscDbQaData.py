@@ -239,9 +239,10 @@ class HscDbQaData(QaData):
         # run the query
         #print sql
 
+        results  = self.dbInterface.execute(sql)
+
         self.sqlCache['match'][dataIdStr] = sql
 
-        results  = self.dbInterface.execute(sql)
 
         # parse results and put them in a sourceSet
         multiplicity = {}

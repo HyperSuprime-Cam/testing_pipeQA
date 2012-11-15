@@ -115,9 +115,11 @@ class QaAnalysisTask(pipeBase.Task):
 
             key = data._dataIdToString(dataId, defineFully=True)
             sqlCache = data.sqlCache['match'].get(key, "")
-            self.testSets[tsId].addMetadata("SQL match", sqlCache)
+            if sqlCache:
+                self.testSets[tsId].addMetadata("SQL match", sqlCache)
             sqlCache = data.sqlCache['src'].get(key, "")
-            self.testSets[tsId].addMetadata("SQL src" ,  sqlCache)
+            if sqlCache:
+                self.testSets[tsId].addMetadata("SQL src" ,  sqlCache)
                 
         return self.testSets[tsId]
 
