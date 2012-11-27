@@ -272,7 +272,7 @@ class PipeQaTask(pipeBase.Task):
             self.log.log(self.log.FATAL, "breakBy (-b) must be 'visit', 'raft', or 'ccd'")
             sys.exit()
     
-        if re.search("(raft|ccd)", breakBy) and not keep:
+        if breakBy in ['raft', 'ccd'] and not keep:
             self.log.log(self.log.WARN, "You've specified breakBy=%s, which requires 'keep' (-k). "+
                          "I'll set it for you.")
             keep = True
@@ -436,7 +436,10 @@ class PipeQaTask(pipeBase.Task):
                         continue
     
                     date = datetime.datetime.now().strftime("%a %Y-%m-%d %H:%M:%S")
-                    self.log.log(self.log.INFO, "Running " + test + "  visit:" + str(visit) + "  ("+date+")")
+                    visitLog = str(visit)
+                    if breakBy.lower() == 'ccd':
+                        visitLog += " ccd:" + thisDataId['ccd']
+                    self.log.log(self.log.INFO, "Running " + test + "  visit:" + visitLog + "  ("+date+")")
                     sys.stdout.flush() # clear the buffer before the fork
     
     

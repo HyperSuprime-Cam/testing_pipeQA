@@ -57,6 +57,7 @@ class QaAnalysisTask(pipeBase.Task):
     def combineOutputs(self, data, dataId, label=None):
         ts = self.getTestSet(data, dataId, label, noSuffix=True)
         ts.accrete()
+        ts.updateCounts()
         #pass
 
         
@@ -73,6 +74,7 @@ class QaAnalysisTask(pipeBase.Task):
 
 
         raftName, ccdName = data.cameraInfo.getRaftAndSensorNames(dataId)
+        ccdName = data.cameraInfo.getDetectorName(raftName, ccdName)
             
         filter = data.getFilterBySensor(dataId)
         # all sensors have the same filter, so just grab one
@@ -87,22 +89,23 @@ class QaAnalysisTask(pipeBase.Task):
             label = self.__class__.__name__
 
         tsIdLabel = "visit-filter"
-        tsId = str(group) + '-' + filterName
+        groupId = str(group) + '-' + filterName
+        tsId = str(group) + '-' + ccdName + '-' + filterName
         if data.cameraInfo.name == 'sdss':
             tsId = group
 
         if noSuffix:
-            return testCode.TestSet(label, group=tsId, clean=self.clean, wwwCache=self.wwwCache, sqliteSuffix="")
+            return testCode.TestSet(label, group=groupId, clean=self.clean, wwwCache=self.wwwCache, sqliteSuffix="")
         else:
             sqliteSuffix = ccdName
 
             
         if not self.testSets.has_key(tsId):
-            self.testSets[tsId] = testCode.TestSet(label, group=tsId, clean=self.clean,
+            self.testSets[tsId] = testCode.TestSet(label, group=groupId, clean=self.clean,
                                                    wwwCache=self.wwwCache, sqliteSuffix=sqliteSuffix)
             
             self.testSets[tsId].addMetadata('dataset', data.getDataName())
-            self.testSets[tsId].addMetadata(tsIdLabel, tsId)
+            self.testSets[tsId].addMetadata(tsIdLabel, groupId)
             pqaVersion = eups.getSetupVersion('testing_pipeQA')
             dqaVersion = eups.getSetupVersion('testing_displayQA')
             self.testSets[tsId].addMetadata('PipeQA', pqaVersion)
@@ -116,10 +119,10 @@ class QaAnalysisTask(pipeBase.Task):
             key = data._dataIdToString(dataId, defineFully=True)
             sqlCache = data.sqlCache['match'].get(key, "")
             if sqlCache:
-                self.testSets[tsId].addMetadata("SQL match", sqlCache)
+                self.testSets[tsId].addMetadata("SQL_match-"+ccdName, sqlCache)
             sqlCache = data.sqlCache['src'].get(key, "")
             if sqlCache:
-                self.testSets[tsId].addMetadata("SQL src" ,  sqlCache)
+                self.testSets[tsId].addMetadata("SQL_src-"+ccdName ,  sqlCache)
                 
         return self.testSets[tsId]
 

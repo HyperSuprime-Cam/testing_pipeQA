@@ -41,18 +41,28 @@ class QuickInfo(object):
 #
 #############################################################
 
-def main(rerun, visits, ccds, camera="suprimecam", testRegex=".*"):
+def main(rerun, visits, ccds, camera="suprimecam", testRegex=".*",
+         inputRoot=None, outputRoot=None, doCopy=False, doConvert=False):
 
     
 
     if camera == 'suprimecam':
-        root = os.path.join(os.getenv('SUPRIME_DATA_DIR'), "SUPA")
+        if inputRoot is None:
+            root = os.path.join(os.getenv('SUPRIME_DATA_DIR'), "SUPA")
+        else:
+            root = inputRoot
+        if outputRoot is None:
+            outputRoot = os.path.join(os.getenv('SUPRIME_DATA_DIR'), "SUPA", "rerun", rerun)
         calib = os.path.join(os.getenv('SUPRIME_DATA_DIR'), "SUPA", "CALIB")
-        butler = hscCamera.getButler('suprimecam', rerun=rerun, root=root)
+        butler = hscCamera.getButler('suprimecam', root=root, outputRoot=outputRoot)
         camInfo = pqa.SuprimecamCameraInfo(mit=False)
-    elif camera == 'hsc':
-        root = os.path.join(os.getenv('SUPRIME_DATA_DIR'), "HSC")
-        outputRoot = "/data/data2/Subaru/HSC/rerun/" +  rerun
+    elif camera in ['hsc', 'hscsim']:
+        if inputRoot is None:
+            root = os.path.join(os.getenv('SUPRIME_DATA_DIR'), "HSC")
+        else:
+            root = inputRoot
+        if outputRoot is None:
+            outputRoot = os.path.join(os.getenv('SUPRIME_DATA_DIR'), "HSC", "rerun", rerun)
         butler = dafPersist.ButlerFactory(mapper=hscSim.HscSimMapper(root=root, outputRoot=outputRoot)).create()
         camInfo = pqa.HscCameraInfo()
     else:
@@ -82,6 +92,8 @@ def main(rerun, visits, ccds, camera="suprimecam", testRegex=".*"):
         QuickInfo("plotEllipticityGrid", "elly.Grid"),
         QuickInfo("plotMagHist",         "magHist"),
         QuickInfo("plotSeeingRough",     "seeing.Rough"),
+        QuickInfo("plotPsfSrcGrid",      "psfCont.Src"),
+        QuickInfo("plotPsfModelGrid",    "psfCont.Model"),
         ]
     
     
@@ -103,7 +115,7 @@ def main(rerun, visits, ccds, camera="suprimecam", testRegex=".*"):
 
                 ####
                 # butler.get() fails without filter and pointing ... why?
-                dataId = {'visit': visit, 'ccd': ccd, 'filter':'W-S-I+', 'pointing' : 41}
+                dataId = {'visit': visit, 'ccd': ccd} #, 'filter':'W-S-I+', 'pointing' : 41}
                 #### 
 
                 
@@ -123,7 +135,7 @@ def main(rerun, visits, ccds, camera="suprimecam", testRegex=".*"):
                 figNames = butler.get(camel, dataId)
                 caption = "Figure " + f
                 if os.path.exists(figNames[0]):
-                    ts.addFigureFile(figNames[0], caption, areaLabel=areaLabel)
+                    ts.addFigureFile(figNames[0], caption, areaLabel=areaLabel, doCopy=doCopy, doConvert=doConvert)
                 else:
                     print "Warning: File does not exist ... "+ "\n".join(figNames)
 
@@ -165,10 +177,21 @@ if __name__ == '__main__':
                         help="Ccds to run.  Use colon to separate values.  Use dash to denote range.")
     parser.add_argument("-t", "--testRegex", default=".*",
                         help="regular expression to match tests to be run (default=%default)")
+    parser.add_argument("-o",  "--outputRoot", default=None, 
+                        help="outputRoot to butler, where qa plots to be collected are located. \
+                              e.g., /data/data2/Subaru/HSC/rerun/XXX. \
+                              If not specified, $SUPRIME_DATA_DIR/[HSC,SUPA]/rerun/$rerun will be used.")
+    parser.add_argument("-i",  "--inputRoot", default=None, 
+                        help="inputRoot to butler, where raw data are located. \
+                              e.g., /data/data1/Subaru/HSC. \
+                              If not specified, $SUPRIME_DATA_DIR/[HSC,SUPA] will be used.")
+    parser.add_argument("--do-copy", dest="doCopy", action="store_true", help="if set, make copies of files onto pipeQa's web direcotry ($WWW_ROOT/$WWW_RERUN) rather than making symlinks.")
+    parser.add_argument("--do-convert", dest="doConvert", action="store_true", help="if set, make thumbnail files by converting original png files. Otherwise, just use symlinks.")
+    
     args = parser.parse_args()
 
     visits = parseRange(args.visits)
     ccds   = parseRange(args.ccds)
     
-    main(args.rerun, visits, ccds, testRegex=args.testRegex, camera=args.camera)
-    
+    main(args.rerun, visits, ccds, testRegex=args.testRegex, camera=args.camera,
+         inputRoot=args.inputRoot, outputRoot=args.outputRoot, doCopy=args.doCopy, doConvert=args.doConvert)
