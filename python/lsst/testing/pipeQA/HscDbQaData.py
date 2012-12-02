@@ -257,6 +257,7 @@ class HscDbQaData(QaData):
                 isBad, isSat, isIntrp, isEdge, isNeg, \
                 isStar, refObjId, srcId = row[nDataId:nFields]
             mag = -2.5*numpy.log10(refflux)
+            
             ra = numpy.degrees(ra)
             dec = numpy.degrees(dec)
 
@@ -277,30 +278,6 @@ class HscDbQaData(QaData):
                 cat       = catObj.catalog
                 
                 matchListDict[key] = []
-
-                if False:
-                    refRaKey   = refCatObj.keyDict['Ra']
-                    refDecKey  = refCatObj.keyDict['Dec']
-                    refPsfKey  = refCatObj.keyDict['PsfFlux']
-                    refApKey   = refCatObj.keyDict['ApFlux']
-                    refModKey  = refCatObj.keyDict['ModelFlux']
-                    refInstKey = refCatObj.keyDict['InstFlux']
-
-                    psfKey     = catObj.keyDict['PsfFlux']
-                    apKey      = catObj.keyDict['ApFlux']
-                    modKey     = catObj.keyDict['ModelFlux']
-                    self.k_Inst    = catObj.keyDict['InstFlux']
-
-                    psfErrKey  = catObj.keyDict['PsfFluxErr']
-                    apErrKey   = catObj.keyDict['ApFluxErr']
-                    modErrKey  = catObj.keyDict['ModelFluxErr']
-                    instErrKey = catObj.keyDict['InstFluxErr']
-
-                    fPixInterpCenKey = catObj.keyDict['FlagPixInterpCen']
-                    fNegativeKey     = catObj.keyDict['FlagNegative']
-                    fPixEdgeKey      = catObj.keyDict['FlagPixEdge']
-                    fBadCentroidKey  = catObj.keyDict['FlagBadCentroid']
-                    fPixSaturCenKey  = catObj.keyDict['FlagPixSaturCen']
 
                     
             matchList = matchListDict[key]
@@ -341,10 +318,10 @@ class HscDbQaData(QaData):
                     if isinstance(value, str):
                         #print ord(value)
                         value = 1 if ord(value) else 0
-                    if keyName == 'Ra':
-                        value = numpy.degrees(value)
-                    if keyName == 'Dec':
-                        value = numpy.degrees(value)
+                    #if keyName == 'Ra':
+                    #    value = numpy.degrees(value)
+                    #if keyName == 'Dec':
+                    #    value = numpy.degrees(value)
                     #print keyName, value, type(value)
                     if value is None:
                         value = numpy.nan

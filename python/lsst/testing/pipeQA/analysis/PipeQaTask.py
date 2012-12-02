@@ -408,13 +408,13 @@ class PipeQaTask(pipeBase.Task):
                     ("timestamp", "dataId", "testname", "t-elapsed", "resident-memory-kb-Mb"))
         
         # Create progress tests for all visits
-        if len(groupTag) > 0:
-            groupTag = "."+groupTag
-        progset = pipeQA.TestSet(group="", label="ProgressReport"+groupTag, wwwCache=wwwCache)
-        for visit in visits:
-            progset.addTest(visit, 0, [0, 1], "Not started.  Last dataId: None")
+        if wwwCache:
+            if len(groupTag) > 0:
+                groupTag = "."+groupTag
+            progset = pipeQA.TestSet(group="", label="ProgressReport"+groupTag, wwwCache=wwwCache)
+            for visit in visits:
+                progset.addTest(visit, 0, [0, 1], "Not started.  Last dataId: None")
     
-        testset = pipeQA.TestSet(group="", label="QA-failures"+groupTag, wwwCache=wwwCache)
 
         for visit in visits:
             visit_t0 = time.time()
@@ -427,6 +427,11 @@ class PipeQaTask(pipeBase.Task):
             brokenDownDataIdList = data.breakDataId(dataIdVisit, breakBy)
 
             for thisDataId in brokenDownDataIdList:
+
+
+                raftName, ccdName = data.cameraInfo.getRaftAndSensorNames(thisDataId)
+                ccdName = data.cameraInfo.getDetectorName(raftName, ccdName)
+                testset = pipeQA.TestSet(group="", label="QA-failures"+groupTag, wwwCache=wwwCache, sqliteSuffix=ccdName)
 
                 for task in taskList:
     
@@ -489,9 +494,14 @@ class PipeQaTask(pipeBase.Task):
                 ccdName = ""
                 if thisDataId.has_key("ccd"):
                     ccdName = thisDataId[data.ccdConvention]
+
+                if wwwCache:
+                    progset.addTest(visit, 0, [1, 1], "Processing. Done %s%s." % (raftName,ccdName))
+                    testset.accrete()
+                    testset.updateCounts()
                     
-                progset.addTest(visit, 0, [1, 1], "Processing. Done %s%s." % (raftName,ccdName))
-            progset.addTest(visit, 1, [1, 1], "Done processing.")
+            if wwwCache:
+                progset.addTest(visit, 1, [1, 1], "Done processing.")
     
         useFp.close()
 
