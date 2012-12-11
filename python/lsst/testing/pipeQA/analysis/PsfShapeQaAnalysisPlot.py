@@ -52,6 +52,7 @@ def plot(data):
         dx    = numpy.array([0.0])
         dy    = numpy.array([0.0])
         color = numpy.array((0.0, 0.0, 0.0))
+        fwhm  = numpy.array([0.0])
 
     #xmax, ymax = x.max(), y.max()
     xlim = [xlo, xhi] #[0, 1024*int(xmax/1024.0 + 0.5)]
