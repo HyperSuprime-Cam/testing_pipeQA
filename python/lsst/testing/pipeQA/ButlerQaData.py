@@ -491,9 +491,9 @@ class ButlerQaData(QaData):
                     rec.setD(self.k_Inst,  float(s.getInstFlux())/fmag0)
 
                     # shapes
-#                    rec.setD(self.k_Ixx,   float(s.getIxx()))
-#                    rec.setD(self.k_Iyy,   float(s.getIyy()))
-#                    rec.setD(self.k_Ixy,   float(s.getIxy()))
+                    rec.setD(self.k_ixx,   float(s.getIxx()))
+                    rec.setD(self.k_iyy,   float(s.getIyy()))
+                    rec.setD(self.k_ixy,   float(s.getIxy()))
                     
                     # flags
                     rec.setI(self.k_intc, s.get('flags.pixel.interpolated.center'))
