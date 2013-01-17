@@ -313,10 +313,11 @@ class EmptySectorQaTask(QaAnalysisTask):
             else:
                 dataDict, isSummary = qaPlotUtil.unshelveGlob(cacheLabel+"-all.png", testSet=testSet)
                 dataDict['summary'] = True
-                dataDict['limits'] = dataDict['alllimits']                
-                fig = plotModule.plot(dataDict)                
-                testSet.addFigure(fig, pngFile, caption, areaLabel=label)
-                del fig
+                if 'x' in dataDict:
+                    dataDict['limits'] = dataDict['alllimits']
+                    fig = plotModule.plot(dataDict)                
+                    testSet.addFigure(fig, pngFile, caption, areaLabel=label)
+                    del fig
 
             self.combineOutputs(data, dataId)
 

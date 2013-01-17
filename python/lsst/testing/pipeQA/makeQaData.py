@@ -51,7 +51,8 @@ def makeQaData(label, rerun=None, retrievalType=None, camera=None, **kwargs):
             raise Exception("The label "+label+" is present as both a testbed directory and a database."\
                             "Please specify retrievalType='butler', or retrievalType='db'.")
         if not validDb and not validButler:
-            raise Exception("Unable to find "+label+" as a testbed directory or a database.")
+            print "Unable to find "+label+" as a testbed directory or a database."
+            raise
 
 
     print "RetrievalType=", retrievalType

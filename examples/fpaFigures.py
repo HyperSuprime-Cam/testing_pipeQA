@@ -33,7 +33,7 @@ def main():
     ts.addMetadata("keyname", "value")
 
     #cameraInfos = pipeQA.getCameraInfoAvailable()
-    cameraInfos = [pipeQA.HscCameraInfo(), pipeQA.LsstSimCameraInfo()]
+    cameraInfos = [pipeQA.HscCameraInfo(), pipeQA.SuprimecamCameraInfo()] #LsstSimCameraInfo()]
     for camInfo in cameraInfos:
         print "trying camera: ", camInfo.name
         sfig = qaFig.FpaQaFigure(camInfo)

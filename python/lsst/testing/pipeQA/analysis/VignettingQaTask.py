@@ -308,10 +308,11 @@ class VignettingQaTask(QaAnalysisTask):
                                       plotModule, areaLabel=label, plotargs="")
             else:
                 dataDict, isSummary = qaPlotUtil.unshelveGlob(cacheLabel+"-all.png", testSet=testSet)
-                dataDict['summary'] = True
-                fig = plotModule.plot(dataDict)                
-                testSet.addFigure(fig, pngFile, caption, areaLabel=label)
-                del fig
+                if 'dmags' in dataDict:
+                    dataDict['summary'] = True
+                    fig = plotModule.plot(dataDict)                
+                    testSet.addFigure(fig, pngFile, caption, areaLabel=label)
+                    del fig
 
 
             self.combineOutputs(data, dataId)

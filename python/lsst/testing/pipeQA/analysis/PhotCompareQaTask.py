@@ -674,11 +674,12 @@ class PhotCompareQaTask(QaAnalysisTask):
                                       masterToggle=masterToggle)
             else:
                 dataDict, isSummary = qaPlotUtil.unshelveGlob(figbase+"-all.png", testSet=testSet)
-                dataDict['mode'] = 'all'
-                dataDict['figType'] = 'summary'
-                fig = plotModule.plot(dataDict)                
-                testSet.addFigure(fig, pngFile, caption, areaLabel=label)
-                del fig
+                if 'x' in dataDict:
+                    dataDict['mode'] = 'all'
+                    dataDict['figType'] = 'summary'
+                    fig = plotModule.plot(dataDict)                
+                    testSet.addFigure(fig, pngFile, caption, areaLabel=label)
+                    del fig
 
             self.combineOutputs(data, dataId, label=self.testLabel)
             

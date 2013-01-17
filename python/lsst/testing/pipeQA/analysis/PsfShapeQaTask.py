@@ -361,12 +361,13 @@ class PsfShapeQaTask(QaAnalysisTask):
                                       plotModule, areaLabel=label, plotargs="")
             else:
                 dataDict, isSummary = qaPlotUtil.unshelveGlob(cacheLabel+"-all.png", testSet=testSet)
-                dataDict['summary'] = True
-                dataDict['vLen'] = 5.0*vLen
-                dataDict['limits'] = [xlo, xhi, ylo, yhi]
-                fig = plotModule.plot(dataDict)                
-                testSet.addFigure(fig, pngFile, caption, areaLabel=label)
-                del fig
+                if 'x' in dataDict:
+                    dataDict['summary'] = True
+                    dataDict['vLen'] = 5.0*vLen
+                    dataDict['limits'] = [xlo, xhi, ylo, yhi]
+                    fig = plotModule.plot(dataDict)                
+                    testSet.addFigure(fig, pngFile, caption, areaLabel=label)
+                    del fig
 
 
             self.combineOutputs(data, dataId)

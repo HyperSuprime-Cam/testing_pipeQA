@@ -497,11 +497,16 @@ class PipeQaTask(pipeBase.Task):
 
                 if wwwCache:
                     progset.addTest(visit, 0, [1, 1], "Processing. Done %s%s." % (raftName,ccdName))
-                    testset.accrete()
-                    testset.updateCounts()
+                    #testset.accrete()
+                    #testset.updateCounts()
                     
             if wwwCache:
                 progset.addTest(visit, 1, [1, 1], "Done processing.")
+                
+        if summaryProcessing in ['summOnly']:
+            ts = pipeQA.TestSet(group="", label="QA-failures"+groupTag, wwwCache=wwwCache, sqliteSuffix="")
+            ts.accrete()
+            ts.updateCounts()
     
         useFp.close()
 

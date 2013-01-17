@@ -286,9 +286,10 @@ class AstrometricErrorQaTask(QaAnalysisTask):
             else:
                 dataDict, isSummary = qaPlotUtil.unshelveGlob(cacheLabel+"-all.png", testSet=testSet)
                 dataDict['gridVectors'] = True
-                fig = plotModule.plot(dataDict)                
-                testSet.addFigure(fig, pngFile, caption, areaLabel=label)
-                del fig
+                if 'x' in dataDict:
+                    fig = plotModule.plot(dataDict)                
+                    testSet.addFigure(fig, pngFile, caption, areaLabel=label)
+                    del fig
 
             self.combineOutputs(data, dataId)
                     
