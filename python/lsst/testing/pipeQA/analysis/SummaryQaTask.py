@@ -14,6 +14,8 @@ import QaAnalysisUtils              as qaAnaUtil
 from   .QaAnalysisTask              import QaAnalysisTask
 import lsst.pex.config              as pexConfig
 
+import QaPlotUtils                  as qaPlotUtil
+
 
 
 class SummaryQaConfig(pexConfig.Config):
@@ -29,7 +31,34 @@ class SummaryQaTask(QaAnalysisTask):
     def __init__(self, **kwargs):
         QaAnalysisTask.__init__(self, **kwargs)
 
-        self.overscan_limits = [0.0, 2.0]
+        self.limits = {
+            'oslevel1'    : [100.0, 250.0],
+            'oslevel2'    : [100.0, 250.0],
+            'oslevel3'    : [100.0, 250.0],
+            'oslevel4'    : [100.0, 250.0],
+            'ossigma1'    : [1.0, 2.5],
+            'ossigma2'    : [1.0, 2.5],
+            'ossigma3'    : [1.0, 2.5],
+            'ossigma4'    : [1.0, 2.5],
+            'gain1'       : [2.0, 4.0],
+            'gain2'       : [2.0, 4.0],
+            'gain3'       : [2.0, 4.0],
+            'gain4'       : [2.0, 4.0],
+            'seeing'      : [0.0, 10.0],
+            'ellipt'      : [0.0, 0.12],
+            'ell_pa'      : [0.0, 360], 
+            'flatness_rms': [0.0, 1.0],
+            'flatness_pp' : [0.0, 1.0],
+            'skylevel'    : [1.0, 1.0e5],
+            'sigma_sky'   : [1.0, 1.0e3],
+            'ccdtemp'     : [100.0,200.0],
+            }
+        self.fromCalexp = ['ccdtemp']
+        
+
+
+
+        self.aggregate_limits = [0.0, len(self.limits.keys())]
         
         self.description = """
         The page summarizes observing parameters for a visit.
@@ -46,9 +75,20 @@ class SummaryQaTask(QaAnalysisTask):
         self.detector         = data.getDetectorBySensor(dataId)
         self.filter           = data.getFilterBySensor(dataId)
         self.summary          = data.getSummaryDataBySensor(dataId)
+        self.calexp           = data.getCalexpBySensor(dataId)
 
         # create containers for data we're interested in
-        self.overscan = raftCcdData.RaftCcdData(self.detector)
+        self.overscan     = raftCcdData.RaftCcdData(self.detector)
+        self.seeing       = raftCcdData.RaftCcdData(self.detector)
+        self.ellipt       = raftCcdData.RaftCcdData(self.detector)
+        self.ell_pa       = raftCcdData.RaftCcdData(self.detector)
+        self.flatness_rms = raftCcdData.RaftCcdData(self.detector)
+        self.flatness_pp  = raftCcdData.RaftCcdData(self.detector)
+        self.skylevel     = raftCcdData.RaftCcdData(self.detector)
+        self.sigma_sky    = raftCcdData.RaftCcdData(self.detector)
+        self.ccdtemp      = raftCcdData.RaftCcdData(self.detector)
+        
+        self.aggregate    = raftCcdData.RaftCcdData(self.detector)
         
         # create a testset
         testSet = self.getTestSet(data, dataId)
@@ -62,21 +102,35 @@ class SummaryQaTask(QaAnalysisTask):
         summaryBase = "summaryShelf"
         summDat = testSet.unshelve(summaryBase)
 
-            
-        for raft, ccd in self.overscan.raftCcdKeys():
-            
-            # add tests for acceptible numpy of empty sectors
+        key = None
+        for key in self.summary.keys():
+            raft = self.detector[key].getParent().getId().getName()
+            ccd  = self.detector[key].getId().getName()
+
+            aggregate = 0            
             areaLabel = data.cameraInfo.getDetectorName(raft, ccd)
 
-            oscan = 1.0
-            label = "overscan"
-            comment = "value of overscan"
-            test = testCode.Test(label, oscan, self.overscan_limits, comment, areaLabel=areaLabel)
-            testSet.addTest(test)
-            summDat[ccd] = oscan
-            self.overscan.set(raft, ccd, oscan)
+            for s in self.limits.keys():
+                if s.upper() in self.summary[key]:
+                    value = self.summary[key][s.upper()]
+                elif s in self.calexp[key]:
+                    value = self.calexp[key][s]
+                else:
+                    value = None
+                label = s.lower()
+                comment = s
+                test = testCode.Test(label, value, self.limits[s], comment, areaLabel=areaLabel)
+                testSet.addTest(test)
+                #summDat[ccd] = skylevel
+
+                # count failures to color code the ccd
+                if not test.evaluate():
+                    aggregate += 1 
+
+            self.aggregate.set(raft, ccd, aggregate)
 
         testSet.shelve(summaryBase, summDat)
+
 
 
     def plot(self, data, dataId, showUndefined=False):
@@ -103,8 +157,8 @@ class SummaryQaTask(QaAnalysisTask):
 
                     # set values for data[raft][ccd] (color coding)
                     # set values for map[raft][ccd]  (tooltip text)
-                    if not self.overscan.get(raft, ccd) is None:
-                        summ = self.overscan.get(raft, ccd)
+                    if not self.aggregate.get(raft, ccd) is None:
+                        summ = self.aggregate.get(raft, ccd)
                         summFig.data[raft][ccd] = summ
                         summFig.map[raft][ccd] = "%.1f" % (summ)
 
@@ -116,9 +170,9 @@ class SummaryQaTask(QaAnalysisTask):
             if not self.delaySummary or isFinalDataId:
                 self.log.log(self.log.INFO, "plotting FPAs")
                 summFig.makeFigure(showUndefined=showUndefined, cmap="gist_heat_r",
-                                      vlimits=self.overscan_limits, 
-                                      title="Overscan",
-                                      failLimits=self.overscan_limits)
+                                      vlimits=self.aggregate_limits, 
+                                      title="No. of Parameters outside Specified Range",
+                                      failLimits=self.aggregate_limits)
                 testSet.addFigure(summFig, summBase+".png",
                                   "summary", navMap=True)
                 del summFig
@@ -128,3 +182,58 @@ class SummaryQaTask(QaAnalysisTask):
 
 
 
+        if False:
+
+
+
+
+            cacheLabel = "metadata_sum" #cache
+            shelfData = {}
+
+            # make any individual (ie. per sensor) plots
+            for raft, ccd in self.sigma_sky.raftCcdKeys():
+
+                x = 2.0*numpy.pi*numpy.arange(100)/100
+                y = numpy.sin(x) + numpy.random.uniform(0.0, 10.0)
+
+                dataDict = {'x' : x, 'y': y,
+                            'summary' : False,
+                            }
+
+                self.log.log(self.log.INFO, "plotting %s" % (ccd))
+                import SummaryQaPlot as plotModule
+                label = data.cameraInfo.getDetectorName(raft, ccd)
+                caption = "Dummy metadata summary " + label
+                pngFile = cacheLabel+".png"
+
+                if self.lazyPlot.lower() in ['sensor', 'all']:
+                    testSet.addLazyFigure(dataDict, pngFile, caption,
+                                          plotModule, areaLabel=label, plotargs="")
+                else:
+                    testSet.cacheLazyData(dataDict, pngFile, areaLabel=label)
+                    fig = plotModule.plot(dataDict)
+                    testSet.addFigure(fig, pngFile, caption, areaLabel=label)
+                    del fig
+
+
+            if not self.delaySummary or isFinalDataId:
+                self.log.log(self.log.INFO, "plotting Summary figure")
+
+
+                import SummaryQaPlot as plotModule
+                label = 'all'
+                caption = "Dummy metadata summary "+label
+                pngFile = cacheLabel + ".png"
+
+                if self.lazyPlot in ['all']:
+                    testSet.addLazyFigure({}, pngFile, caption,
+                                          plotModule, areaLabel=label, plotargs="")
+                else:
+                    dataDict, isSummary = qaPlotUtil.unshelveGlob(cacheLabel+"-all.png", testSet=testSet)
+                    dataDict['summary'] = True
+                    fig = plotModule.plot(dataDict)                
+                    testSet.addFigure(fig, pngFile, caption, areaLabel=label)
+                    del fig
+
+
+            

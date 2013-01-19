@@ -1160,12 +1160,34 @@ class HscDbQaData(QaData):
         for dataId, ce in calexp.items():
             if not dataId in summary:
                 summary[dataId] = {}
-            summary[dataId]["DATE_OBS"] = ce['date_obs']
-            summary[dataId]["EXPTIME"]  = ce['exptime']
-            summary[dataId]['RA']       = ce['ra']
-            summary[dataId]['DEC']      = ce['decl']
-            summary[dataId]['ALT']      = "xx"
-            summary[dataId]['AZ']       = "xxx"
+            summary[dataId]["DATE_OBS"]     = ce['date_obs']
+            summary[dataId]["EXPTIME"]      = ce['exptime']
+            summary[dataId]['RA']           = ce['ra']
+            summary[dataId]['DEC']          = ce['decl']
+            summary[dataId]['ALT']          = ce['elevation']
+            summary[dataId]['AZ']           = ce['azimuth']
+            summary[dataId]["SKYLEVEL"]     = ce['skylevel']
+            summary[dataId]["ELLIPT"]       = ce['ellipt']
+            summary[dataId]["ELL_PA"]       = ce['ell_pa']
+            summary[dataId]["AIRMASS"]      = ce['airmass']
+            summary[dataId]["FLATNESS_RMS"] = ce['flatness_rms']
+            summary[dataId]["FLATNESS_PP"]  = ce['flatness_pp']
+            summary[dataId]["SIGMA_SKY"]    = ce['sigma_sky']
+            summary[dataId]["SEEING"]       = ce['seeing']
+            #summary[dataId]["OSLEVEL1"]     = ce['oslevel1']
+            #summary[dataId]["OSLEVEL2"]     = ce['oslevel2']
+            #summary[dataId]["OSLEVEL3"]     = ce['oslevel3']
+            #summary[dataId]["OSLEVEL4"]     = ce['oslevel4']
+            #summary[dataId]["OSSIGMA1"]     = ce['ossigma1']
+            #summary[dataId]["OSSIGMA2"]     = ce['ossigma2']
+            #summary[dataId]["OSSIGMA3"]     = ce['ossigma3']
+            #summary[dataId]["OSSIGMA4"]     = ce['ossigma4']
+            summary[dataId]["HST"]          = ce['hst']
+            summary[dataId]["INSROT"]       = ce['insrot']
+            summary[dataId]["PA"]           = ce['pa']            
+            summary[dataId]["MJD"]          = ce['mjd']
+            #summary[dataId][""] = ce['']
+            #summary[dataId][""] = ce['']
             
         return summary
 

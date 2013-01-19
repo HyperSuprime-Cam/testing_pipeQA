@@ -1,7 +1,8 @@
-import os
+import os, re
 import numpy
 import cPickle as pickle
 import eups
+import datetime
 
 import lsst.pex.config as pexConfig
 import lsst.pipe.base as pipeBase
@@ -54,6 +55,9 @@ class QaAnalysisTask(pipeBase.Task):
 
         dataIdStd = data.cameraInfo.dataIdCameraToStandard(dataId)
         group = dataIdStd['visit']
+
+        raftName, ccdName = data.cameraInfo.getRaftAndSensorNames(dataId)
+        ccdName = data.cameraInfo.getDetectorName(raftName, ccdName)
         
         filter = data.getFilterBySensor(dataId)
         # all sensors have the same filter, so just grab one
@@ -64,12 +68,27 @@ class QaAnalysisTask(pipeBase.Task):
 
         summaryInfo = data.getSummaryDataBySensor(dataId)[key]
 
-        dateObs = summaryInfo['DATE_OBS']
-        expTime = summaryInfo['EXPTIME']
-        raDec   = summaryInfo['RA'] + " " + summaryInfo['DEC']
-        altAz   = summaryInfo['ALT'] + " " + summaryInfo['AZ']
+        dateObs = summaryInfo.get('DATE_OBS', "unknown")
+        if dateObs:
+            dateObs = dateObs.strftime("%Y-%m-%d")
+        dateObs += ' (MJD: %.6f)' % (summaryInfo.get("MJD", 0.0))
         
+        expTime = summaryInfo.get('EXPTIME', 'unknown')
+        raDec   = summaryInfo.get('RA', 'unk') + " " + summaryInfo.get('DEC', 'unk')
+        alt = summaryInfo.get('ALT', None)
+        az  = str(summaryInfo.get('AZ', None))
+        if alt:
+            altAz   = str(alt) + " " + az + " (airmass: %.2f)" % (summaryInfo.get("AIRMASS", "unk"))
+        awbject = summaryInfo.get('OBJECT', None)
+        hst = summaryInfo.get("HST", None)
+        if hst:
+            hst = hst.strftime("%H:%M:%S")
+        else:
+            hst = 'unk'
         
+        insrot = summaryInfo.get("INSROT", 'unk')
+        #focusz = summaryInfo.get("FOCUSZ", 'unk')
+        inspa = summaryInfo.get("PA", 'unk')
 
         if not label is None:
             label = self.__class__.__name__ + "."+ label
@@ -88,10 +107,17 @@ class QaAnalysisTask(pipeBase.Task):
             self.testSets[tsId].addMetadata(tsIdLabel, tsId)
 
             self.testSets[tsId].addMetadata('DATE_OBS', dateObs)
+            self.testSets[tsId].addMetadata('HST', hst)
             self.testSets[tsId].addMetadata('EXPTIME', expTime)
             self.testSets[tsId].addMetadata('RaDec', raDec)
             self.testSets[tsId].addMetadata('AltAz', altAz)
-            
+            if awbject:
+                self.testSets[tsId].addMetadata('Object', awbject)
+            if insrot:
+                self.testSets[tsId].addMetadata('Inst.Rot.', insrot)
+            if inspa:
+                self.testSets[tsId].addMetadata('Inst.PA', inspa)
+                
 
             # version info
             pqaVersion = eups.getSetupVersion('testing_pipeQA')
@@ -106,9 +132,12 @@ class QaAnalysisTask(pipeBase.Task):
 
             key = data._dataIdToString(dataId, defineFully=True)
             sqlCache = data.sqlCache['match'].get(key, "")
-            self.testSets[tsId].addMetadata("SQL match", sqlCache)
+            if sqlCache:
+                self.testSets[tsId].addMetadata("SQL_match-"+ccdName, sqlCache)
             sqlCache = data.sqlCache['src'].get(key, "")
-            self.testSets[tsId].addMetadata("SQL src" ,  sqlCache)
+            if sqlCache:
+                self.testSets[tsId].addMetadata("SQL_src-"+ccdName ,  sqlCache)
+                
                 
         return self.testSets[tsId]
 
