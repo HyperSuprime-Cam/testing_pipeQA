@@ -1174,6 +1174,7 @@ class HscDbQaData(QaData):
             summary[dataId]["FLATNESS_PP"]  = ce['flatness_pp']
             summary[dataId]["SIGMA_SKY"]    = ce['sigma_sky']
             summary[dataId]["SEEING"]       = ce['seeing']
+            summary[dataId]['OBJECT']       = ce['object']
             #summary[dataId]["OSLEVEL1"]     = ce['oslevel1']
             #summary[dataId]["OSLEVEL2"]     = ce['oslevel2']
             #summary[dataId]["OSLEVEL3"]     = ce['oslevel3']
@@ -1186,6 +1187,8 @@ class HscDbQaData(QaData):
             summary[dataId]["INSROT"]       = ce['insrot']
             summary[dataId]["PA"]           = ce['pa']            
             summary[dataId]["MJD"]          = ce['mjd']
+            summary[dataId]["FOCUSZ"]       = ce['focusz']
+            summary[dataId]["ADCPOS"]       = ce['adcpos']
             #summary[dataId][""] = ce['']
             #summary[dataId][""] = ce['']
             
@@ -1212,8 +1215,12 @@ class HscDbQaData(QaData):
         selectList = ["sce."+x for x in qaDataUtils.getSceDbNames(sceDataIdNames)]
         selectStr = ", ".join(selectList)
 
+        # NOTE: HSC places focusz and adcpos in the Exposure table (not Frame)
+        # So, getSceFoo mechanism is augmented slightly here to get the extra two values
+
         sql  = 'select '+selectStr
-        sql += '  from frame_sup as sce'
+        sql += ', exp.focusz, exp.adcpos'
+        sql += '  from frame_sup as sce, exposure_sup as exp'
         sql += '  where '
 
         haveAllKeys = True
@@ -1228,7 +1235,9 @@ class HscDbQaData(QaData):
                 whereList.append(self._sqlLikeEqual(sqlName, dataIdRegex[key]))
             else:
                 haveAllKeys = False
+        sql += " (sce.exp_id = exp.exp_id) and "
         sql += " and ".join(whereList)
+
 
         # if there are no regexes (ie. actual wildcard expressions),
         #  we can check the cache, otherwise must run the query
@@ -1251,7 +1260,8 @@ class HscDbQaData(QaData):
 
         for row in results:
 
-            rowDict = dict(zip(qaDataUtils.getSceDbNames(sceDataIdNames), row))
+            rowNames = qaDataUtils.getSceDbNames(sceDataIdNames) + ('focusz', 'adcpos')
+            rowDict = dict(zip(rowNames, row))
 
             dataIdTmp = {}
             for idName, dbName in sceDataIdNames:

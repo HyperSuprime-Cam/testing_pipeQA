@@ -66,29 +66,41 @@ class QaAnalysisTask(pipeBase.Task):
         if not filter[key] is None:
             filterName = filter[key].getName()
 
+
+        ###########################################################
+        # collect specific pieces of metadata for the summary panel
         summaryInfo = data.getSummaryDataBySensor(dataId)[key]
 
-        dateObs = summaryInfo.get('DATE_OBS', "unknown")
+
+        # DATE_OBS
+        dateObs = summaryInfo.get('DATE_OBS', None)
         if dateObs:
             dateObs = dateObs.strftime("%Y-%m-%d")
+        else:
+            dateObs = 'unknown'
         dateObs += ' (MJD: %.6f)' % (summaryInfo.get("MJD", 0.0))
-        
-        expTime = summaryInfo.get('EXPTIME', 'unknown')
+
+        # RADEC
         raDec   = summaryInfo.get('RA', 'unk') + " " + summaryInfo.get('DEC', 'unk')
+
+        # ALTAZ
         alt = summaryInfo.get('ALT', None)
         az  = str(summaryInfo.get('AZ', None))
         if alt:
             altAz   = str(alt) + " " + az + " (airmass: %.2f)" % (summaryInfo.get("AIRMASS", "unk"))
-        awbject = summaryInfo.get('OBJECT', None)
+        else:
+            altAz = None
+
+        # HST
         hst = summaryInfo.get("HST", None)
         if hst:
             hst = hst.strftime("%H:%M:%S")
         else:
-            hst = 'unk'
-        
-        insrot = summaryInfo.get("INSROT", 'unk')
-        #focusz = summaryInfo.get("FOCUSZ", 'unk')
-        inspa = summaryInfo.get("PA", 'unk')
+            hst = None
+
+        # Misc. values (we won't list these unless they have a value)
+        getOrIgnoreList = 'OBJECT', "EXPTIME", 'INSROT', 'FOCUSZ', 'ADCPOS', 'PA'
+
 
         if not label is None:
             label = self.__class__.__name__ + "."+ label
@@ -106,18 +118,18 @@ class QaAnalysisTask(pipeBase.Task):
             self.testSets[tsId].addMetadata('dataset', data.getDataName())
             self.testSets[tsId].addMetadata(tsIdLabel, tsId)
 
+            # we'll always show these, even if showing 'None'
             self.testSets[tsId].addMetadata('DATE_OBS', dateObs)
-            self.testSets[tsId].addMetadata('HST', hst)
-            self.testSets[tsId].addMetadata('EXPTIME', expTime)
             self.testSets[tsId].addMetadata('RaDec', raDec)
             self.testSets[tsId].addMetadata('AltAz', altAz)
-            if awbject:
-                self.testSets[tsId].addMetadata('Object', awbject)
-            if insrot:
-                self.testSets[tsId].addMetadata('Inst.Rot.', insrot)
-            if inspa:
-                self.testSets[tsId].addMetadata('Inst.PA', inspa)
+
+            # only show these if we have them
+            for k in getOrIgnoreList:
+                v = summaryInfo.get(k, None)
+                if v:
+                    self.testSets[tsId].addMetadata(k, v)
                 
+
 
             # version info
             pqaVersion = eups.getSetupVersion('testing_pipeQA')

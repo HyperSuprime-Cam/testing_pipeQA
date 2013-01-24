@@ -166,6 +166,7 @@ class HscQaDataUtils(QaDataUtils):
             #['taiMjd',               'taiMjd'               ],
             ['date_obs',             'date_obs'             ],
             ['mjd',                  'mjd'                  ],
+            ['object',               'object'               ],
             #['obsStart',             'obsStart'             ],
             #['expMidpt',             'expMidpt'             ],
             ['expTime',              'exptime'              ],
