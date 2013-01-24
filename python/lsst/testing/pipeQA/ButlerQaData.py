@@ -612,7 +612,25 @@ class ButlerQaData(QaData):
 
 
 
-
+    def getSummaryDataBySensor(self, dataIdRegex):
+        """Get a dict of dict objects which contain specific summary data.
+        
+        @param dataIdRegex dataId dictionary with regular expressions to specify data to retrieve
+        """
+        calexp = self.getCalexpBySensor(dataIdRegex)
+        summary = {}
+        for dataId, ce in calexp.items():
+            if not dataId in summary:
+                summary[dataId] = {}
+            summary[dataId]["DATE_OBS"] = ce['DATA_OBS']
+            summary[dataId]["EXPTIME"]  = ce['EXPTIME']
+            summary[dataId]['RA']       = ce['RA']
+            summary[dataId]['DEC']      = ce['DEC']
+            summary[dataId]['ALT']      = "xx"
+            summary[dataId]['AZ']       = "xxx"
+            
+        return summary
+        
 
     def loadCalexp(self, dataIdRegex):
         """Load the calexp data for data matching dataIdRegex.
