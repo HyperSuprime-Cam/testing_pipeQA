@@ -1070,6 +1070,24 @@ class DbQaData(QaData):
         
         return copy.copy(self.brokenDataIdList)
 
+    def getSummaryDataBySensor(self, dataIdRegex):
+        """Get a dict of dict objects which contain specific summary data.
+        
+        @param dataIdRegex dataId dictionary with regular expressions to specify data to retrieve
+        """
+        calexp = self.getCalexpBySensor(dataIdRegex)
+        summary = {}
+        for dataId, ce in calexp.items():
+            if not dataId in summary:
+                summary[dataId] = {}
+            summary[dataId]["DATE_OBS"] = ce['expMidpt']
+            summary[dataId]["EXPTIME"]  = ce['expTime']
+            summary[dataId]['RA']       = ce['ra']
+            summary[dataId]['DEC']      = ce['decl']
+            summary[dataId]['ALT']      = "xx"
+            summary[dataId]['AZ']       = "xxx"
+            
+        return summary
 
 
     def loadCalexp(self, dataIdRegex):

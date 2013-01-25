@@ -603,6 +603,7 @@ class SdssCameraInfo(CameraInfo):
             mapper = obsSdss.SdssMapper
         except Exception, e:
             print "Failed to import lsst.obs.sdss", e
+            obsSdss = None
             mapper = None
 
         messingWithNames = True
@@ -612,7 +613,7 @@ class SdssCameraInfo(CameraInfo):
             dataInfo       = [['run', 1], ['band', 0], ['frame',1], ['camcol', 0]]
 
         #simdir        = eups.productDir("obs_subaru")
-        if os.environ.has_key('OBS_SDSS_DIR'):
+        if os.environ.has_key('OBS_SDSS_DIR') and obsSdss is not None:
             simdir         = os.environ['OBS_SDSS_DIR']
             #cameraGeomPaf = os.path.join(simdir, "sdss", "description", "Full_Suprimecam_geom.paf")
             #if not os.path.exists(cameraGeomPaf):

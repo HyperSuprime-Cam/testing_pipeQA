@@ -1,7 +1,8 @@
-import os
+import os, re
 import numpy
 import cPickle as pickle
 import eups
+import datetime
 
 import lsst.pex.config as pexConfig
 import lsst.pipe.base as pipeBase
@@ -72,16 +73,51 @@ class QaAnalysisTask(pipeBase.Task):
         dataIdStd = data.cameraInfo.dataIdCameraToStandard(dataId)
         group = dataIdStd['visit']
 
-
         raftName, ccdName = data.cameraInfo.getRaftAndSensorNames(dataId)
         ccdName = data.cameraInfo.getDetectorName(raftName, ccdName)
-            
+        
         filter = data.getFilterBySensor(dataId)
         # all sensors have the same filter, so just grab one
         key = filter.keys()[0]
         filterName = '?'
         if not filter[key] is None:
             filterName = filter[key].getName()
+
+
+        ###########################################################
+        # collect specific pieces of metadata for the summary panel
+        summaryInfo = data.getSummaryDataBySensor(dataId)[key]
+
+
+        # DATE_OBS
+        dateObs = summaryInfo.get('DATE_OBS', None)
+        if dateObs:
+            dateObs = dateObs.strftime("%Y-%m-%d")
+        else:
+            dateObs = 'unknown'
+        dateObs += ' (MJD: %.6f)' % (summaryInfo.get("MJD", 0.0))
+
+        # RADEC
+        raDec   = summaryInfo.get('RA', 'unk') + " " + summaryInfo.get('DEC', 'unk')
+
+        # ALTAZ
+        alt = summaryInfo.get('ALT', None)
+        az  = str(summaryInfo.get('AZ', None))
+        if alt:
+            altAz   = str(alt) + " " + az + " (airmass: %.2f)" % (summaryInfo.get("AIRMASS", "unk"))
+        else:
+            altAz = None
+
+        # HST
+        hst = summaryInfo.get("HST", None)
+        if hst:
+            hst = hst.strftime("%H:%M:%S")
+        else:
+            hst = None
+
+        # Misc. values (we won't list these unless they have a value)
+        getOrIgnoreList = 'OBJECT', "EXPTIME", 'INSROT', 'FOCUSZ', 'ADCPOS', 'PA'
+
 
         if not label is None:
             label = self.__class__.__name__ + "."+ label
@@ -105,7 +141,22 @@ class QaAnalysisTask(pipeBase.Task):
                                                    wwwCache=self.wwwCache, sqliteSuffix=sqliteSuffix)
             
             self.testSets[tsId].addMetadata('dataset', data.getDataName())
-            self.testSets[tsId].addMetadata(tsIdLabel, groupId)
+            self.testSets[tsId].addMetadata(tsIdLabel, tsId)
+
+            # we'll always show these, even if showing 'None'
+            self.testSets[tsId].addMetadata('DATE_OBS', dateObs)
+            self.testSets[tsId].addMetadata('RaDec', raDec)
+            self.testSets[tsId].addMetadata('AltAz', altAz)
+
+            # only show these if we have them
+            for k in getOrIgnoreList:
+                v = summaryInfo.get(k, None)
+                if v:
+                    self.testSets[tsId].addMetadata(k, v)
+                
+
+
+            # version info
             pqaVersion = eups.getSetupVersion('testing_pipeQA')
             dqaVersion = eups.getSetupVersion('testing_displayQA')
             self.testSets[tsId].addMetadata('PipeQA', pqaVersion)

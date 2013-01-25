@@ -300,11 +300,11 @@ class ButlerQaData(QaData):
                         s.setD(self.k_Ap,   sIn.getApFlux())
                         s.setD(self.k_Mod,  sIn.getModelFlux())
                         s.setD(self.k_Inst, sIn.getInstFlux())
-                        s.setD(self.k_intc, sIn.get('flags.pixel.interpolated.center'))
-                        s.setD(self.k_neg,  sIn.get('flags.negative'))
-                        s.setD(self.k_edg,  sIn.get('flags.pixel.edge'))
-                        s.setD(self.k_bad,  sIn.get('flags.badcentroid'))
-                        s.setD(self.k_satc, sIn.get('flags.pixel.saturated.center'))
+                        s.setI(self.k_intc, sIn.get('flags.pixel.interpolated.center'))
+                        s.setI(self.k_neg,  sIn.get('flags.negative'))
+                        s.setI(self.k_edg,  sIn.get('flags.pixel.edge'))
+                        s.setI(self.k_bad,  sIn.get('flags.badcentroid'))
+                        s.setI(self.k_satc, sIn.get('flags.pixel.saturated.center'))
                         s.setD(self.k_ext,  sIn.get('classification.extendedness'))
 
                         fmag0, fmag0Err = calib.getFluxMag0()
@@ -491,9 +491,9 @@ class ButlerQaData(QaData):
                     rec.setD(self.k_Inst,  float(s.getInstFlux())/fmag0)
 
                     # shapes
-                    rec.setD(self.k_Ixx,   float(s.getIxx()))
-                    rec.setD(self.k_Iyy,   float(s.getIyy()))
-                    rec.setD(self.k_Ixy,   float(s.getIxy()))
+                    rec.setD(self.k_ixx,   float(s.getIxx()))
+                    rec.setD(self.k_iyy,   float(s.getIyy()))
+                    rec.setD(self.k_ixy,   float(s.getIxy()))
                     
                     # flags
                     rec.setI(self.k_intc, s.get('flags.pixel.interpolated.center'))
@@ -501,7 +501,7 @@ class ButlerQaData(QaData):
                     rec.setI(self.k_edg,  s.get('flags.pixel.edge'))
                     rec.setI(self.k_bad,  s.get('flags.badcentroid'))
                     rec.setI(self.k_satc, s.get('flags.pixel.saturated.center'))
-                    rec.setI(self.k_ext,  s.get('classification.extendedness'))
+                    rec.setD(self.k_ext,  s.get('classification.extendedness'))
                     
                     
                     # flux errors
@@ -612,7 +612,25 @@ class ButlerQaData(QaData):
 
 
 
-
+    def getSummaryDataBySensor(self, dataIdRegex):
+        """Get a dict of dict objects which contain specific summary data.
+        
+        @param dataIdRegex dataId dictionary with regular expressions to specify data to retrieve
+        """
+        calexp = self.getCalexpBySensor(dataIdRegex)
+        summary = {}
+        for dataId, ce in calexp.items():
+            if not dataId in summary:
+                summary[dataId] = {}
+            summary[dataId]["DATE_OBS"] = ce['DATA_OBS']
+            summary[dataId]["EXPTIME"]  = ce['EXPTIME']
+            summary[dataId]['RA']       = ce['RA']
+            summary[dataId]['DEC']      = ce['DEC']
+            summary[dataId]['ALT']      = "xx"
+            summary[dataId]['AZ']       = "xxx"
+            
+        return summary
+        
 
     def loadCalexp(self, dataIdRegex):
         """Load the calexp data for data matching dataIdRegex.

@@ -1146,6 +1146,50 @@ class HscDbQaData(QaData):
         return copy.copy(self.brokenDataIdList)
 
 
+    def getSummaryDataBySensor(self, dataIdRegex):
+        """Get a dict of dict objects which contain specific summary data.
+        
+        @param dataIdRegex dataId dictionary with regular expressions to specify data to retrieve
+        """
+        calexp = self.getCalexpBySensor(dataIdRegex)
+        summary = {}
+        for dataId, ce in calexp.items():
+            if not dataId in summary:
+                summary[dataId] = {}
+            summary[dataId]["DATE_OBS"]     = ce['date_obs']
+            summary[dataId]["EXPTIME"]      = ce['exptime']
+            summary[dataId]['RA']           = ce['ra']
+            summary[dataId]['DEC']          = ce['decl']
+            summary[dataId]['ALT']          = ce['elevation']
+            summary[dataId]['AZ']           = ce['azimuth']
+            summary[dataId]["SKYLEVEL"]     = ce['skylevel']
+            summary[dataId]["ELLIPT"]       = ce['ellipt']
+            summary[dataId]["ELL_PA"]       = ce['ell_pa']
+            summary[dataId]["AIRMASS"]      = ce['airmass']
+            summary[dataId]["FLATNESS_RMS"] = ce['flatness_rms']
+            summary[dataId]["FLATNESS_PP"]  = ce['flatness_pp']
+            summary[dataId]["SIGMA_SKY"]    = ce['sigma_sky']
+            summary[dataId]["SEEING"]       = ce['seeing']
+            summary[dataId]['OBJECT']       = ce['object']
+            #summary[dataId]["OSLEVEL1"]     = ce['oslevel1']
+            #summary[dataId]["OSLEVEL2"]     = ce['oslevel2']
+            #summary[dataId]["OSLEVEL3"]     = ce['oslevel3']
+            #summary[dataId]["OSLEVEL4"]     = ce['oslevel4']
+            #summary[dataId]["OSSIGMA1"]     = ce['ossigma1']
+            #summary[dataId]["OSSIGMA2"]     = ce['ossigma2']
+            #summary[dataId]["OSSIGMA3"]     = ce['ossigma3']
+            #summary[dataId]["OSSIGMA4"]     = ce['ossigma4']
+            summary[dataId]["HST"]          = ce['hst']
+            summary[dataId]["INSROT"]       = ce['insrot']
+            summary[dataId]["PA"]           = ce['pa']            
+            summary[dataId]["MJD"]          = ce['mjd']
+            summary[dataId]["FOCUSZ"]       = ce['focusz']
+            summary[dataId]["ADCPOS"]       = ce['adcpos']
+            #summary[dataId][""] = ce['']
+            #summary[dataId][""] = ce['']
+            
+        return summary
+
 
     def loadCalexp(self, dataIdRegex):
         """Load the calexp data for data matching dataIdRegex.
@@ -1167,9 +1211,14 @@ class HscDbQaData(QaData):
         selectList = ["sce."+x for x in qaDataUtils.getSceDbNames(sceDataIdNames)]
         selectStr = ", ".join(selectList)
 
+        # NOTE: HSC places focusz and adcpos in the Exposure table (not Frame)
+        # So, getSceFoo mechanism is augmented slightly here to get the extra two values
+        
         ftab = 'frame' + self.tableSuffix
+        etab = 'exposure' + self.tableSuffix
         sql  = 'select '+selectStr
-        sql += '  from '+ftab+' as sce'
+        sql += ', exp.focusz, exp.adcpos'
+        sql += '  from '+ftab+' as sce, '+etab+' as exp'
         sql += '  where '
 
         haveAllKeys = True
@@ -1184,7 +1233,9 @@ class HscDbQaData(QaData):
                 whereList.append(self._sqlLikeEqual(sqlName, dataIdRegex[key]))
             else:
                 haveAllKeys = False
+        sql += " (sce.exp_id = exp.exp_id) and "
         sql += " and ".join(whereList)
+
 
         # if there are no regexes (ie. actual wildcard expressions),
         #  we can check the cache, otherwise must run the query
@@ -1207,7 +1258,8 @@ class HscDbQaData(QaData):
 
         for row in results:
 
-            rowDict = dict(zip(qaDataUtils.getSceDbNames(sceDataIdNames), row))
+            rowNames = qaDataUtils.getSceDbNames(sceDataIdNames) + ('focusz', 'adcpos')
+            rowDict = dict(zip(rowNames, row))
 
             dataIdTmp = {}
             for idName, dbName in sceDataIdNames:
@@ -1258,7 +1310,7 @@ class HscDbQaData(QaData):
                 
                 calib.setFluxMag0(fmag0, fmag0Err)
                 self.calibCache[key] = calib
-
+                
             self.calexpCache[key] = rowDict
             self.calexpQueryCache[key] = True
 
