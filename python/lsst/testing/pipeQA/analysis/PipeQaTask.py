@@ -415,6 +415,10 @@ class PipeQaTask(pipeBase.Task):
             #  ... if we only run one raft or ccd at a time, we use less memory
             brokenDownDataIdList = data.breakDataId(dataIdVisit, breakBy)
 
+            #if this is a summary only run, shortcircuit to the last ccd
+            if summaryProcessing in ['summOnly']:
+                brokenDownDataIdList = [brokenDownDataIdList[-1]]
+
             for thisDataId in brokenDownDataIdList:
 
 
