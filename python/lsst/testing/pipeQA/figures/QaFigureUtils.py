@@ -21,8 +21,8 @@ def cameraToRectangles(camera):
         raft = cameraGeom.cast_Raft(r)
 
         # NOTE: all ccd coords are w.r.t. the *center* of the raft, not its LLC
-        rxc     = raft.getCenterPixel().getX()
-        ryc     = raft.getCenterPixel().getY()
+        rc     = raft.getCenter().getPixels(raft.getPixelSize())
+        rxc, ryc = rc.getX(), rc.getY()
 
         xmin = +1e10
         ymin = +1e10
@@ -32,8 +32,8 @@ def cameraToRectangles(camera):
             ccd   = cameraGeom.cast_Ccd(c)
             label = ccd.getId().getName()
 
-            cxc     = ccd.getCenterPixel().getX()
-            cyc     = ccd.getCenterPixel().getY()
+            cc       = ccd.getCenter().getPixels(ccd.getPixelSize())
+            cxc, cyc = cc.getX(), cc.getY()
             orient  = ccd.getOrientation()
             nQuart  = ccd.getOrientation().getNQuarter()
             yaw     = orient.getYaw()
