@@ -1183,8 +1183,8 @@ class HscDbQaData(QaData):
             summary[dataId]["INSROT"]       = ce['insrot']
             summary[dataId]["PA"]           = ce['pa']            
             summary[dataId]["MJD"]          = ce['mjd']
-            summary[dataId]["FOCUSZ"]       = ce['focusz']
-            summary[dataId]["ADCPOS"]       = ce['adcpos']
+            summary[dataId]["FOCUSZ"]       = ce.get('focusz', 0.0)
+            summary[dataId]["ADCPOS"]       = ce.get('adcpos', 0.0)
             #summary[dataId][""] = ce['']
             #summary[dataId][""] = ce['']
             
@@ -1213,12 +1213,19 @@ class HscDbQaData(QaData):
 
         # NOTE: HSC places focusz and adcpos in the Exposure table (not Frame)
         # So, getSceFoo mechanism is augmented slightly here to get the extra two values
+
+        # Seems the exp table isn't loading properly, so I'll disable it
+        # temporarily here until it's working again.
+        haveExpTable = False
         
         ftab = 'frame' + self.tableSuffix
         etab = 'exposure' + self.tableSuffix
         sql  = 'select '+selectStr
-        sql += ', exp.focusz, exp.adcpos'
-        sql += '  from '+ftab+' as sce, '+etab+' as exp'
+        if haveExpTable:
+            sql += ', exp.focusz, exp.adcpos'
+        sql += '  from '+ftab+' as sce'
+        if haveExpTable:
+            sql += ', '+etab+' as exp'
         sql += '  where '
 
         haveAllKeys = True
@@ -1233,7 +1240,8 @@ class HscDbQaData(QaData):
                 whereList.append(self._sqlLikeEqual(sqlName, dataIdRegex[key]))
             else:
                 haveAllKeys = False
-        sql += " (sce.exp_id = exp.exp_id) and "
+        if haveExpTable:
+            sql += " (sce.exp_id = exp.exp_id) and "
         sql += " and ".join(whereList)
 
 
@@ -1258,7 +1266,9 @@ class HscDbQaData(QaData):
 
         for row in results:
 
-            rowNames = qaDataUtils.getSceDbNames(sceDataIdNames) + ('focusz', 'adcpos')
+            rowNames = qaDataUtils.getSceDbNames(sceDataIdNames)
+            if haveExpTable:
+                rowNames += ('focusz', 'adcpos')
             rowDict = dict(zip(rowNames, row))
 
             dataIdTmp = {}
