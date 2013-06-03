@@ -14,7 +14,6 @@ from lsst.pex.logging          import Trace
 from .ZeropointFitQaTask       import ZeropointFitQaTask
 from .EmptySectorQaTask        import EmptySectorQaTask
 from .AstrometricErrorQaTask   import AstrometricErrorQaTask
-from .PerformanceQaTask        import PerformanceQaTask
 from .PhotCompareQaTask        import PhotCompareQaTask
 from .PsfShapeQaTask           import PsfShapeQaTask
 from .CompletenessQaTask       import CompletenessQaTask
@@ -35,8 +34,6 @@ class PipeQaConfig(pexConfig.Config):
     doAstromQa      = pexConfig.Field(dtype = bool,
                                       doc = "Astrometric Error: qaAnalysis.AstrometricErrorQaTask",
                                       default = True)
-    doPerformanceQa = pexConfig.Field(dtype = bool,
-                                      doc = "Performance: qaAnalysis.PerformanceQaTask", default = True)
     doPhotCompareQa = pexConfig.Field(dtype = bool,
                                       doc = "Photometric Error: qaAnalysis.PhotCompareQaTask", default = True)
     doPsfShapeQa    = pexConfig.Field(dtype = bool,
@@ -62,8 +59,6 @@ class PipeQaConfig(pexConfig.Config):
                                                   doc = "Look for missing matches")
     astromQa        = pexConfig.ConfigurableField(target = AstrometricErrorQaTask,
                                                   doc = "Quality of astrometric fit")
-    performanceQa   = pexConfig.ConfigurableField(target = PerformanceQaTask,
-                                                  doc = "Performance")
     photCompareQa   = pexConfig.ConfigurableField(target = PhotCompareQaTask,
                                                   doc = "Quality of photometry")
     psfShapeQa      = pexConfig.ConfigurableField(target = PsfShapeQaTask,
@@ -114,8 +109,6 @@ class PipeQaTask(pipeBase.Task):
                             help="Specify a camera and override auto-detection (default=%(default)s)")
         parser.add_argument("-c", "--ccd", default=".*",
                             help="Specify ccd as regex (default=%(default)s)")
-        parser.add_argument("-d", "--delaySummary", default=False, action="store_true",
-                            help="Delay summary figures until all ccds are finished (default=%(default)s)")
         parser.add_argument("-e", "--exceptExit", default=False, action='store_true',
                             help="Don't capture exceptions, fail and exit (default=%(default)s)")
         parser.add_argument("-f", "--forkFigure", default=False, action='store_true',
@@ -263,8 +256,6 @@ class PipeQaTask(pipeBase.Task):
         lazyPlot     = parsedCmd.lazyPlot
         verbosity    = parsedCmd.verbosity
 
-        if parsedCmd.delaySummary:
-            summaryProcessing = "delay"
         summOpts = ["delay", "none", "summOnly"]
         if not summaryProcessing in summOpts:
             raise ValueError("summaryProcessing must be: "+", ".join(summOpts))
@@ -374,13 +365,6 @@ class PipeQaTask(pipeBase.Task):
                                          lazyPlot=lazyPlot)
                 taskList.append(stask)
                 
-
-        # the performance task should run last as it summarizes performance of all tasks
-        if self.config.doPerformanceQa:
-            performTask = self.makeSubtask("performanceQa", useCache=keep, wwwCache=wwwCache,
-                                           summaryProcessing=summaryProcessing, lazyPlot=lazyPlot)
-            taskList.append(performTask)
-                
                 
         # Split by visit, and handle specific requests
         visitsTmp = data.getVisits(dataId)
@@ -411,10 +395,6 @@ class PipeQaTask(pipeBase.Task):
                              (nvisit, groupSize, whichGroup, lo, hi-1, "\n".join(visits)))
             groupTag = "%02d-%02d" % (groupSize, whichGroup)
     
-    
-        useFp = open("runtimePerformance%s.dat" % (groupTag), 'w')
-        useFp.write("#%-11s %-24s %-32s %10s  %16s\n" %
-                    ("timestamp", "dataId", "testname", "t-elapsed", "resident-memory-kb-Mb"))
         
         # Create progress tests for all visits
         if wwwCache:
@@ -446,7 +426,7 @@ class PipeQaTask(pipeBase.Task):
     
                     test_t0 = time.time()
                     test = str(task)
-                    if not re.search(testRegex, test) and not re.search('performance', test):
+                    if not re.search(testRegex, test):
                         continue
     
                     date = datetime.datetime.now().strftime("%a %Y-%m-%d %H:%M:%S")
@@ -461,7 +441,7 @@ class PipeQaTask(pipeBase.Task):
                     t0 = time.time()
                     if summaryProcessing in ['delay', 'none']:
                         self.runSubtask(task.test, data, thisDataId, visit, test, testset, exceptExit)
-                    data.cachePerformance(thisDataId, test, "test-runtime", time.time() - t0)
+
 
                     t0 = time.time()
                     if forkFigure:
@@ -476,25 +456,15 @@ class PipeQaTask(pipeBase.Task):
                     else:
                         # try the plot() method
                         self.runSubtask(task.plot, data, thisDataId, visit, test, testset, exceptExit)
-                        
-                    data.cachePerformance(thisDataId, test, "plot-runtime", time.time() - t0)
+
                     
                     # try the free() method
                     # test() method only ran for 'delay' and 'none'.  Only then is there stuff to free
                     if summaryProcessing in ['delay', 'none']:
                         self.runSubtask(task.free, data, thisDataId, visit, test, testset, exceptExit)
     
-    
-                    memory = self._getMemUsageThisPid()
-                    test_tf = time.time()
-                    tstamp = time.mktime(datetime.datetime.now().timetuple())
-                    idstamp = ""
-                    for k,v in thisDataId.items():
-                        idstamp += k[0]+str(v)
-                    useFp.write("%-12.1f %-24s %-32s %9.2fs %7d %7.2f\n" %
-                                (tstamp, idstamp, test, test_tf-test_t0, memory, memory/1024.0))
-                    useFp.flush()
-    
+
+                        
                 # we're now done this dataId ... can clear the cache            
                 data.clearCache()
                 raftName = ""
@@ -516,8 +486,7 @@ class PipeQaTask(pipeBase.Task):
             ts = pipeQA.TestSet(group="", label="QA-failures"+groupTag, wwwCache=wwwCache, sqliteSuffix="")
             ts.accrete()
             ts.updateCounts()
-    
-        useFp.close()
+
 
         self.log.log(self.log.INFO, "PipeQA End")
         return pipeBase.Struct()
