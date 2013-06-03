@@ -192,7 +192,7 @@ class HscDbQaData(QaData):
         result = self.dbInterface.execute(sql)
         filterName = result[0]
 
-        arcsecErr = 1.0/206265.0
+        arcsecErr = 1.0/3600.0
 
 
         flagBad   = "s.flag_badctd"
@@ -208,7 +208,7 @@ class HscDbQaData(QaData):
         
         if True:
             sql  = 'select '+','.join(zip(*sceNames)[1])+', m.ref_flux, '
-            sql += 'm.ref_ra2000, m.ref_dec2000, m.ra2000, m.dec2000, '
+            sql += 'degrees(m.ref_ra2000), degrees(m.ref_dec2000), m.ra2000, m.dec2000, '
             sql += ", ".join([flagBad,flagSat,flagIntrp,flagEdge,flagNeg]) + ", "
             sql += 'm.classification_extendedness, m.ref_id, m.obj_id, '
             sql += selectStr
@@ -258,9 +258,6 @@ class HscDbQaData(QaData):
                 isStar, refObjId, srcId = row[nDataId:nFields]
             mag = -2.5*numpy.log10(refflux)
             
-            ra = numpy.degrees(ra)
-            dec = numpy.degrees(dec)
-
             nMatches = 1
             dataIdTmp = {}
             for j in range(nDataId):
