@@ -40,9 +40,16 @@ def makeQaData(label, rerun=None, retrievalType=None, camera=None, **kwargs):
             else:
                 from DatabaseQuery import LsstSimDbInterface, DatabaseIdentity
                 dbInterface = LsstSimDbInterface(DatabaseIdentity(label))
+
+        # database not found will throw this error
+        except OperationalError, e:
+            validDb = False
+            
+        # raise other exceptions (like if we forgot to setup mysqlclient pyscopg2
         except Exception, e:
             validDb = False
 
+            
         if validButler and not validDb:
             retrievalType = 'butler'
         if validDb and not validButler:
