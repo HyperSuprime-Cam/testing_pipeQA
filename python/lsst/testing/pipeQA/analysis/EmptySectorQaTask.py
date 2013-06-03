@@ -125,9 +125,11 @@ class EmptySectorQaTask(QaAnalysisTask):
             def countEmptySectors(x, y):
                 counts = numpy.zeros([self.nx, self.ny])
                 for i in range(len(x)):
-                    xi, yi = int(self.nx*x[i]/xwid), int(self.ny*y[i]/ywid)
-                    if xi >= 0 and xi < self.nx and yi >= 0 and yi < self.ny:
-                        counts[xi,yi] += 1
+                    # nan check
+                    if x[i] == x[i] and y[i] == y[i]:
+                        xi, yi = int(self.nx*x[i]/xwid), int(self.ny*y[i]/ywid)
+                        if xi >= 0 and xi < self.nx and yi >= 0 and yi < self.ny:
+                            counts[xi,yi] += 1
                 whereEmpty = numpy.where(counts.flatten() == 0)[0]
                 nEmpty = len(whereEmpty)
                 return nEmpty
