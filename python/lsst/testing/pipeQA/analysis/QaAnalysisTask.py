@@ -93,10 +93,11 @@ class QaAnalysisTask(pipeBase.Task):
 
         # DATE_OBS
         dateObs = summaryInfo.get('DATE_OBS', None)
-        if dateObs:
-            dateObs = dateObs.strftime("%Y-%m-%d")
-        else:
+        if dateObs is None:
             dateObs = 'unknown'
+        else:
+            dateObs = dateObs.strftime("%Y-%m-%d")
+
         dateObs += ' (MJD: %.6f)' % (summaryInfo.get("MJD", 0.0))
 
         # RADEC
@@ -106,7 +107,7 @@ class QaAnalysisTask(pipeBase.Task):
         alt = summaryInfo.get('ALT', None)
         az  = str(summaryInfo.get('AZ', None))
         if alt:
-            altAz   = str(alt) + " " + az + " (airmass: %.2f)" % (summaryInfo.get("AIRMASS", "unk"))
+            altAz   = str(alt) + " " + az + " (airmass: %.2f)" % (summaryInfo.get("AIRMASS", 0.0))
         else:
             altAz = None
 

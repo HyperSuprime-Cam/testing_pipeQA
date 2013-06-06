@@ -289,6 +289,7 @@ class PipeQaTask(pipeBase.Task):
     
         data = pipeQA.makeQaData(dataset, rerun=rerun, camera=camera,
                                  shapeAlg = self.config.shapeAlgorithm,
+                                 retrievalType='butler',
                                  useForced=useForced, coaddTable=coaddTable)
     
         if data.cameraInfo.name == 'lsstSim' and  dataIdInput.has_key('ccd'):
@@ -436,7 +437,7 @@ class PipeQaTask(pipeBase.Task):
                     date = datetime.datetime.now().strftime("%a %Y-%m-%d %H:%M:%S")
                     visitLog = str(visit)
                     if breakBy.lower() == 'ccd':
-                        visitLog += " ccd:" + thisDataId['ccd']
+                        visitLog += " ccd:" + str(thisDataId['ccd'])
                     self.log.log(self.log.INFO, "Running " + test + "  visit:" + visitLog + "  ("+date+")")
                     sys.stdout.flush() # clear the buffer before the fork
     
@@ -473,10 +474,10 @@ class PipeQaTask(pipeBase.Task):
                 data.clearCache()
                 raftName = ""
                 if thisDataId.has_key('raft'):
-                    raftName = thisDataId['raft']+"-"
+                    raftName = str(thisDataId['raft'])+"-"
                 ccdName = ""
                 if thisDataId.has_key("ccd"):
-                    ccdName = thisDataId[data.ccdConvention]
+                    ccdName = str(thisDataId[data.ccdConvention])
 
                 if wwwCache:
                     progset.addTest(visit, 0, [1, 1], "Processing. Done %s%s." % (raftName,ccdName))

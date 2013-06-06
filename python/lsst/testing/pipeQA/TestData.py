@@ -34,6 +34,9 @@ class TestData(object):
         astrometryNetData = eups package name for astrometryNetData package to use
         """
 
+        # poison this and see if it ever fires
+        raise RuntimeError, "I think this code is deprecated.  If you see this ... I am wrong!"
+        
         ###############################################
         # handle inputs
         ###############################################

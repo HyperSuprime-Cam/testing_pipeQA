@@ -49,11 +49,12 @@ def makeQaData(label, rerun=None, retrievalType=None, camera=None, **kwargs):
         except Exception, e:
             validDb = False
 
-            
-        if validButler and not validDb:
-            retrievalType = 'butler'
-        if validDb and not validButler:
-            retrievalType = 'db'
+
+        if not retrievalType:
+            if validButler and not validDb:
+                retrievalType = 'butler'
+            if validDb and not validButler:
+                retrievalType = 'db'
         if validDb and validButler:
             raise Exception("The label "+label+" is present as both a testbed directory and a database."\
                             "Please specify retrievalType='butler', or retrievalType='db'.")
@@ -65,11 +66,11 @@ def makeQaData(label, rerun=None, retrievalType=None, camera=None, **kwargs):
     print "RetrievalType=", retrievalType
     print "camera=", camera
     
-    if re.search("^[Bb]utler$", retrievalType):
+    if retrievalType.lower() == "butler":
         from ButlerQaData  import makeButlerQaData
         return makeButlerQaData(label, rerun, camera=camera, **kwargs)
     
-    if re.search("^([Dd][Bb]|[Dd]atabase)$", retrievalType):
+    if retrievalType.lower() in ['db', 'database']:
 
 
         import CameraInfo as qaCamInfo
