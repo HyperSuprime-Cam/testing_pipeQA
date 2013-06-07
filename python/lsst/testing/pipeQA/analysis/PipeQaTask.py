@@ -109,6 +109,9 @@ class PipeQaTask(pipeBase.Task):
                             help="Specify a camera and override auto-detection (default=%(default)s)")
         parser.add_argument("-c", "--ccd", default=".*",
                             help="Specify ccd as regex (default=%(default)s)")
+        parser.add_argument("-d", "--dataSource", default="db",
+                            help="Specify the source of data to load",
+                            choices=('butler', 'db'))
         parser.add_argument("-e", "--exceptExit", default=False, action='store_true',
                             help="Don't capture exceptions, fail and exit (default=%(default)s)")
         parser.add_argument("-f", "--forkFigure", default=False, action='store_true',
@@ -245,6 +248,7 @@ class PipeQaTask(pipeBase.Task):
         exceptExit   = parsedCmd.exceptExit
         testRegex    = parsedCmd.test
         camera       = parsedCmd.camera
+        retrievalType = parsedCmd.dataSource
         keep         = parsedCmd.keep
         breakBy      = parsedCmd.breakBy
         groupInfo    = parsedCmd.group
@@ -289,7 +293,7 @@ class PipeQaTask(pipeBase.Task):
     
         data = pipeQA.makeQaData(dataset, rerun=rerun, camera=camera,
                                  shapeAlg = self.config.shapeAlgorithm,
-                                 retrievalType='butler',
+                                 retrievalType=retrievalType,
                                  useForced=useForced, coaddTable=coaddTable)
     
         if data.cameraInfo.name == 'lsstSim' and  dataIdInput.has_key('ccd'):
