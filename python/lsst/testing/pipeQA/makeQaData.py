@@ -78,7 +78,7 @@ def makeQaData(label, rerun=None, retrievalType=None, camera=None, **kwargs):
     #       "cfht": qaCamInfo.CfhtCameraInfo(), # XXX CFHT camera geometry is currently broken following #1767
             "hsc"            : [qaCamInfo.HscCameraInfo, []],
             "suprimecam"     : [qaCamInfo.SuprimecamCameraInfo, []],
-            "suprimecam-old" : [qaCamInfo.SuprimecamCameraInfo, [True]],
+            "suprimecam-mit" : [qaCamInfo.SuprimecamCameraInfo, [True]],
             "sdss"           : [qaCamInfo.SdssCameraInfo, []],
             "coadd"          : [qaCamInfo.CoaddCameraInfo, []],
             "lsstSim"        : [qaCamInfo.LsstSimCameraInfo, []],
@@ -94,7 +94,7 @@ def makeQaData(label, rerun=None, retrievalType=None, camera=None, **kwargs):
             cameraToUse = cam(*args)
             camera = 'lsstSim'
             
-        if re.search("^(hsc|suprimecam|suprimecam-old)$", camera):
+        if re.search("^(hsc|suprimecam|suprimecam-mit)$", camera):
             from HscDbQaData      import HscDbQaData
             return HscDbQaData(label, rerun, cameraToUse)
         else:
