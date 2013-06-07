@@ -70,8 +70,6 @@ class QaAnalysisTask(pipeBase.Task):
         @param label   a label for particular TestSet
         """
 
-        dbname = data.label
-        
         dataIdStd = data.cameraInfo.dataIdCameraToStandard(dataId)
         group = dataIdStd['visit']
 
@@ -134,15 +132,14 @@ class QaAnalysisTask(pipeBase.Task):
             tsId = group
 
         if noSuffix:
-            return testCode.TestSet(label, group=groupId, clean=self.clean, wwwCache=self.wwwCache, sqliteSuffix="", dbname=dbname)
+            return testCode.TestSet(label, group=groupId, clean=self.clean, wwwCache=self.wwwCache, sqliteSuffix="")
         else:
             sqliteSuffix = ccdName
 
             
         if not self.testSets.has_key(tsId):
             self.testSets[tsId] = testCode.TestSet(label, group=groupId, clean=self.clean,
-                                                   wwwCache=self.wwwCache, sqliteSuffix=sqliteSuffix,
-                                                   dbname=dbname)
+                                                   wwwCache=self.wwwCache, sqliteSuffix=sqliteSuffix)
             
             self.testSets[tsId].addMetadata('dataset', data.getDataName())
             self.testSets[tsId].addMetadata(tsIdLabel, tsId)
