@@ -42,8 +42,8 @@ def makeQaData(label, rerun=None, retrievalType=None, camera=None, **kwargs):
                 dbInterface = LsstSimDbInterface(DatabaseIdentity(label))
 
         # database not found will throw this error
-        except OperationalError, e:
-            validDb = False
+        #except OperationalError, e:
+        #    validDb = False
             
         # raise other exceptions (like if we forgot to setup mysqlclient pyscopg2
         except Exception, e:
