@@ -41,29 +41,16 @@ class QuickInfo(object):
 #
 #############################################################
 
-def main(rerun, visits, ccds, camera="suprimecam", testRegex=".*",
-         inputRoot=None, outputRoot=None, doCopy=False, doConvert=False):
+def main(root, rerun, visits, ccds, camera="hsc", testRegex=".*",
+         doCopy=False, doConvert=False):
 
-    
-
+    datadir = os.path.join(root, rerun)
+    if not os.path.exists(datadir):
+        raise RuntimeError("Data directory does not exist:" + datadir)
+    butler = dafPersist.Butler(datadir)
     if camera == 'suprimecam':
-        if inputRoot is None:
-            root = os.path.join(os.getenv('SUPRIME_DATA_DIR'), "SUPA")
-        else:
-            root = inputRoot
-        if outputRoot is None:
-            outputRoot = os.path.join(os.getenv('SUPRIME_DATA_DIR'), "SUPA", "rerun", rerun)
-        calib = os.path.join(os.getenv('SUPRIME_DATA_DIR'), "SUPA", "CALIB")
-        butler = hscCamera.getButler('suprimecam', root=root, outputRoot=outputRoot)
         camInfo = pqa.SuprimecamCameraInfo(mit=False)
     elif camera in ['hsc', 'hscsim']:
-        if inputRoot is None:
-            root = os.path.join(os.getenv('SUPRIME_DATA_DIR'), "HSC")
-        else:
-            root = inputRoot
-        if outputRoot is None:
-            outputRoot = os.path.join(os.getenv('SUPRIME_DATA_DIR'), "HSC", "rerun", rerun)
-        butler = dafPersist.ButlerFactory(mapper=hscSim.HscSimMapper(root=root, outputRoot=outputRoot)).create()
         camInfo = pqa.HscCameraInfo()
     else:
         raise ValueError, "Unknown camera."
@@ -169,22 +156,15 @@ def parseRange(s):
         
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("rerun", help="Rerun for the data to be run.")
+    parser.add_argument("root",   help="Data root directory.")
+    parser.add_argument("rerun",  help="Rerun for the data to be run.")
     parser.add_argument("visits", help="Visits to run.  Use colon to separate values.  Use dash to denote range.")
-    parser.add_argument("-C",  "--camera", default="suprimecam",
-                        help="Specify camera (default=%default)")
+    parser.add_argument("-C",  "--camera", default="hsc",
+                        help="Specify camera")
     parser.add_argument("-c",  "--ccds", default="0-9",
                         help="Ccds to run.  Use colon to separate values.  Use dash to denote range.")
     parser.add_argument("-t", "--testRegex", default=".*",
-                        help="regular expression to match tests to be run (default=%default)")
-    parser.add_argument("-o",  "--outputRoot", default=None, 
-                        help="outputRoot to butler, where qa plots to be collected are located. \
-                              e.g., /data/data2/Subaru/HSC/rerun/XXX. \
-                              If not specified, $SUPRIME_DATA_DIR/[HSC,SUPA]/rerun/$rerun will be used.")
-    parser.add_argument("-i",  "--inputRoot", default=None, 
-                        help="inputRoot to butler, where raw data are located. \
-                              e.g., /data/data1/Subaru/HSC. \
-                              If not specified, $SUPRIME_DATA_DIR/[HSC,SUPA] will be used.")
+                        help="regular expression to match tests to be run")
     parser.add_argument("--do-copy", dest="doCopy", action="store_true", help="if set, make copies of files onto pipeQa's web direcotry ($WWW_ROOT/$WWW_RERUN) rather than making symlinks.")
     parser.add_argument("--do-convert", dest="doConvert", action="store_true", help="if set, make thumbnail files by converting original png files. Otherwise, just use symlinks.")
     
@@ -193,5 +173,5 @@ if __name__ == '__main__':
     visits = parseRange(args.visits)
     ccds   = parseRange(args.ccds)
     
-    main(args.rerun, visits, ccds, testRegex=args.testRegex, camera=args.camera,
-         inputRoot=args.inputRoot, outputRoot=args.outputRoot, doCopy=args.doCopy, doConvert=args.doConvert)
+    main(args.root, args.rerun, visits, ccds, testRegex=args.testRegex, camera=args.camera,
+         doCopy=args.doCopy, doConvert=args.doConvert)
