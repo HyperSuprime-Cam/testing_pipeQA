@@ -423,11 +423,12 @@ class SuprimecamCameraInfo(CameraInfo):
             }
 
     def getRaftAndSensorNames(self, dataId):
-        #names = ['Sheeta', 'Ponyo', "Nausicaa", 'Satsuki', 'Chihiro', 'Kiki', 'Clarisse', 'Sophie', 'Fio', 'San']
-        #names = ["Nausicaa",  'Kiki',    'Fio',      'Sophie', 'Sheeta',
-        #         'Satsuki',   'Chihiro', 'Clarisse', 'Ponyo',  'San']
-        names = ['w4c5',      'si006s',  'w7c3',     'w9c2',   'w67c1',
-                 'si002s',    'w93c2',   'si001s',   'si005s',  'w6c1']
+        if self.mit:
+            names = ['w4c5',      'si006s',  'w7c3',     'w9c2',   'w67c1',
+                     'si002s',    'w93c2',   'si001s',   'si005s',  'w6c1']
+        else:
+            names = ["Nausicaa",  'Kiki',    'Fio',      'Sophie', 'Sheeta',
+                     'Satsuki',   'Chihiro', 'Clarisse', 'Ponyo',  'San']
         ccdName = None
         if dataId.has_key('ccd'):
             dataIdUse = dataId['ccd']
