@@ -142,7 +142,7 @@ class QaAnalysisTask(pipeBase.Task):
                                                    wwwCache=self.wwwCache, sqliteSuffix=sqliteSuffix)
             
             self.testSets[tsId].addMetadata('dataset', data.getDataName())
-            self.testSets[tsId].addMetadata(tsIdLabel, tsId)
+            self.testSets[tsId].addMetadata(tsIdLabel, groupId)
 
             # we'll always show these, even if showing 'None'
             self.testSets[tsId].addMetadata('DATE_OBS', dateObs)
