@@ -401,14 +401,6 @@ class PipeQaTask(pipeBase.Task):
             groupTag = "%02d-%02d" % (groupSize, whichGroup)
     
         
-        # Create progress tests for all visits
-        if wwwCache:
-            if len(groupTag) > 0:
-                groupTag = "."+groupTag
-            progset = pipeQA.TestSet(group="", label="ProgressReport"+groupTag, wwwCache=wwwCache)
-            for visit in visits:
-                progset.addTest(visit, 0, [0, 1], "Not started.  Last dataId: None")
-    
 
         for visit in visits:
             visit_t0 = time.time()
@@ -483,13 +475,6 @@ class PipeQaTask(pipeBase.Task):
                 if thisDataId.has_key("ccd"):
                     ccdName = str(thisDataId[data.ccdConvention])
 
-                if wwwCache:
-                    progset.addTest(visit, 0, [1, 1], "Processing. Done %s%s." % (raftName,ccdName))
-                    #testset.accrete()
-                    #testset.updateCounts()
-                    
-            if wwwCache:
-                progset.addTest(visit, 1, [1, 1], "Done processing.")
                 
         if summaryProcessing in ['summOnly']:
             ts = pipeQA.TestSet(group="", label="QA-failures"+groupTag, wwwCache=wwwCache, sqliteSuffix="")
