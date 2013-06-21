@@ -202,11 +202,11 @@ class HscDbQaData(QaData):
         arcsecErr = 1.0/3600.0
 
 
-        flagBad   = "s.flag_badctd"
-        flagSat   = "s.flag_pixsttctr"
-        flagIntrp = "s.flag_pixiplctr"
-        flagEdge  = "s.flag_pixedg"
-        flagNeg   = "s.flag_neg"
+        flagBad   = "s.flag_flags_badcentroid"
+        flagSat   = "s.flag_flags_pixel_saturated_center"
+        flagIntrp = "s.flag_flags_pixel_interpolated_center"
+        flagEdge  = "s.flag_flags_pixel_edge"
+        flagNeg   = "s.flag_flags_negative"
 
 
         slist = 'frame_sourcelist' + self.tableSuffix
@@ -215,12 +215,12 @@ class HscDbQaData(QaData):
         
         if True:
             sql  = 'select '+','.join(zip(*sceNames)[1])+', m.ref_flux, '
-            sql += 'degrees(m.ref_ra2000), degrees(m.ref_dec2000), m.ra2000, m.dec2000, '
+            sql += 'm.ref_ra2000, m.ref_dec2000, m.ra2000, m.dec2000, '
             sql += ", ".join([flagBad,flagSat,flagIntrp,flagEdge,flagNeg]) + ", "
-            sql += 'm.classification_extendedness, m.ref_id, m.obj_id, '
+            sql += 'm.classification_extendedness, m.ref_id, m.id, '
             sql += selectStr
             sql += '  from '+slist+' as s, '+ftab+' as sce, '+mlist+' as m'
-            #sql += '  where (sce.frame_id = m.frame_id) and (s.obj_id = m.obj_id) '
+            #sql += '  where (sce.frame_id = m.frame_id) and (s.id = m.id) '
             sql += '  where (sce.frame_id = m.frame_id) and '
             sql += '        (sce.frame_id = s.frame_id) and '
             sql += '        (abs(s.ra2000 - m.ra2000) < '+str(arcsecErr)+") and "
@@ -505,7 +505,7 @@ class HscDbQaData(QaData):
         slist = 'frame_sourcelist' + self.tableSuffix
         ftab = 'frame' + self.tableSuffix
         
-        sql  = 'select '+", ".join(zip(*sceNames)[1])+',s.obj_id,'+selectStr
+        sql  = 'select '+", ".join(zip(*sceNames)[1])+',s.id,'+selectStr
         sql += '  from '+slist+' as s, '+ftab+' as sce'
         sql += '  where (s.frame_id = sce.frame_id)'
         haveAllKeys = True
