@@ -187,8 +187,15 @@ class ButlerQaData(QaData):
             self.brokenDataIdList.append(dataIdDict[key])
         
         return copy.copy(self.brokenDataIdList)
-    
 
+    
+    def verify(self, dataId):
+        # just load the calexp, you'll need it anyway
+        self.loadCalexp(dataId)
+        key = self._dataIdToString(dataId, defineFully=True)
+        haveIt = True if key in self.calexpQueryCache else False
+        return haveIt
+    
     def getMatchListBySensor(self, dataIdRegex, useRef=None):
         """Get a dict of all SourceMatches matching dataId, with sensor name as dict keys.
 

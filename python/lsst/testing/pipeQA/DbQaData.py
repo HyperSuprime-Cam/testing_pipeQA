@@ -176,6 +176,16 @@ class DbQaData(QaData):
             val = numpy.NaN 
         return val
 
+    
+    def verify(self, dataId):
+        # NOT YET TESTED WITH LSST DATA
+        # just load the calexp, you'll need it anyway
+        self.loadCalexp(dataId)
+        key = self._dataIdToString(dataId, defineFully=True)
+        haveIt = True if key in self.calexpQueryCache else False
+        return haveIt
+
+    
     def getMatchListBySensor(self, dataIdRegex, useRef='src'):
         """Get a dict of all SourceMatches matching dataId, with sensor name as dict keys.
 

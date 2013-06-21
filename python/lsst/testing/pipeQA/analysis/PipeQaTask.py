@@ -418,7 +418,11 @@ class PipeQaTask(pipeBase.Task):
 
             for thisDataId in brokenDownDataIdList:
 
-
+                haveIt = data.verify(thisDataId)
+                if not haveIt:
+                    self.log.log(self.log.WARN, "Missing dataId="+str(thisDataId))
+                    continue
+                
                 raftName, ccdName = data.cameraInfo.getRaftAndSensorNames(thisDataId)
                 ccdName = data.cameraInfo.getDetectorName(raftName, ccdName)
                 testset = pipeQA.TestSet(group="", label="QA-failures"+groupTag, wwwCache=wwwCache, sqliteSuffix=ccdName)
