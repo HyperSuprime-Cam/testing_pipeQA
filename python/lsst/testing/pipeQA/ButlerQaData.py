@@ -468,8 +468,8 @@ class ButlerQaData(QaData):
                     rec = cat.addNew()
                     rec.setId(s.getId())
 
-                    rec.setD(self.k_Ra,    float(s.getRa()))
-                    rec.setD(self.k_Dec,   float(s.getDec()))
+                    rec.setD(self.k_Ra,    float(s.getRa().asDegrees()))
+                    rec.setD(self.k_Dec,   float(s.getDec().asDegrees()))
                     rec.setD(self.k_x,     float(s.getX())) #Astrom()))
                     rec.setD(self.k_y,     float(s.getY())) #Astrom()))
                     
