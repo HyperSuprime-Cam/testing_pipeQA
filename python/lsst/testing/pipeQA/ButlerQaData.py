@@ -51,9 +51,6 @@ class ButlerQaData(QaData):
         @param rerun The rerun to retrieve
         @param cameraInfo A cameraInfo object describing the camera for these data
         @param dataDir The full path to the directory containing the data registry file.
-        
-        @param haveManifest verify files in dataDir are present according to manifest
-        @param verifyChecksum verify files in dataDir have correct checksum as listed in manifest
         """
         
         QaData.__init__(self, label, rerun, cameraInfo, qaDataUtils)
