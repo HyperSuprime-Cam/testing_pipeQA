@@ -1,6 +1,7 @@
 import sys, os, re
 
 from  QaDataUtils import QaDataUtils
+import CameraInfo as qaCamInfo
 
 
 ###################################################
@@ -14,12 +15,10 @@ def makeQaData(label, rerun=None, retrievalType=None, camera=None, **kwargs):
     @param retrievalType 'butler', 'db', or None (will search first for butler, then database)
     @param camera        Specify which camera is to be used
     """
-
+    
     print "RetrievalType=", retrievalType
     print "camera=", camera
 
-
-    import CameraInfo as qaCamInfo
     cameraInfos = {
         # "cfht": qaCamInfo.CfhtCameraInfo(), # CFHT camera geometry broken following #1767
         "hsc"            : [qaCamInfo.HscCameraInfo,        []],
