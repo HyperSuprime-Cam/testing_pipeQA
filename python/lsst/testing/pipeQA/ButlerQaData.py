@@ -255,7 +255,7 @@ class ButlerQaData(QaData):
                 fmag0, fmag0err = calib.getFluxMag0()
                 for m in matches:
                     srefIn, sIn, dist = m
-                    if ((not srefIn is None) and (not sIn is None)):
+                    if ((srefIn is not None) and (sIn is not None)):
 
                         if not matchListDict.has_key(dataKey):
                             refCatObj = pqaSource.RefCatalog()
