@@ -611,10 +611,11 @@ class ButlerQaData(QaData):
         for dataId, ce in calexp.items():
             if not dataId in summary:
                 summary[dataId] = {}
-            summary[dataId]["DATE_OBS"] = datetime.datetime.strptime(ce['DATE-OBS'], "%Y-%m-%d")
-            summary[dataId]["EXPTIME"]  = ce['EXPTIME']
-            summary[dataId]['RA']       = ce['RA']
-            summary[dataId]['DEC']      = ce['DEC']
+            if ce is not None:
+                summary[dataId]["DATE_OBS"] = datetime.datetime.strptime(ce['DATE-OBS'], "%Y-%m-%d") or 'xx-xx-xx'
+                summary[dataId]["EXPTIME"]  = ce['EXPTIME'] or 0.0
+                summary[dataId]['RA']       = ce['RA']      or 0.0
+                summary[dataId]['DEC']      = ce['DEC']     or 0.0
             summary[dataId]['ALT']      = "xx"
             summary[dataId]['AZ']       = "xxx"
             
