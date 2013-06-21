@@ -51,6 +51,7 @@ def makeQaData(label, rerun=None, retrievalType=None, camera=None, **kwargs):
     # make a butler QaData
     if retrievalType.lower() == "butler":
         
+        qaDataUtils = QaDataUtils()
         testbedDir, testdataDir = qaDataUtils.findDataInTestbed(label)
         from ButlerQaData  import ButlerQaData
         print "label:       ", label
