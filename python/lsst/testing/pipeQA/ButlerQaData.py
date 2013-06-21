@@ -102,6 +102,8 @@ class ButlerQaData(QaData):
         # availableDataTuples may be a *very* *large* list.  Be sure to call reduceAvailableDataTupleList
         self.dataTuples = self.availableDataTuples
 
+        self.alreadyTriedCalexp = set()
+        
         
     def reduceAvailableDataTupleList(self, dataIdRegexDict):
         """Reduce availableDataTupleList by keeping only dataIds that match the input regex."""
@@ -627,12 +629,13 @@ class ButlerQaData(QaData):
         
         dataTuplesToFetch = self._regexMatchDataIds(dataIdRegex, self.dataTuples)
 
+        
         # get the datasets corresponding to the request
         for dataTuple in dataTuplesToFetch:
             dataId = self._dataTupleToDataId(dataTuple)
             dataKey = self._dataTupleToString(dataTuple)
 
-            if self.calexpCache.has_key(dataKey):
+            if self.calexpCache.has_key(dataKey) or (dataKey in self.alreadyTriedCalexp):
                 continue
 
             self.printStartLoad("Loading Calexp for: " + dataKey + "...")
@@ -707,7 +710,7 @@ class ButlerQaData(QaData):
                 calibFilename = self.butler.get('calexp_filename', dataId)
                 print "\nSkipping " + str(dataTuple) + ". Calib output file missing:"
                 print "   "+str(calibFilename)
-                
+                self.alreadyTriedCalexp.add(dataKey)
 
             self.printStopLoad()
             
