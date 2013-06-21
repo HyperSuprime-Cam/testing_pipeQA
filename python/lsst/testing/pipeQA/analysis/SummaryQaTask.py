@@ -104,6 +104,8 @@ class SummaryQaTask(QaAnalysisTask):
 
         key = None
         for key in self.summary.keys():
+            if self.detector[key] is None:
+                continue
             raft = self.detector[key].getParent().getId().getName()
             ccd  = self.detector[key].getId().getName()
 
