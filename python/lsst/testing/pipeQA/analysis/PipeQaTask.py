@@ -156,7 +156,8 @@ class PipeQaTask(pipeBase.Task):
                             help="Disable caching of pass/fail (needed to run in parallel) (default=%(default)s)")
 
         # and add in ability to override config
-        parser.set_defaults(config = self.ConfigClass()) 
+        config = self.ConfigClass()
+        parser.set_defaults(config = config)
         parser.add_argument("--config", nargs="*", action=pipeBase.argumentParser.ConfigValueAction,
                             help="config override(s), e.g. -c foo=newfoo bar.baz=3", metavar="NAME=VALUE")
 
