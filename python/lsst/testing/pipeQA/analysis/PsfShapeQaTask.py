@@ -90,7 +90,16 @@ class PsfShapeQaTask(QaAnalysisTask):
 
             fwhmByKey[key] = 0.0
 
-            fwhmTmp = 0.0
+            mags = []
+            for s in ss:
+                flux = s.getD(data.k_Psf)
+                if numpy.isfinite(flux) and not s.getD(data.k_ext):
+                    m = -2.5*numpy.log10(flux)
+                    mags.append(m)
+            mag_med = numpy.median(mags)
+
+            
+            fwhmTmp = []
             for s in ss:
                 ixx = s.getD(data.k_ixx)
                 iyy = s.getD(data.k_iyy)
@@ -122,18 +131,17 @@ class PsfShapeQaTask(QaAnalysisTask):
                 mag = 99.0
                 if flux > 0:
                     mag = -2.5*numpy.log10(s.getD(data.k_Psf))
-                if numpy.isfinite(ellip) and numpy.isfinite(theta) and isStar and mag < 20:
+                if numpy.isfinite(ellip) and numpy.isfinite(theta) and isStar and mag < mag_med:
                     self.ellip.append(raft, ccd, ellip)
                     self.theta.append(raft, ccd, theta)
                     self.x.append(raft, ccd,   s.getD(data.k_x))
                     self.y.append(raft, ccd,   s.getD(data.k_y))
                     self.ra.append(raft, ccd,  s.getD(data.k_Ra))
                     self.dec.append(raft, ccd, s.getD(data.k_Dec))
-                    fwhmTmp += sigmaToFwhm*numpy.sqrt(0.5*(a2 + b2))
+                    fwhmTmp.append( sigmaToFwhm*numpy.sqrt(0.5*(a2 + b2)))
 
-            nFwhm = len(self.x.get(raft,ccd))
-            if nFwhm:
-                fwhmByKey[key] = fwhmTmp/nFwhm
+            if len(fwhmTmp):
+                fwhmByKey[key] = numpy.mean(fwhmTmp)
             else:
                 fwhmByKey[key] = 0.0
                 
@@ -181,8 +189,7 @@ class PsfShapeQaTask(QaAnalysisTask):
                 continue
 
             wcs = self.wcs[key]
-            fwhmTmp = float(fwhmByKey[key]*wcs.pixelScale().asArcseconds()) #item['fwhm']
-            #print fwhmTmp, item['fwhm'], type(fwhmTmp), type(item['fwhm'])
+            fwhmTmp = float(fwhmByKey[key]*wcs.pixelScale().asArcseconds())
             self.fwhm.set(raft, ccd, fwhmTmp)
             areaLabel = data.cameraInfo.getDetectorName(raft, ccd)
             label = "psf fwhm (arcsec) "

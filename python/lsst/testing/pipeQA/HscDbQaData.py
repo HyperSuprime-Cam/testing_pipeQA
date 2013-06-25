@@ -1289,15 +1289,14 @@ class HscDbQaData(QaData):
                 crval = afwCoord.Coord(afwGeom.PointD(rowDict['crval1'], rowDict['crval2']))
                 crpix = afwGeom.PointD(rowDict['crpix1'], rowDict['crpix2'])
                 cd11, cd12, cd21, cd22 = rowDict['cd1_1'], rowDict['cd1_2'], rowDict['cd2_1'], rowDict['cd2_2']
-                wcs = afwImage.makeWcs(crval, crpix, cd11, cd12, cd21, cd22)
-                self.wcsCache[key] = wcs
 
             else:
                 cd11, cd12, cd21, cd22 = 1.0, 0.0, 0.0, 1.0
                 crval = afwCoord.Coord(afwGeom.PointD(0.0, 0.0))
                 crpix = afwGeom.PointD(0.0, 0.0)
-                wcs = afwImage.makeWcs(crval, crpix, cd11, cd12, cd21, cd22)
-                self.wcsCache[key] = wcs
+                
+            wcs = afwImage.makeWcs(crval, crpix, cd11, cd12, cd21, cd22)
+            self.wcsCache[key] = wcs
 
             if not self.detectorCache.has_key(key):
                 raftName, ccdName = self.cameraInfo.getRaftAndSensorNames(dataIdTmp)
