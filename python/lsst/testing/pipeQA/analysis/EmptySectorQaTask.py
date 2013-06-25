@@ -247,17 +247,24 @@ class EmptySectorQaTask(QaAnalysisTask):
         if self.summaryProcessing != self.summOpt['summOnly']:
             
             xlo, xhi, ylo, yhi = 1.e10, -1.e10, 1.e10, -1.e10
-            for raft,ccd in data.cameraInfo.raftCcdKeys:
-                if data.cameraInfo.name == 'coadd':
+            if data.cameraInfo.name == 'coadd':
+                for raft,ccd in data.cameraInfo.raftCcdKeys:
                     xtmp, ytmp = self.x.get(raft, ccd), self.y.get(raft, ccd)
                     xxlo, yylo, xxhi, yyhi = xtmp.min(), ytmp.min(), xtmp.max(), ytmp.max()
-                else:
-                    xxlo, yylo, xxhi, yyhi = data.cameraInfo.getBbox(raft, ccd)
                 if xxlo < xlo: xlo = xxlo
                 if xxhi > xhi: xhi = xxhi
                 if yylo < ylo: ylo = yylo
                 if yyhi > yhi: yhi = yyhi
 
+                    
+            else:
+                allpix = data.cameraInfo.camera.getAllPixels()
+                xlo = -0.5*(allpix.getMaxX() - allpix.getMinX())
+                xhi = -xlo
+                ylo = -0.5*(allpix.getMaxY() - allpix.getMinY())
+                yhi = -ylo
+            
+            
             # make any individual (ie. per sensor) plots
             for raft, ccd in self.emptySectors.raftCcdKeys():
 

@@ -229,12 +229,14 @@ class CameraInfo(object):
         if self.rafts.has_key(raftName):
             raft = self.rafts[raftName]
             # NOTE: all ccd coords are w.r.t. the *center* of the raft, not its LLC
-            rxc     = raft.getCenterPixel().getX()
-            ryc     = raft.getCenterPixel().getY()
+            rc   = raft.getCenter().getPixels(raft.getPixelSize())
+            rxc     = rc.getX()
+            ryc     = rc.getY()
 
         ccd   = self.sensors[ccdName]
-        cxc     = ccd.getCenterPixel().getX()
-        cyc     = ccd.getCenterPixel().getY()
+        cc    = ccd.getCenter().getPixels(ccd.getPixelSize())
+        cxc     = cc.getX()
+        cyc     = cc.getY()
         orient  = ccd.getOrientation()
         nQuart  = ccd.getOrientation().getNQuarter()
         yaw     = orient.getYaw()
@@ -252,7 +254,8 @@ class CameraInfo(object):
         cx1     = cx0 + cwidth
         cy1     = cy0 + cheight
 
-        return [cx0, cy0, cx1, cy1]
+        box = [cx0, cy0, cx1, cy1]
+        return box
 
     
 
