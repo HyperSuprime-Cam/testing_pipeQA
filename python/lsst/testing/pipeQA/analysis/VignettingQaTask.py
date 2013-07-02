@@ -20,8 +20,9 @@ class VignettingQaConfig(pexConfig.Config):
                                     default = ("lsstSim", "cfht", "suprimecam", "hscSim", "sdss", "coadd"))
     maxMedian = pexConfig.Field(dtype = float, doc = "Maximum median magnitude offset", default = 0.02)
     maxRms    = pexConfig.Field(dtype = float, doc = "Maximum magnitude offset RMS", default = 0.02)
-    maxMag    = pexConfig.Field(dtype = float, doc = "Maximum magnitude star to use in VignettingQa test",
-                                default = 19.0)
+    maxMag    = pexConfig.Field(dtype = float,
+                                doc = "Maximum magnitude star to use in VignettingQa test (-1 for median)",
+                                default = -1.0)
 
     
 class VignettingQaTask(QaAnalysisTask):
@@ -106,19 +107,23 @@ class VignettingQaTask(QaAnalysisTask):
 
             # We have a trimmed detector
             self.detector[key].setTrimmed(True)
-            pixelSize          = self.detector[key].getPixelSize()    # mm
-            centerXm, centerYm = self.detector[key].getCenter().getMm()  # focal plane mm
-
             bbox   = self.detector[key].getAllPixels()
             startX = bbox.getBeginX()
             startY = bbox.getBeginY()
-            endX   = bbox.getEndX()
-            endY   = bbox.getEndY()
-            centerXp = 0.5 * (endX - startX)
-            centerYp = 0.5 * (endY - startY)
 
             if self.matchListDictSrc.has_key(key):
                 mdict    = self.matchListDictSrc[key]['matched']
+
+                if self.config.maxMag == -1:
+                    mags = []
+                    for m in mdict:
+                        _1, s, _2 = m
+                        flux = s.getD(data.k_Psf)
+                        if num.isfinite(flux) and not s.getD(data.k_ext):
+                            m = -2.5*num.log10(flux)
+                            mags.append(m)
+                    self.maxMag = num.median(mags)
+                
                 for m in mdict:
                     sref, s, dist = m
 
@@ -142,17 +147,9 @@ class VignettingQaTask(QaAnalysisTask):
                         if num.isfinite(m1) and num.isfinite(m2):
                             self.dmag.append(raftId, ccdId, m1 - m2)
                             self.ids.append(raftId, ccdId, str(s.getId()))
-
-                            if data.cameraInfo.name == 'lsstSim':
-                                # XY switched
-                                xmm     = centerXm + (s.getD(data.k_x) - centerXp)*pixelSize
-                                ymm     = centerYm + (s.getD(data.k_y) - centerYp)*pixelSize
-                                radiusp = num.sqrt(xmm**2 + ymm**2) / pixelSize
-                            else:
-                                # XY not switch, and pixel centers not in mm
-                                xmm     = centerXm + (s.getD(data.k_x) - centerXp)
-                                ymm     = centerYm + (s.getD(data.k_y) - centerYp)
-                                radiusp = num.sqrt(xmm**2 + ymm**2)
+                            xmm     = startX + s.getD(data.k_x)
+                            ymm     = startY + s.getD(data.k_y)
+                            radiusp = num.sqrt(xmm**2 + ymm**2)
                             self.radius.append(raftId, ccdId, radiusp)
 
                 # Calculate stats
@@ -194,7 +191,6 @@ class VignettingQaTask(QaAnalysisTask):
         # fpa figures
         medFigbase = "vignettingMedianPhotOffset" #cache
         stdFigbase = "vignettingRmsPhotOffset" #cache
-        #medFigData, medFigMap = testSet.unpickle(medFigbase, [None, None]) #cache
         medFig = qaFig.FpaQaFigure(data.cameraInfo, data=None, map=None)
         stdFig = qaFig.FpaQaFigure(data.cameraInfo, data=None, map=None)
             
@@ -213,7 +209,6 @@ class VignettingQaTask(QaAnalysisTask):
                             
                         testSet.pickle(medFigbase + label, [medFig.data, medFig.map]) #cache
 
-            #stdFigData, stdFigMap = testSet.unpickle(stdFigbase, [None, None]) #cache
                     if not self.rmsOffset.get(raft, ccd) is None:
                         std = self.rmsOffset.get(raft, ccd)
                         stdFig.data[raft][ccd] = std

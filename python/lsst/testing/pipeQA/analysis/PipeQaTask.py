@@ -157,6 +157,7 @@ class PipeQaTask(pipeBase.Task):
 
         # and add in ability to override config
         config = self.ConfigClass()
+        config.photCompareQa.compareTypes = ("psf ap", "psf inst", "psf cat", "ap cat")        
         parser.set_defaults(config = config)
         parser.add_argument("--config", nargs="*", action=pipeBase.argumentParser.ConfigValueAction,
                             help="config override(s), e.g. -c foo=newfoo bar.baz=3", metavar="NAME=VALUE")
