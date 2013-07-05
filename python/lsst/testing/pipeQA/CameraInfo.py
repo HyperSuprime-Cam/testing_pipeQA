@@ -386,6 +386,11 @@ class HscCameraInfo(CameraInfo):
         self.doLabel = False
         
 
+    def getRaftAndSensorNames(self, dataId):
+        raftName = ''
+        ccdName  = "hsc%03d" % (int(dataId[self.dataIdTranslationMap['sensor']]))
+        return raftName, ccdName
+        
 
 ####################################################################
 #
