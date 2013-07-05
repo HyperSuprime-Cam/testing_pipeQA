@@ -238,14 +238,14 @@ class VignettingQaTask(QaAnalysisTask):
                               title="Median offset", cmapOver=red, cmapUnder=blue,
                               failLimits=self.medLimits)
             testSet.addFigure(medFig, medFigbase+".png",
-                              "Median offset of bright (m<%d) stars versus radius" % (self.maxMag), 
+                              "Median offset of bright (m<%.3f) stars versus radius" % (self.maxMag), 
                               navMap=True)
 
             stdFig.makeFigure(showUndefined=showUndefined, cmap="RdBu_r", vlimits=self.rmsLimits,
                               title="Stddev offset", cmapOver=red, cmapUnder=blue,
                               failLimits=self.rmsLimits)
             testSet.addFigure(stdFig, stdFigbase+".png",
-                              "Stddev of bright (m < %d) stars as a function of radius" % (self.maxMag), 
+                              "Stddev of bright (m < %.3f) stars as a function of radius" % (self.maxMag), 
                               navMap=True)
 
         del medFig
