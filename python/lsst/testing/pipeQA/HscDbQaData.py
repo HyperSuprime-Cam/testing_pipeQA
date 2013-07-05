@@ -226,19 +226,7 @@ class HscDbQaData(QaData):
             sql += '        (abs(s.ra2000 - m.ra2000) < '+str(arcsecErr)+") and "
             sql += '        (abs(s.dec2000 - m.dec2000) < '+str(arcsecErr)+") "
             sql += '    and '+idWhere
-        else:
-            # this will have to be updated for the different dataIdNames when non-lsst cameras get used.
-            sql  = 'select '+ ", ".join(zip(*sceNames)[1])+', sro.%sMag, sro.ra, sro.decl, sro.isStar, sro.refObjectId, s.sourceId, '%(filterName)
-            sql += ' rom.n%sMatches,' % (self.refStr[useRef][0])
-            sql += selectStr
-            sql += '  from Source as s, Science_Ccd_Exposure as sce,'
-            sql += '    Ref%sMatch as rom, RefObject as sro' % (self.refStr[useRef][0])
-            sql += '  where (s.scienceCcdExposureId = sce.scienceCcdExposureId)'
-            sql += '    and (s.%sId = rom.%sId) and (rom.refObjectId = sro.refObjectId)' % \
-                   (self.refStr[useRef][1], self.refStr[useRef][1])
-            if useRef == 'obj':
-                sql += '    and (s.objectID is not NULL) '
-            sql += '    and '+idWhere
+
 
         self.printStartLoad("Loading MatchList ("+ self.refStr[useRef][1]  +") for: " + dataIdStr + "...")
 
@@ -322,11 +310,6 @@ class HscDbQaData(QaData):
                     if isinstance(value, str):
                         #print ord(value)
                         value = 1 if ord(value) else 0
-                    #if keyName == 'Ra':
-                    #    value = numpy.degrees(value)
-                    #if keyName == 'Dec':
-                    #    value = numpy.degrees(value)
-                    #print keyName, value, type(value)
                     if value is None:
                         value = numpy.nan
                     s.set(setKey, value)
@@ -600,10 +583,6 @@ class HscDbQaData(QaData):
                     keyName = catObj.keyNames[i]
                     if isinstance(value, str) and len(value) == 1:
                         value = 1 if ord(value) else 0
-                    if keyName == 'Ra':
-                        value = numpy.degrees(value)
-                    if keyName == 'Dec':
-                        value = numpy.degrees(value)
                     s.set(setKey, value)
                 i += 1
 
