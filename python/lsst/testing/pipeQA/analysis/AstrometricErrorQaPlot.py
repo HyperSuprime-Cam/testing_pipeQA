@@ -72,7 +72,7 @@ def plot(data):
     #print x, y
     #print xmin, ymin
     r = numpy.sqrt(dx**2 + dy**2)
-    rmax = 1.2 # r.max()
+    rmax = 0.6 # r.max()
 
     fig = figure.Figure(figsize=figsize)
     canvas = FigCanvas(fig)
@@ -214,8 +214,11 @@ def plot(data):
 
     rNmax = 1.0
     if len(r) > 1:
-        binWidth = 0.5*numpy.std(r)*(20.0/len(r))**0.2
-        nBin = (r.max() - r.min())/binWidth
+        rsort = numpy.sort(r)
+        nclip = int(0.9*len(r))
+        rstd = numpy.std(rsort[0:nclip])
+        binWidth = 0.5*rstd*(20.0/len(r))**0.2
+        nBin = (rmax - r.min())/binWidth
         rN, rBin, xx = ax0.hist(r, bins=nBin)
 
         # add a median arrow
