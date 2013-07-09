@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import sys, os, re
+import sys, os, re, glob
 import argparse
 
 import subprocess
@@ -61,7 +61,7 @@ class Pbs(object):
 #############################################################################################
         
 def main(db, visit, noop=False, nCcd=10, queue='batch', nodes=None, ppn=None, camera="suprimecam-mit",
-         mail=None):
+         mail=None, rmlog=False):
 
     ###############################
     # init some variables
@@ -77,7 +77,13 @@ def main(db, visit, noop=False, nCcd=10, queue='batch', nodes=None, ppn=None, ca
     logdir = os.path.join(cwd, "log")
     if not os.path.exists(logdir):
         os.mkdir(logdir)
-        
+    if rmlog:
+        oldlogs = glob.glob(os.path.join(logdir, "*"))
+        print "Removing old logs (%d files)" % (len(oldlogs))
+        for log in oldlogs:
+            os.unlink(log)
+
+            
     # cmds for PBS script
     envFile = os.path.join(cwd, "envExports.sh")
     envSrc  = "source " + envFile
@@ -150,10 +156,11 @@ if __name__ == "__main__":
     parser.add_argument("--nodes", default=None, type=int, help="Number of nodes")
     parser.add_argument("--ppn", default=None, type=int, help="Processes per node")
     parser.add_argument("-Q", "--queue", type=str, default="batch", help="Name of PBS queue")
+    parser.add_argument("-r", "--rmlog", action='store_true', default=False, help="Remove old logs.")
     args = parser.parse_args()
 
     main(args.db, args.visit,
          noop=args.noop, nCcd=args.nCcd, queue=args.queue,
          nodes=args.nodes, ppn=args.ppn,
-         camera=args.camera, mail=args.mail)
+         camera=args.camera, mail=args.mail, rmlog=args.rmlog)
 
