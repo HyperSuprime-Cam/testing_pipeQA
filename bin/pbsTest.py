@@ -157,6 +157,7 @@ if __name__ == "__main__":
     parser.add_argument("--ppn", default=None, type=int, help="Processes per node")
     parser.add_argument("-Q", "--queue", type=str, default="batch", help="Name of PBS queue")
     parser.add_argument("-r", "--rmlog", action='store_true', default=False, help="Remove old logs.")
+    parser.add_argument("-s", "--monitor", action='store_true', default=False, help="Spawn a popup monitor to watch qstat")
     args = parser.parse_args()
 
     main(args.db, args.visit,
@@ -164,3 +165,11 @@ if __name__ == "__main__":
          nodes=args.nodes, ppn=args.ppn,
          camera=args.camera, mail=args.mail, rmlog=args.rmlog)
 
+    if args.monitor:
+        import commands
+        stat, pupdate = commands.getstatusoutput("which popupdate")
+        if not re.search("popupdate", pupdate):
+            print "You don't appear to have popupdate installed on your system.  Please ask Steve if you'd like it (it's a short python script)"
+            sys.exit()
+        os.system("popupdate 'qstat -t' -t 1.0 &")
+        
