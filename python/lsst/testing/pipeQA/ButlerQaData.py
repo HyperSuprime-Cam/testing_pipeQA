@@ -134,8 +134,8 @@ class ButlerQaData(QaData):
         for dataTuple in dataTuplesToFetch:
             dataId = self._dataTupleToDataId(dataTuple)
             visits.append(self.cameraInfo.dataIdCameraToStandard(dataId)['visit'])
-        return sorted(set(visits))
-    
+        visits_sort = sorted(set(visits))
+        return visits_sort
 
 
     def breakDataId(self, dataIdRegex, breakBy):
@@ -154,7 +154,6 @@ class ButlerQaData(QaData):
 
 
         dataTuplesToFetch = self._regexMatchDataIds(dataIdRegex, self.dataTuples)
-
 
         dataIdDict = {}
         # handle lsst/hsc different naming conventions
@@ -186,7 +185,8 @@ class ButlerQaData(QaData):
         for key in sorted(dataIdDict.keys()):
             self.brokenDataIdList.append(dataIdDict[key])
         
-        return copy.copy(self.brokenDataIdList)
+        dataIdListCopy = copy.copy(self.brokenDataIdList)
+        return dataIdListCopy
 
     
     def verify(self, dataId):
@@ -437,7 +437,6 @@ class ButlerQaData(QaData):
         
         dataTuplesToFetch = self._regexMatchDataIds(dataIdRegex, self.dataTuples)
 
-        
         # get the datasets corresponding to the request
         ssDict = {}
         for dataTuple in dataTuplesToFetch:
@@ -706,7 +705,7 @@ class ButlerQaData(QaData):
                     fwhm = -1.0
 
                 if (self.calexpCache[dataKey].has_key('fwhm') and
-                    numpy.isnan(self.calexpCache[dataKey]['fwhm'])):
+                    numpy.isnan(float(self.calexpCache[dataKey]['fwhm']))):
                     self.calexpCache[dataKey]['fwhm'] = fwhm
                 
                 self.calexpQueryCache[dataKey] = True
@@ -755,7 +754,7 @@ class ButlerQaData(QaData):
     #  the ones which match regexes for the corresponding data type
     # so user can say eg. raft='0,\d', visit='855.*', etc
     #######################################################################
-    def _regexMatchDataIds(self, dataIdRegexDict, availableDataTuples, verbose=False):
+    def _regexMatchDataIds(self, dataIdRegexDict, availableDataTuples, exact=True, verbose=False):
         """Match available data with regexes in a dataId dictionary        
         
         @param dataIdRegexDict dataId dict of regular expressions for data to be handled.
@@ -775,13 +774,18 @@ class ButlerQaData(QaData):
                 regexForThisId = dataIdRegexDict.get(dataIdName, '.*') # default to '.*' or 'anything'
                 dataId = dataTuple[i]
 
-                # if it doesn't match, this frame isn't to be run.
-                if not re.search(str(regexForThisId),  str(dataId)):
-                    match = False
-                    break
+                if exact:
+                    if str(regexForThisId) != str(dataId):
+                        match = False
+                        break
+                else:
+                    # if it doesn't match, this frame isn't to be run.
+                    if not re.search(str(regexForThisId),  str(dataId)):
+                        match = False
+                        break
                 
                 # ignore the guiding ccds on the hsc camera
-                if re.search('^hsc.*', self.cameraInfo.name) and dataIdName == 'ccd' and dataId > 99:
+                if re.search('^hsc.*', self.cameraInfo.name) and dataIdName == 'ccd' and dataId > 103:
                     match = False
                     break
 

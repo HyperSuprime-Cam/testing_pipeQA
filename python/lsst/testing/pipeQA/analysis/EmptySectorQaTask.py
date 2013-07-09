@@ -193,7 +193,7 @@ class EmptySectorQaTask(QaAnalysisTask):
 
                     # set values for data[raft][ccd] (color coding)
                     # set values for map[raft][ccd]  (tooltip text)
-                    if not self.emptySectors.get(raft, ccd) is None:
+                    if self.emptySectors.get(raft, ccd) is not None:
                         nEmpty = self.emptySectors.get(raft, ccd)
                         emptyFig.data[raft][ccd] = nEmpty
                         emptyFig.map[raft][ccd] = "%dx%d,empty=%d" % (self.nx, self.ny, nEmpty)
