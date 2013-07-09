@@ -108,9 +108,6 @@ class EmptySectorQaTask(QaAnalysisTask):
         # analyse each sensor and put the values in a raftccd container
         self.emptySectors    = raftCcdData.RaftCcdData(self.detector, initValue=self.nx*self.ny)
         self.emptySectorsMat = raftCcdData.RaftCcdData(self.detector, initValue=self.nx*self.ny)
-
-        countBase = "countShelf"
-        nShelf = testSet.unshelve(countBase)
         
         for raft, ccd in self.emptySectors.raftCcdKeys():
             x, y       = self.x.get(raft, ccd), self.y.get(raft, ccd)
@@ -149,23 +146,14 @@ class EmptySectorQaTask(QaAnalysisTask):
             test = testCode.Test(label+" (matched)", nEmptyMat, self.limits, comment, areaLabel=areaLabel)
             testSet.addTest(test)
 
-            nShelf[ccd] = len(x)
-
-        testSet.shelve(countBase, nShelf)
-
-        nCcd, nDet = 0, 0
-        for k,v in nShelf.items():
-            if v > 0:
-                nCcd += 1
-                nDet += v
-
-        # a bit sketchy adding tests in the plot section, but these are dummies
-        # they pass useful numbers through to the display, but don't actually test
-        # anything useful
-        test = testCode.Test("nDetections", nDet, [1, None], "number of detected sources", areaLabel="all")
-        testSet.addTest(test)
-        test = testCode.Test("nCcd", nCcd, [1, None], "number of ccds processed", areaLabel="all")
-        testSet.addTest(test)
+            # a bit sketchy adding tests in the plot section, but these are dummies
+            # they pass useful numbers through to the display, but don't actually test
+            # anything useful
+            test = testCode.Test("nDetections", len(x), [1, None], "number of detected sources",
+                                 areaLabel=areaLabel)
+            testSet.addTest(test)
+            test = testCode.Test("nCcd", 1, [1, None], "number of ccds processed", areaLabel=areaLabel)
+            testSet.addTest(test)
 
 
     def plot(self, data, dataId, showUndefined=False):

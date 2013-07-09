@@ -99,9 +99,6 @@ class SummaryQaTask(QaAnalysisTask):
         testSet.addMetadata({"Description": self.description})
 
         
-        summaryBase = "summaryShelf"
-        summDat = testSet.unshelve(summaryBase)
-
         key = None
         for key in self.summary.keys():
             if self.detector[key] is None:
@@ -123,15 +120,12 @@ class SummaryQaTask(QaAnalysisTask):
                 comment = s
                 test = testCode.Test(label, value, self.limits[s], comment, areaLabel=areaLabel)
                 testSet.addTest(test)
-                #summDat[ccd] = skylevel
 
                 # count failures to color code the ccd
                 if not test.evaluate():
                     aggregate += 1 
 
             self.aggregate.set(raft, ccd, aggregate)
-
-        testSet.shelve(summaryBase, summDat)
 
 
 
