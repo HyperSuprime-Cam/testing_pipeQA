@@ -29,3 +29,9 @@ python/lsst/testing/pipeQA/version.py
 
 *.pyc
 ups/testing_pipeQA.cfgc
+
+# pbs tester files
+qsub-scat.sh
+qsub-gath.sh
+envExports.sh
+log/
