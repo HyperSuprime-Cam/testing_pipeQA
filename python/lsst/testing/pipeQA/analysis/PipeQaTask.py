@@ -14,7 +14,6 @@ from lsst.pex.logging          import Trace
 from .ZeropointFitQaTask       import ZeropointFitQaTask
 from .EmptySectorQaTask        import EmptySectorQaTask
 from .AstrometricErrorQaTask   import AstrometricErrorQaTask
-from .PerformanceQaTask        import PerformanceQaTask
 from .PhotCompareQaTask        import PhotCompareQaTask
 from .PsfShapeQaTask           import PsfShapeQaTask
 from .CompletenessQaTask       import CompletenessQaTask
@@ -35,8 +34,6 @@ class PipeQaConfig(pexConfig.Config):
     doAstromQa      = pexConfig.Field(dtype = bool,
                                       doc = "Astrometric Error: qaAnalysis.AstrometricErrorQaTask",
                                       default = True)
-    doPerformanceQa = pexConfig.Field(dtype = bool,
-                                      doc = "Performance: qaAnalysis.PerformanceQaTask", default = True)
     doPhotCompareQa = pexConfig.Field(dtype = bool,
                                       doc = "Photometric Error: qaAnalysis.PhotCompareQaTask", default = True)
     doPsfShapeQa    = pexConfig.Field(dtype = bool,
@@ -62,8 +59,6 @@ class PipeQaConfig(pexConfig.Config):
                                                   doc = "Look for missing matches")
     astromQa        = pexConfig.ConfigurableField(target = AstrometricErrorQaTask,
                                                   doc = "Quality of astrometric fit")
-    performanceQa   = pexConfig.ConfigurableField(target = PerformanceQaTask,
-                                                  doc = "Performance")
     photCompareQa   = pexConfig.ConfigurableField(target = PhotCompareQaTask,
                                                   doc = "Quality of photometry")
     psfShapeQa      = pexConfig.ConfigurableField(target = PsfShapeQaTask,
@@ -114,14 +109,15 @@ class PipeQaTask(pipeBase.Task):
                             help="Specify a camera and override auto-detection (default=%(default)s)")
         parser.add_argument("-c", "--ccd", default=".*",
                             help="Specify ccd as regex (default=%(default)s)")
-        parser.add_argument("-d", "--delaySummary", default=False, action="store_true",
-                            help="Delay summary figures until all ccds are finished (default=%(default)s)")
+        parser.add_argument("-d", "--dataSource", default="db",
+                            help="Specify the source of data to load",
+                            choices=('butler', 'db'))
         parser.add_argument("-e", "--exceptExit", default=False, action='store_true',
                             help="Don't capture exceptions, fail and exit (default=%(default)s)")
         parser.add_argument("-f", "--forkFigure", default=False, action='store_true',
                             help="Make figures in separate process (default=%(default)s)")
         parser.add_argument("-F", "--useForced", default=False, action='store_true',
-                            help="Use forced photometry (default=%default)")        
+                            help="Use forced photometry (default=%(default)s)")        
         parser.add_argument("-g", "--group", default=None,
                             help="Specify sub-group of visits 'groupSize:whichGroup' (default=%(default)s)")
         parser.add_argument("-k", "--keep", default=False, action="store_true",
@@ -132,17 +128,19 @@ class PipeQaTask(pipeBase.Task):
                             help="Rerun to analyse - only valid for hsc/suprimecam (default=%(default)s)")
         parser.add_argument("-s", "--snap", default=".*",
                             help="Specify snap as regex (default=%(default)s)")
+        parser.add_argument("-S", "--summaryProcessing", default="delay",
+                            help="Processing summary figures ['delay', 'none', or 'summOnly'] (default=%(default)s)")
         parser.add_argument("-t", "--test", default=".*",
                             help="Regex specifying which QaAnalysis to run (default=%(default)s)")
         parser.add_argument("-T", "--coaddTable", default="goodSeeing",
-                            help="Specify coadd table to use (default=%default)")        
+                            help="Specify coadd table to use (default=%(default)s)")        
         parser.add_argument("-V", "--verbosity", default=1,
                             help="Trace level for lsst.testing.pipeQA")
         parser.add_argument("-v", "--visit", default=".*",
                             help="Specify visit as regex OR color separated list. (default=%(default)s)")
         parser.add_argument("-z", "--lazyPlot", default='sensor',
                             help="Figures to be generated dynamically online "+
-                            "[options: none, sensor, all] (default=%default)")
+                            "[options: none, sensor, all] (default=%(default)s)")
 
         
         # visit-to-visit
@@ -158,7 +156,8 @@ class PipeQaTask(pipeBase.Task):
                             help="Disable caching of pass/fail (needed to run in parallel) (default=%(default)s)")
 
         # and add in ability to override config
-        parser.set_defaults(config = self.ConfigClass()) 
+        config = self.ConfigClass()
+        parser.set_defaults(config = config)
         parser.add_argument("--config", nargs="*", action=pipeBase.argumentParser.ConfigValueAction,
                             help="config override(s), e.g. -c foo=newfoo bar.baz=3", metavar="NAME=VALUE")
 
@@ -250,10 +249,11 @@ class PipeQaTask(pipeBase.Task):
         exceptExit   = parsedCmd.exceptExit
         testRegex    = parsedCmd.test
         camera       = parsedCmd.camera
+        retrievalType = parsedCmd.dataSource
         keep         = parsedCmd.keep
         breakBy      = parsedCmd.breakBy
         groupInfo    = parsedCmd.group
-        delaySummary = parsedCmd.delaySummary
+        summaryProcessing = parsedCmd.summaryProcessing
         forkFigure   = parsedCmd.forkFigure
         wwwCache     = not parsedCmd.noWwwCache
         useForced    = parsedCmd.useForced
@@ -261,6 +261,10 @@ class PipeQaTask(pipeBase.Task):
         lazyPlot     = parsedCmd.lazyPlot
         verbosity    = parsedCmd.verbosity
 
+        summOpts = ["delay", "none", "summOnly"]
+        if not summaryProcessing in summOpts:
+            raise ValueError("summaryProcessing must be: "+", ".join(summOpts))
+            
         # optional visitQA info
         matchDset    = parsedCmd.matchDataset
         matchVisits  = parsedCmd.matchVisits
@@ -272,7 +276,7 @@ class PipeQaTask(pipeBase.Task):
             self.log.log(self.log.FATAL, "breakBy (-b) must be 'visit', 'raft', or 'ccd'")
             sys.exit()
     
-        if re.search("(raft|ccd)", breakBy) and not keep:
+        if breakBy in ['raft', 'ccd'] and not keep:
             self.log.log(self.log.WARN, "You've specified breakBy=%s, which requires 'keep' (-k). "+
                          "I'll set it for you.")
             keep = True
@@ -290,6 +294,7 @@ class PipeQaTask(pipeBase.Task):
     
         data = pipeQA.makeQaData(dataset, rerun=rerun, camera=camera,
                                  shapeAlg = self.config.shapeAlgorithm,
+                                 retrievalType=retrievalType,
                                  useForced=useForced, coaddTable=coaddTable)
     
         if data.cameraInfo.name == 'lsstSim' and  dataIdInput.has_key('ccd'):
@@ -324,7 +329,7 @@ class PipeQaTask(pipeBase.Task):
             
             if doTask and (data.cameraInfo.name in eval("self.config.%s.cameras" % (taskStr))):
                 stask = self.makeSubtask(taskStr, useCache=keep, wwwCache=wwwCache,
-                                         delaySummary=delaySummary, lazyPlot=lazyPlot)
+                                         summaryProcessing=summaryProcessing, lazyPlot=lazyPlot)
                 taskList.append(stask)
 
                 
@@ -335,7 +340,7 @@ class PipeQaTask(pipeBase.Task):
                 starGxyToggle = types in self.config.photCompareQa.starGalaxyToggle
                 stask = self.makeSubtask("photCompareQa", magType1=mag1, magType2=mag2,
                                          starGalaxyToggle=starGxyToggle, useCache=keep, wwwCache=wwwCache,
-                                         delaySummary=delaySummary, lazyPlot=lazyPlot)
+                                         summaryProcessing=summaryProcessing, lazyPlot=lazyPlot)
                 taskList.append(stask)
 
 
@@ -357,21 +362,14 @@ class PipeQaTask(pipeBase.Task):
                 for mType in self.config.vvPhotQa.magTypes:
                     stask = self.makeSubtask("vvPhotQa", matchDset=matchDset, matchVisits=matchVisits,
                                              mType=mType, useCache=keep, wwwCache=wwwCache,
-                                             delaySummary=delaySummary, lazyPlot=lazyPlot)
+                                             summaryProcessing=summaryProcessing, lazyPlot=lazyPlot)
                     taskList.append(stask)
 
             if data.cameraInfo.name in self.config.vvAstromQa.cameras:
                 stask = self.makeSubtask("vvAstromQa", matchDset = matchDset, matchVisits = matchVisits, 
-                                         useCache=keep, wwwCache=wwwCache, delaySummary=delaySummary,
+                                         useCache=keep, wwwCache=wwwCache, summaryProcessing=summaryProcessing,
                                          lazyPlot=lazyPlot)
                 taskList.append(stask)
-                
-
-        # the performance task should run last as it summarizes performance of all tasks
-        if self.config.doPerformanceQa:
-            performTask = self.makeSubtask("performanceQa", useCache=keep, wwwCache=wwwCache,
-                                           delaySummary=delaySummary, lazyPlot=lazyPlot)
-            taskList.append(performTask)
                 
                 
         # Split by visit, and handle specific requests
@@ -403,19 +401,7 @@ class PipeQaTask(pipeBase.Task):
                              (nvisit, groupSize, whichGroup, lo, hi-1, "\n".join(visits)))
             groupTag = "%02d-%02d" % (groupSize, whichGroup)
     
-    
-        useFp = open("runtimePerformance%s.dat" % (groupTag), 'w')
-        useFp.write("#%-11s %-24s %-32s %10s  %16s\n" %
-                    ("timestamp", "dataId", "testname", "t-elapsed", "resident-memory-kb-Mb"))
         
-        # Create progress tests for all visits
-        if len(groupTag) > 0:
-            groupTag = "."+groupTag
-        progset = pipeQA.TestSet(group="", label="ProgressReport"+groupTag, wwwCache=wwwCache)
-        for visit in visits:
-            progset.addTest(visit, 0, [0, 1], "Not started.  Last dataId: None")
-    
-        testset = pipeQA.TestSet(group="", label="QA-failures"+groupTag, wwwCache=wwwCache)
 
         for visit in visits:
             visit_t0 = time.time()
@@ -427,24 +413,41 @@ class PipeQaTask(pipeBase.Task):
             #  ... if we only run one raft or ccd at a time, we use less memory
             brokenDownDataIdList = data.breakDataId(dataIdVisit, breakBy)
 
+            #if this is a summary only run, shortcircuit to the last ccd
+            if summaryProcessing in ['summOnly']:
+                brokenDownDataIdList = [brokenDownDataIdList[-1]]
+
             for thisDataId in brokenDownDataIdList:
+
+                haveIt = data.verify(thisDataId)
+                if not haveIt:
+                    self.log.log(self.log.WARN, "Missing dataId="+str(thisDataId))
+                    continue
+                
+                raftName, ccdName = data.cameraInfo.getRaftAndSensorNames(thisDataId)
+                ccdName = data.cameraInfo.getDetectorName(raftName, ccdName)
+                testset = pipeQA.TestSet(group="", label="QA-failures"+groupTag, wwwCache=wwwCache, sqliteSuffix=ccdName)
 
                 for task in taskList:
     
                     test_t0 = time.time()
                     test = str(task)
-                    if not re.search(testRegex, test) and not re.search('performance', test):
+                    if not re.search(testRegex, test):
                         continue
     
                     date = datetime.datetime.now().strftime("%a %Y-%m-%d %H:%M:%S")
-                    self.log.log(self.log.INFO, "Running " + test + "  visit:" + str(visit) + "  ("+date+")")
+                    visitLog = str(visit)
+                    if breakBy.lower() == 'ccd':
+                        visitLog += " ccd:" + str(thisDataId['ccd'])
+                    self.log.log(self.log.INFO, "Running " + test + "  visit:" + visitLog + "  ("+date+")")
                     sys.stdout.flush() # clear the buffer before the fork
     
     
                     # try the test() method
                     t0 = time.time()
-                    self.runSubtask(task.test, data, thisDataId, visit, test, testset, exceptExit)
-                    data.cachePerformance(thisDataId, test, "test-runtime", time.time() - t0)
+                    if summaryProcessing in ['delay', 'none']:
+                        self.runSubtask(task.test, data, thisDataId, visit, test, testset, exceptExit)
+
 
                     t0 = time.time()
                     if forkFigure:
@@ -459,36 +462,30 @@ class PipeQaTask(pipeBase.Task):
                     else:
                         # try the plot() method
                         self.runSubtask(task.plot, data, thisDataId, visit, test, testset, exceptExit)
-                        
-                    data.cachePerformance(thisDataId, test, "plot-runtime", time.time() - t0)
+
                     
                     # try the free() method
-                    self.runSubtask(task.free, data, thisDataId, visit, test, testset, exceptExit)
+                    # test() method only ran for 'delay' and 'none'.  Only then is there stuff to free
+                    if summaryProcessing in ['delay', 'none']:
+                        self.runSubtask(task.free, data, thisDataId, visit, test, testset, exceptExit)
     
-    
-                    memory = self._getMemUsageThisPid()
-                    test_tf = time.time()
-                    tstamp = time.mktime(datetime.datetime.now().timetuple())
-                    idstamp = ""
-                    for k,v in thisDataId.items():
-                        idstamp += k[0]+str(v)
-                    useFp.write("%-12.1f %-24s %-32s %9.2fs %7d %7.2f\n" %
-                                (tstamp, idstamp, test, test_tf-test_t0, memory, memory/1024.0))
-                    useFp.flush()
-    
+
+                        
                 # we're now done this dataId ... can clear the cache            
                 data.clearCache()
                 raftName = ""
                 if thisDataId.has_key('raft'):
-                    raftName = thisDataId['raft']+"-"
+                    raftName = str(thisDataId['raft'])+"-"
                 ccdName = ""
                 if thisDataId.has_key("ccd"):
-                    ccdName = thisDataId[data.ccdConvention]
-                    
-                progset.addTest(visit, 0, [1, 1], "Processing. Done %s%s." % (raftName,ccdName))
-            progset.addTest(visit, 1, [1, 1], "Done processing.")
-    
-        useFp.close()
+                    ccdName = str(thisDataId[data.ccdConvention])
+
+                
+        if summaryProcessing in ['summOnly']:
+            ts = pipeQA.TestSet(group="", label="QA-failures"+groupTag, wwwCache=wwwCache, sqliteSuffix="")
+            ts.accrete()
+            ts.updateCounts()
+
 
         self.log.log(self.log.INFO, "PipeQA End")
         return pipeBase.Struct()

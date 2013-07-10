@@ -99,11 +99,10 @@ class SummaryQaTask(QaAnalysisTask):
         testSet.addMetadata({"Description": self.description})
 
         
-        summaryBase = "summaryShelf"
-        summDat = testSet.unshelve(summaryBase)
-
         key = None
         for key in self.summary.keys():
+            if self.detector[key] is None:
+                continue
             raft = self.detector[key].getParent().getId().getName()
             ccd  = self.detector[key].getId().getName()
 
@@ -121,15 +120,12 @@ class SummaryQaTask(QaAnalysisTask):
                 comment = s
                 test = testCode.Test(label, value, self.limits[s], comment, areaLabel=areaLabel)
                 testSet.addTest(test)
-                #summDat[ccd] = skylevel
 
                 # count failures to color code the ccd
                 if not test.evaluate():
                     aggregate += 1 
 
             self.aggregate.set(raft, ccd, aggregate)
-
-        testSet.shelve(summaryBase, summDat)
 
 
 
@@ -152,88 +148,44 @@ class SummaryQaTask(QaAnalysisTask):
             summData, summMap       = testSet.unpickle(summBase, [None, None])
             summFig    = qaFig.FpaQaFigure(data.cameraInfo, data=summData, map=summMap)
 
-            for raft, ccdDict in summFig.data.items():
-                for ccd, value in ccdDict.items():
 
-                    # set values for data[raft][ccd] (color coding)
-                    # set values for map[raft][ccd]  (tooltip text)
-                    if not self.aggregate.get(raft, ccd) is None:
-                        summ = self.aggregate.get(raft, ccd)
-                        summFig.data[raft][ccd] = summ
-                        summFig.map[raft][ccd] = "%.1f" % (summ)
+            if self.summaryProcessing != self.summOpt['summOnly']:
+                for raft, ccdDict in summFig.data.items():
+                    for ccd, value in ccdDict.items():
 
-            testSet.pickle(summBase, [summFig.data, summFig.map])
+                        # set values for data[raft][ccd] (color coding)
+                        # set values for map[raft][ccd]  (tooltip text)
+                        if not self.aggregate.get(raft, ccd) is None:
+                            summ = self.aggregate.get(raft, ccd)
+                            summFig.data[raft][ccd] = summ
+                            summFig.map[raft][ccd] = "%.1f" % (summ)
+                            
+                            label = data.cameraInfo.getDetectorName(raft, ccd)
+                            testSet.pickle(summBase + label, [summFig.data, summFig.map])
 
 
             # make the figures and add them to the testSet
             # sample colormaps at: http://www.scipy.org/Cookbook/Matplotlib/Show_colormaps
-            if not self.delaySummary or isFinalDataId:
+            if (self.summaryProcessing in [self.summOpt['summOnly'], self.summOpt['delay']]) and isFinalDataId:
+                
+                for raft, ccdDict in summFig.data.items():
+                    for ccd, value in ccdDict.items():
+                        label = data.cameraInfo.getDetectorName(raft, ccd)
+
+                        summFigDataTmp, summFigMapTmp = testSet.unpickle(summBase+label, default=[None, None])
+                        summFig.mergeValues(summFigDataTmp, summFigMapTmp)
+
                 self.log.log(self.log.INFO, "plotting FPAs")
                 summFig.makeFigure(showUndefined=showUndefined, cmap="gist_heat_r",
-                                      vlimits=self.aggregate_limits, 
-                                      title="No. of Parameters outside Specified Range",
-                                      failLimits=self.aggregate_limits)
+                                   vlimits=self.aggregate_limits, 
+                                   title="No. of Parameters outside Specified Range",
+                                   failLimits=self.aggregate_limits)
                 testSet.addFigure(summFig, summBase+".png",
                                   "summary", navMap=True)
                 del summFig
 
+                self.combineOutputs(data, dataId)
             else:
                 del summFig
 
 
-
-        if False:
-
-
-
-
-            cacheLabel = "metadata_sum" #cache
-            shelfData = {}
-
-            # make any individual (ie. per sensor) plots
-            for raft, ccd in self.sigma_sky.raftCcdKeys():
-
-                x = 2.0*numpy.pi*numpy.arange(100)/100
-                y = numpy.sin(x) + numpy.random.uniform(0.0, 10.0)
-
-                dataDict = {'x' : x, 'y': y,
-                            'summary' : False,
-                            }
-
-                self.log.log(self.log.INFO, "plotting %s" % (ccd))
-                import SummaryQaPlot as plotModule
-                label = data.cameraInfo.getDetectorName(raft, ccd)
-                caption = "Dummy metadata summary " + label
-                pngFile = cacheLabel+".png"
-
-                if self.lazyPlot.lower() in ['sensor', 'all']:
-                    testSet.addLazyFigure(dataDict, pngFile, caption,
-                                          plotModule, areaLabel=label, plotargs="")
-                else:
-                    testSet.cacheLazyData(dataDict, pngFile, areaLabel=label)
-                    fig = plotModule.plot(dataDict)
-                    testSet.addFigure(fig, pngFile, caption, areaLabel=label)
-                    del fig
-
-
-            if not self.delaySummary or isFinalDataId:
-                self.log.log(self.log.INFO, "plotting Summary figure")
-
-
-                import SummaryQaPlot as plotModule
-                label = 'all'
-                caption = "Dummy metadata summary "+label
-                pngFile = cacheLabel + ".png"
-
-                if self.lazyPlot in ['all']:
-                    testSet.addLazyFigure({}, pngFile, caption,
-                                          plotModule, areaLabel=label, plotargs="")
-                else:
-                    dataDict, isSummary = qaPlotUtil.unshelveGlob(cacheLabel+"-all.png", testSet=testSet)
-                    dataDict['summary'] = True
-                    fig = plotModule.plot(dataDict)                
-                    testSet.addFigure(fig, pngFile, caption, areaLabel=label)
-                    del fig
-
-
-            

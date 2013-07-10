@@ -20,8 +20,9 @@ class VignettingQaConfig(pexConfig.Config):
                                     default = ("lsstSim", "cfht", "suprimecam", "hscSim", "sdss", "coadd"))
     maxMedian = pexConfig.Field(dtype = float, doc = "Maximum median magnitude offset", default = 0.02)
     maxRms    = pexConfig.Field(dtype = float, doc = "Maximum magnitude offset RMS", default = 0.02)
-    maxMag    = pexConfig.Field(dtype = float, doc = "Maximum magnitude star to use in VignettingQa test",
-                                default = 19.0)
+    maxMag    = pexConfig.Field(dtype = float,
+                                doc = "Maximum magnitude star to use in VignettingQa test (-1 for median)",
+                                default = -1.0)
 
     
 class VignettingQaTask(QaAnalysisTask):
@@ -106,19 +107,23 @@ class VignettingQaTask(QaAnalysisTask):
 
             # We have a trimmed detector
             self.detector[key].setTrimmed(True)
-            pixelSize          = self.detector[key].getPixelSize()    # mm
-            centerXm, centerYm = self.detector[key].getCenter().getMm()  # focal plane mm
-
             bbox   = self.detector[key].getAllPixels()
             startX = bbox.getBeginX()
             startY = bbox.getBeginY()
-            endX   = bbox.getEndX()
-            endY   = bbox.getEndY()
-            centerXp = 0.5 * (endX - startX)
-            centerYp = 0.5 * (endY - startY)
 
             if self.matchListDictSrc.has_key(key):
                 mdict    = self.matchListDictSrc[key]['matched']
+
+                if self.config.maxMag == -1:
+                    mags = []
+                    for m in mdict:
+                        _1, s, _2 = m
+                        flux = s.getD(data.k_Psf)
+                        if num.isfinite(flux) and not s.getD(data.k_ext):
+                            m = -2.5*num.log10(flux)
+                            mags.append(m)
+                    self.maxMag = num.median(mags)
+                
                 for m in mdict:
                     sref, s, dist = m
 
@@ -142,17 +147,9 @@ class VignettingQaTask(QaAnalysisTask):
                         if num.isfinite(m1) and num.isfinite(m2):
                             self.dmag.append(raftId, ccdId, m1 - m2)
                             self.ids.append(raftId, ccdId, str(s.getId()))
-
-                            if data.cameraInfo.name == 'lsstSim':
-                                # XY switched
-                                xmm     = centerXm + (s.getD(data.k_x) - centerXp)*pixelSize
-                                ymm     = centerYm + (s.getD(data.k_y) - centerYp)*pixelSize
-                                radiusp = num.sqrt(xmm**2 + ymm**2) / pixelSize
-                            else:
-                                # XY not switch, and pixel centers not in mm
-                                xmm     = centerXm + (s.getD(data.k_x) - centerXp)
-                                ymm     = centerYm + (s.getD(data.k_y) - centerYp)
-                                radiusp = num.sqrt(xmm**2 + ymm**2)
+                            xmm     = startX + s.getD(data.k_x)
+                            ymm     = startY + s.getD(data.k_y)
+                            radiusp = num.sqrt(xmm**2 + ymm**2)
                             self.radius.append(raftId, ccdId, radiusp)
 
                 # Calculate stats
@@ -190,94 +187,109 @@ class VignettingQaTask(QaAnalysisTask):
         if len(data.brokenDataIdList) == 0 or data.brokenDataIdList[-1] == dataId:
             isFinalDataId = True
 
+
         # fpa figures
         medFigbase = "vignettingMedianPhotOffset" #cache
-        medFigData, medFigMap = testSet.unpickle(medFigbase, [None, None]) #cache
-        medFig = qaFig.FpaQaFigure(data.cameraInfo, data=medFigData, map=medFigMap) #cache
-        for raft, ccdDict in medFig.data.items():
-            for ccd, value in ccdDict.items():
-                if not self.medianOffset.get(raft, ccd) is None:
-                    med = self.medianOffset.get(raft, ccd)
-                    medFig.data[raft][ccd] = med
-                    if num.isfinite(med):
-                        medFig.map[raft][ccd] = 'med=%.2f'%(med)
-                    else:
-                        medFig.map[raft][ccd] = 'med=nan'
-
         stdFigbase = "vignettingRmsPhotOffset" #cache
-        stdFigData, stdFigMap = testSet.unpickle(stdFigbase, [None, None]) #cache
-        stdFig = qaFig.FpaQaFigure(data.cameraInfo, data=stdFigData, map=stdFigMap) #cache
-        for raft, ccdDict in stdFig.data.items():
-            for ccd, value in ccdDict.items():
-                if not self.rmsOffset.get(raft, ccd) is None:
-                    std = self.rmsOffset.get(raft, ccd)
-                    stdFig.data[raft][ccd] = std
-                    if num.isfinite(std):
-                        stdFig.map[raft][ccd] = 'stddev=%.2f'%(std)
-                    else:
-                        stdFig.map[raft][ccd] = 'stddev=nan'
-                        
+        medFig = qaFig.FpaQaFigure(data.cameraInfo, data=None, map=None)
+        stdFig = qaFig.FpaQaFigure(data.cameraInfo, data=None, map=None)
+            
+        if self.summaryProcessing != self.summOpt['summOnly']:
+            for raft, ccdDict in medFig.data.items():
+                for ccd, value in ccdDict.items():
+                    label = data.cameraInfo.getDetectorName(raft, ccd)
+                    
+                    if not self.medianOffset.get(raft, ccd) is None:
+                        med = self.medianOffset.get(raft, ccd)
+                        medFig.data[raft][ccd] = med
+                        if num.isfinite(med):
+                            medFig.map[raft][ccd] = 'med=%.2f'%(med)
+                        else:
+                            medFig.map[raft][ccd] = 'med=nan'
+                            
+                        testSet.pickle(medFigbase + label, [medFig.data, medFig.map]) #cache
 
-        testSet.pickle(medFigbase, [medFig.data, medFig.map]) #cache
-        testSet.pickle(stdFigbase, [stdFig.data, stdFig.map]) #cache 
-        blue = '#0000ff'
-        red  = '#ff0000'
+                    if not self.rmsOffset.get(raft, ccd) is None:
+                        std = self.rmsOffset.get(raft, ccd)
+                        stdFig.data[raft][ccd] = std
+                        if num.isfinite(std):
+                            stdFig.map[raft][ccd] = 'stddev=%.2f'%(std)
+                        else:
+                            stdFig.map[raft][ccd] = 'stddev=nan'
+
+                        testSet.pickle(stdFigbase + label, [stdFig.data, stdFig.map]) #cache
+
+
+            
+        if (self.summaryProcessing in [self.summOpt['summOnly'], self.summOpt['delay']]) and isFinalDataId:
+            blue = '#0000ff'
+            red  = '#ff0000'
+
+            for raft, ccdDict in medFig.data.items():
+                for ccd, value in ccdDict.items():
+                    label = data.cameraInfo.getDetectorName(raft, ccd)
+                    medFigDataTmp, medFigMapTmp = testSet.unpickle(medFigbase + label, default=[None, None])
+                    medFig.mergeValues(medFigDataTmp, medFigMapTmp)
+                    stdFigDataTmp, stdFigMapTmp = testSet.unpickle(stdFigbase + label, default=[None, None])
+                    medFig.mergeValues(stdFigDataTmp, stdFigMapTmp)
         
-        if not self.delaySummary or isFinalDataId:
             self.log.log(self.log.INFO, "plotting FPAs")
             medFig.makeFigure(showUndefined=showUndefined, cmap="RdBu_r", vlimits=self.medLimits,
                               title="Median offset", cmapOver=red, cmapUnder=blue,
                               failLimits=self.medLimits)
             testSet.addFigure(medFig, medFigbase+".png",
-                              "Median offset of bright (m<%d) stars versus radius" % (self.maxMag), 
+                              "Median offset of bright (m<%.3f) stars versus radius" % (self.maxMag), 
                               navMap=True)
-            del medFig
+
             stdFig.makeFigure(showUndefined=showUndefined, cmap="RdBu_r", vlimits=self.rmsLimits,
                               title="Stddev offset", cmapOver=red, cmapUnder=blue,
                               failLimits=self.rmsLimits)
             testSet.addFigure(stdFig, stdFigbase+".png",
-                              "Stddev of bright (m < %d) stars as a function of radius" % (self.maxMag), 
+                              "Stddev of bright (m < %.3f) stars as a function of radius" % (self.maxMag), 
                               navMap=True)
-            del stdFig
-        else:
-            del medFig
-            del stdFig
+
+        del medFig
+        del stdFig
 
         cacheLabel = "vignetting_dmag" #cache
-        shelfData = {}
 
-        # make any individual (ie. per sensor) plots
-        for raft, ccd in self.dmag.raftCcdKeys():
 
-            dmags = self.dmag.get(raft, ccd)
-            radii = self.radius.get(raft, ccd)
-            ids   = self.ids.get(raft, ccd)
-            med   = self.medianOffset.get(raft, ccd)
-            std   = self.rmsOffset.get(raft, ccd)
+        if self.summaryProcessing != self.summOpt['summOnly']:
 
-            dataDict = {'dmags' : dmags, 'radii' : radii, 'ids' : ids,
-                        'offsetStats' : [med, std],
-                        'magTypes' : [self.magType1, self.magType2],
-                        'summary' : False,
-                        }
+            # make any individual (ie. per sensor) plots
+            for raft, ccd in self.dmag.raftCcdKeys():
+
+                dmags = self.dmag.get(raft, ccd)
+                radii = self.radius.get(raft, ccd)
+                ids   = self.ids.get(raft, ccd)
+                med   = self.medianOffset.get(raft, ccd)
+                std   = self.rmsOffset.get(raft, ccd)
+
+                dataDict = {'dmags' : dmags, 'radii' : radii, 'ids' : ids,
+                            'offsetStats' : [med, std],
+                            'magTypes' : [self.magType1, self.magType2],
+                            'summary' : False,
+                            }
+
+                self.log.log(self.log.INFO, "plotting %s" % (ccd))
+                import VignettingQaPlot as plotModule
+                label = data.cameraInfo.getDetectorName(raft, ccd)
+                caption = "Delta magnitude vs. radius " + label
+                pngFile = cacheLabel+".png"
+
+                if self.lazyPlot.lower() in ['sensor', 'all']:
+                    testSet.addLazyFigure(dataDict, pngFile, caption,
+                                          plotModule, areaLabel=label, plotargs="")
+                else:
+                    testSet.cacheLazyData(dataDict, pngFile, areaLabel=label)
+                    fig = plotModule.plot(dataDict)
+                    testSet.addFigure(fig, pngFile, caption, areaLabel=label)
+                    del fig
+
             
-            self.log.log(self.log.INFO, "plotting %s" % (ccd))
-            import VignettingQaPlot as plotModule
-            label = data.cameraInfo.getDetectorName(raft, ccd)
-            caption = "Delta magnitude vs. radius " + label
-            pngFile = cacheLabel+".png"
 
-            if self.lazyPlot.lower() in ['sensor', 'all']:
-                testSet.addLazyFigure(dataDict, pngFile, caption,
-                                      plotModule, areaLabel=label, plotargs="")
-            else:
-                testSet.cacheLazyData(dataDict, pngFile, areaLabel=label)
-                fig = plotModule.plot(dataDict)
-                testSet.addFigure(fig, pngFile, caption, areaLabel=label)
-                del fig
+        if (self.summaryProcessing in [self.summOpt['summOnly'], self.summOpt['delay']]) and isFinalDataId:
 
-            
-        if not self.delaySummary or isFinalDataId:
             self.log.log(self.log.INFO, "plotting Summary figure")
 
 
@@ -291,10 +303,12 @@ class VignettingQaTask(QaAnalysisTask):
                                       plotModule, areaLabel=label, plotargs="")
             else:
                 dataDict, isSummary = qaPlotUtil.unshelveGlob(cacheLabel+"-all.png", testSet=testSet)
-                dataDict['summary'] = True
-                fig = plotModule.plot(dataDict)                
-                testSet.addFigure(fig, pngFile, caption, areaLabel=label)
-                del fig
+                if 'dmags' in dataDict:
+                    dataDict['summary'] = True
+                    fig = plotModule.plot(dataDict)                
+                    testSet.addFigure(fig, pngFile, caption, areaLabel=label)
+                    del fig
 
 
+            self.combineOutputs(data, dataId)
             

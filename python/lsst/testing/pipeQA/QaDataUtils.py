@@ -133,29 +133,7 @@ class QaDataUtils(object):
 
         return testbedDir, testdataDir
 
-
-
-
-    #def setSourceBlobsNone(s):
-    #    """Free the blob structures (photometry,astrometry,shape) in Source to reduce object size. """
-    #    s.setPhotometry(None)
-    #    s.setAstrometry(None)
-    #    s.setShape(None)
-
-    #def setSourceSetBlobsNone(ss):
-    #    """Free the blob structures (photometry,astrometry,shape) for all Source in SourceSet. """
-    #    for s in ss:
-    #        self.setSourceBlobsNone(s)
-
-
-    #def setMatchListBlobsNone(matchList):
-    #    """Free the blob structures (photometry,astrometry,shape) for all Source in MatchList. """
-
-    #    for s1, s2, d in matchList:
-    #        self.setSourceBlobsNone(s1)
-    #        self.setSourceBlobsNone(s2)
-
-
+    
 
 
     def getSourceSetNameList(self):

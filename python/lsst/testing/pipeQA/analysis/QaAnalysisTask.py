@@ -21,7 +21,7 @@ class QaAnalysisTask(pipeBase.Task):
     _DefaultName = "qaAnalysis"
 
 
-    def __init__(self, testLabel=None, useCache=False, wwwCache=True, delaySummary=False,
+    def __init__(self, testLabel=None, useCache=False, wwwCache=True, summaryProcessing="delay",
                  lazyPlot='sensor', *args, **kwargs):
         """
         @param testLabel   A name for this kind of analysis test.
@@ -33,10 +33,20 @@ class QaAnalysisTask(pipeBase.Task):
 
         # if we're not going to use the cached values
         # we'll have to clean the output directory on our first call
-        self.useCache = useCache
-        self.clean    = not useCache
-        self.wwwCache = wwwCache
-        self.delaySummary = delaySummary
+        self.useCache     = useCache
+        self.clean        = not useCache
+        self.wwwCache     = wwwCache
+        self.summaryProcessing = summaryProcessing
+
+        self.summOpt = {
+            'delay'     : 'delay',  # make summary figures after the final CCD is processed
+            'summOnly'  : 'summOnly',   # only make summary figures
+            'none'      : 'none'    # don't make summary figures
+            }
+        
+        #self.delaySummary = delaySummary
+        #self.noSummary    = noSummary
+        #self.onlySummary  = onlySummary
 
         options = ['none', 'sensor', 'all']
         if not lazyPlot in options:
@@ -44,8 +54,15 @@ class QaAnalysisTask(pipeBase.Task):
         
         self.lazyPlot  = lazyPlot
 
+
+    def combineOutputs(self, data, dataId, label=None):
+        ts = self.getTestSet(data, dataId, label, noSuffix=True)
+        ts.accrete()
+        ts.updateCounts()
+        #pass
+
         
-    def getTestSet(self, data, dataId, label=None):
+    def getTestSet(self, data, dataId, label=None, noSuffix=False):
         """Get a TestSet object in the correct group.
 
         @param data    a QaData object
@@ -74,10 +91,11 @@ class QaAnalysisTask(pipeBase.Task):
 
         # DATE_OBS
         dateObs = summaryInfo.get('DATE_OBS', None)
-        if dateObs:
-            dateObs = dateObs.strftime("%Y-%m-%d")
-        else:
+        if dateObs is None:
             dateObs = 'unknown'
+        else:
+            dateObs = dateObs.strftime("%Y-%m-%d")
+
         dateObs += ' (MJD: %.6f)' % (summaryInfo.get("MJD", 0.0))
 
         # RADEC
@@ -87,7 +105,7 @@ class QaAnalysisTask(pipeBase.Task):
         alt = summaryInfo.get('ALT', None)
         az  = str(summaryInfo.get('AZ', None))
         if alt:
-            altAz   = str(alt) + " " + az + " (airmass: %.2f)" % (summaryInfo.get("AIRMASS", "unk"))
+            altAz   = str(alt) + " " + az + " (airmass: %.2f)" % (summaryInfo.get("AIRMASS", 0.0))
         else:
             altAz = None
 
@@ -108,15 +126,23 @@ class QaAnalysisTask(pipeBase.Task):
             label = self.__class__.__name__
 
         tsIdLabel = "visit-filter"
-        tsId = str(group)+ '-' + filterName
+        groupId = str(group) + '-' + filterName
+        tsId = str(group) + '-' + ccdName + '-' + filterName
         if data.cameraInfo.name == 'sdss':
             tsId = group
+
+        if noSuffix:
+            return testCode.TestSet(label, group=groupId, clean=self.clean, wwwCache=self.wwwCache, sqliteSuffix="")
+        else:
+            sqliteSuffix = ccdName
+
             
         if not self.testSets.has_key(tsId):
-            self.testSets[tsId] = testCode.TestSet(label, group=tsId, clean=self.clean,
-                                                   wwwCache=self.wwwCache)
+            self.testSets[tsId] = testCode.TestSet(label, group=groupId, clean=self.clean,
+                                                   wwwCache=self.wwwCache, sqliteSuffix=sqliteSuffix)
+            
             self.testSets[tsId].addMetadata('dataset', data.getDataName())
-            self.testSets[tsId].addMetadata(tsIdLabel, tsId)
+            self.testSets[tsId].addMetadata(tsIdLabel, groupId)
 
             # we'll always show these, even if showing 'None'
             self.testSets[tsId].addMetadata('DATE_OBS', dateObs)
@@ -149,7 +175,6 @@ class QaAnalysisTask(pipeBase.Task):
             sqlCache = data.sqlCache['src'].get(key, "")
             if sqlCache:
                 self.testSets[tsId].addMetadata("SQL_src-"+ccdName ,  sqlCache)
-                
                 
         return self.testSets[tsId]
 

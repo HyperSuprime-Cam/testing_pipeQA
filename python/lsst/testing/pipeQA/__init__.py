@@ -21,8 +21,6 @@
 #
 
 # utilities
-from Checksum     import *
-from Manifest     import Manifest, verifyManifest
 from TestCode     import *
 from CameraInfo   import *
 

@@ -1,4 +1,5 @@
 import sys, os, re, copy
+import datetime
 
 import lsst.daf.persistence             as dafPersist
 import lsst.afw.detection               as afwDet
@@ -50,9 +51,6 @@ class ButlerQaData(QaData):
         @param rerun The rerun to retrieve
         @param cameraInfo A cameraInfo object describing the camera for these data
         @param dataDir The full path to the directory containing the data registry file.
-        
-        @param haveManifest verify files in dataDir are present according to manifest
-        @param verifyChecksum verify files in dataDir have correct checksum as listed in manifest
         """
         
         QaData.__init__(self, label, rerun, cameraInfo, qaDataUtils)
@@ -65,8 +63,6 @@ class ButlerQaData(QaData):
         ###############################################
         self.kwargs      = kwargs
         self.dataId         = self.kwargs.get('dataId', {})
-        self.haveManifest   = self.kwargs.get('haveManifest', False)
-        self.verifyChecksum = self.kwargs.get('verifyChecksum', False)
         self.shapeAlg       = self.kwargs.get('shapeAlg', 'HSM_REGAUSS')
 
         knownAlgs = ["HSM_REGAUSS", "HSM_BJ", "HSM_LINEAR", "HSM_SHAPELET", "HSM_KSB"]
@@ -74,21 +70,12 @@ class ButlerQaData(QaData):
             knownStr = "\n".join(knownAlgs)
             raise Exception("Unknown shape algorithm: %s.  Please choose: \n%s\n" % (self.shapeAlg, knownStr))
 
-        ###############################################
-        # check the manifest, if requested
-        # haveManifest = True is a bit slowish
-        # verifyChecksum = True is quite slow
-        manifest.verifyManifest(self.dataDir, verifyExists=self.haveManifest,
-                                verifyChecksum=self.verifyChecksum)
 
-
-        # This (dataId fetching) needs a better design, but will require butler/mapper change, I think.
-        #
         # these obscure things refer to the names assigned to levels in the data hierarchy
         # eg. for lsstSim:   dataInfo  = [['visit',1], ['snap', 0], ['raft',0], ['sensor',0]]
         # a level is considered a discriminator if it represents different pictures of the same thing
         # ... so the same object may appear in multiple 'visits', but not on multiple 'sensors'
-        # dataInfo is passed in from the derived class as it's specific to each mapper
+        # dataInfo is passed in from the derived class as it's specific to each camera
         
         dataIdRegexDict = {}
         for array in self.dataInfo:
@@ -102,21 +89,22 @@ class ButlerQaData(QaData):
 
         #######################################
         # get butler
-        self.outMapper = self.cameraInfo.getMapper(self.dataDir, rerun=self.rerun)
-        self.outButler = dafPersist.ButlerFactory(mapper=self.outMapper).create()
+        self.butler = dafPersist.Butler(self.dataDir)
 
         
         ####################################################
         # make a list of the frames we're asked to care about
 
         # get all the available raw inputs
-        self.availableDataTuples = self.outButler.queryMetadata(cameraInfo.rawName, self.dataIdNames,
+        self.availableDataTuples = self.butler.queryMetadata(cameraInfo.rawName, self.dataIdNames,
                                                                 format=self.dataIdNames)
 
         # availableDataTuples may be a *very* *large* list.  Be sure to call reduceAvailableDataTupleList
         self.dataTuples = self.availableDataTuples
 
-    
+        self.alreadyTriedCalexp = set()
+        
+        
     def reduceAvailableDataTupleList(self, dataIdRegexDict):
         """Reduce availableDataTupleList by keeping only dataIds that match the input regex."""
         self.dataTuples = self._regexMatchDataIds(dataIdRegexDict, self.availableDataTuples)
@@ -146,8 +134,8 @@ class ButlerQaData(QaData):
         for dataTuple in dataTuplesToFetch:
             dataId = self._dataTupleToDataId(dataTuple)
             visits.append(self.cameraInfo.dataIdCameraToStandard(dataId)['visit'])
-        return sorted(set(visits))
-    
+        visits_sort = sorted(set(visits))
+        return visits_sort
 
 
     def breakDataId(self, dataIdRegex, breakBy):
@@ -166,7 +154,6 @@ class ButlerQaData(QaData):
 
 
         dataTuplesToFetch = self._regexMatchDataIds(dataIdRegex, self.dataTuples)
-
 
         dataIdDict = {}
         # handle lsst/hsc different naming conventions
@@ -198,9 +185,17 @@ class ButlerQaData(QaData):
         for key in sorted(dataIdDict.keys()):
             self.brokenDataIdList.append(dataIdDict[key])
         
-        return copy.copy(self.brokenDataIdList)
-    
+        dataIdListCopy = copy.copy(self.brokenDataIdList)
+        return dataIdListCopy
 
+    
+    def verify(self, dataId):
+        # just load the calexp, you'll need it anyway
+        self.loadCalexp(dataId)
+        key = self._dataIdToString(dataId, defineFully=True)
+        haveIt = True if key in self.calexpQueryCache else False
+        return haveIt
+    
     def getMatchListBySensor(self, dataIdRegex, useRef=None):
         """Get a dict of all SourceMatches matching dataId, with sensor name as dict keys.
 
@@ -235,8 +230,8 @@ class ButlerQaData(QaData):
                 filterName = flookup[filterName]
                 
             # make sure we actually have the output file
-            isWritten = self.outButler.datasetExists('icMatch', dataId) and \
-                self.outButler.datasetExists('calexp', dataId)
+            isWritten = self.butler.datasetExists('icMatch', dataId) and \
+                self.butler.datasetExists('calexp', dataId)
             multiplicity = {}
             matchList = []
             
@@ -248,7 +243,7 @@ class ButlerQaData(QaData):
 
                 self.printStartLoad("Loading MatchList for: " + dataKey + "...")
                 
-                matches = measAstrom.astrom.readMatches(self.outButler, dataId)
+                matches = measAstrom.astrom.readMatches(self.butler, dataId)
                 
                 sourcesDict    = self.getSourceSetBySensor(dataId)
                 refObjectsDict = self.getRefObjectSetBySensor(dataId)
@@ -260,7 +255,7 @@ class ButlerQaData(QaData):
                 fmag0, fmag0err = calib.getFluxMag0()
                 for m in matches:
                     srefIn, sIn, dist = m
-                    if ((not srefIn is None) and (not sIn is None)):
+                    if ((srefIn is not None) and (sIn is not None)):
 
                         if not matchListDict.has_key(dataKey):
                             refCatObj = pqaSource.RefCatalog()
@@ -455,9 +450,9 @@ class ButlerQaData(QaData):
             self.printStartLoad("Loading SourceSets for: " + dataKey + "...")
             
             # make sure we actually have the output file
-            isWritten = self.outButler.datasetExists('src', dataId)
+            isWritten = self.butler.datasetExists('src', dataId)
             if isWritten:
-                sourceCatalog = self.outButler.get('src', dataId)
+                sourceCatalog = self.butler.get('src', dataId)
 
                 calibDict = self.getCalibBySensor(dataId)
                 calib = calibDict[dataKey]
@@ -479,8 +474,8 @@ class ButlerQaData(QaData):
                     rec = cat.addNew()
                     rec.setId(s.getId())
 
-                    rec.setD(self.k_Ra,    float(s.getRa()))
-                    rec.setD(self.k_Dec,   float(s.getDec()))
+                    rec.setD(self.k_Ra,    float(s.getRa().asDegrees()))
+                    rec.setD(self.k_Dec,   float(s.getDec().asDegrees()))
                     rec.setD(self.k_x,     float(s.getX())) #Astrom()))
                     rec.setD(self.k_y,     float(s.getY())) #Astrom()))
                     
@@ -622,10 +617,11 @@ class ButlerQaData(QaData):
         for dataId, ce in calexp.items():
             if not dataId in summary:
                 summary[dataId] = {}
-            summary[dataId]["DATE_OBS"] = ce['DATA_OBS']
-            summary[dataId]["EXPTIME"]  = ce['EXPTIME']
-            summary[dataId]['RA']       = ce['RA']
-            summary[dataId]['DEC']      = ce['DEC']
+            if ce is not None:
+                summary[dataId]["DATE_OBS"] = datetime.datetime.strptime(ce['DATE-OBS'], "%Y-%m-%d") or 'xx-xx-xx'
+                summary[dataId]["EXPTIME"]  = ce['EXPTIME'] or 0.0
+                summary[dataId]['RA']       = ce['RA']      or 0.0
+                summary[dataId]['DEC']      = ce['DEC']     or 0.0
             summary[dataId]['ALT']      = "xx"
             summary[dataId]['AZ']       = "xxx"
             
@@ -640,18 +636,19 @@ class ButlerQaData(QaData):
         
         dataTuplesToFetch = self._regexMatchDataIds(dataIdRegex, self.dataTuples)
 
+        
         # get the datasets corresponding to the request
         for dataTuple in dataTuplesToFetch:
             dataId = self._dataTupleToDataId(dataTuple)
             dataKey = self._dataTupleToString(dataTuple)
 
-            if self.calexpCache.has_key(dataKey):
+            if self.calexpCache.has_key(dataKey) or (dataKey in self.alreadyTriedCalexp):
                 continue
 
             self.printStartLoad("Loading Calexp for: " + dataKey + "...")
 
-            if self.outButler.datasetExists('calexp_md', dataId):
-                calexp_md = self.outButler.get('calexp_md', dataId)
+            if self.butler.datasetExists('calexp_md', dataId):
+                calexp_md = self.butler.get('calexp_md', dataId)
                 
                 self.wcsCache[dataKey]      = afwImage.makeWcs(calexp_md)
 
@@ -700,7 +697,7 @@ class ButlerQaData(QaData):
                 width = calexp_md.get('NAXIS1')
                 height = calexp_md.get('NAXIS2')
                 try:
-                    psf = self.outButler.get("psf", visit=dataId['visit'],
+                    psf = self.butler.get("psf", visit=dataId['visit'],
                                              raft=dataId['raft'], sensor=dataId['sensor'])
                     attr = measAlg.PsfAttributes(psf, width // 2, height // 2)
                     fwhm = attr.computeGaussianWidth() * self.wcsCache[dataKey].pixelScale().asArcseconds() * sigmaToFwhm
@@ -708,7 +705,7 @@ class ButlerQaData(QaData):
                     fwhm = -1.0
 
                 if (self.calexpCache[dataKey].has_key('fwhm') and
-                    numpy.isnan(self.calexpCache[dataKey]['fwhm'])):
+                    numpy.isnan(float(self.calexpCache[dataKey]['fwhm']))):
                     self.calexpCache[dataKey]['fwhm'] = fwhm
                 
                 self.calexpQueryCache[dataKey] = True
@@ -717,10 +714,10 @@ class ButlerQaData(QaData):
 
                 
             else:
-                calibFilename = self.outButler.get('calexp_filename', dataId)
+                calibFilename = self.butler.get('calexp_filename', dataId)
                 print "\nSkipping " + str(dataTuple) + ". Calib output file missing:"
                 print "   "+str(calibFilename)
-                
+                self.alreadyTriedCalexp.add(dataKey)
 
             self.printStopLoad()
             
@@ -757,7 +754,7 @@ class ButlerQaData(QaData):
     #  the ones which match regexes for the corresponding data type
     # so user can say eg. raft='0,\d', visit='855.*', etc
     #######################################################################
-    def _regexMatchDataIds(self, dataIdRegexDict, availableDataTuples, verbose=False):
+    def _regexMatchDataIds(self, dataIdRegexDict, availableDataTuples, exact=True, verbose=False):
         """Match available data with regexes in a dataId dictionary        
         
         @param dataIdRegexDict dataId dict of regular expressions for data to be handled.
@@ -777,13 +774,18 @@ class ButlerQaData(QaData):
                 regexForThisId = dataIdRegexDict.get(dataIdName, '.*') # default to '.*' or 'anything'
                 dataId = dataTuple[i]
 
-                # if it doesn't match, this frame isn't to be run.
-                if not re.search(str(regexForThisId),  str(dataId)):
-                    match = False
-                    break
+                if exact:
+                    if str(regexForThisId) != str(dataId):
+                        match = False
+                        break
+                else:
+                    # if it doesn't match, this frame isn't to be run.
+                    if not re.search(str(regexForThisId),  str(dataId)):
+                        match = False
+                        break
                 
                 # ignore the guiding ccds on the hsc camera
-                if re.search('^hsc.*', self.cameraInfo.name) and dataIdName == 'ccd' and dataId > 99:
+                if re.search('^hsc.*', self.cameraInfo.name) and dataIdName == 'ccd' and dataId > 103:
                     match = False
                     break
 
@@ -794,66 +796,3 @@ class ButlerQaData(QaData):
                 
 
     
-
-
-
-#######################################################################
-#
-#
-#
-#######################################################################
-def makeButlerQaData(label, rerun=None, camera=None, **kwargs):
-    """Factory for a ButlerQaData object.
-
-    @param label The basename directory in a TESTBED_PATH directory where the registry file exists.
-    @param rerun The rerun of the data to retrieve
-
-    Keyword args passed to ButlerQaData constructor:
-    @param haveManifest verify files in dataDir are present according to manifest
-    @param verifyChecksum verify files in dataDir have correct checksum as listed in manifest
-    """
-        
-    testbedDir, testdataDir = qaDataUtils.findDataInTestbed(label)
-
-    # make sure LsstSim is last in the list (its 'verifyRegistries()' will pass for all cameras)
-    cameraKeys = ["hsc", "suprimecam", "suprimecam-old", "sdss", "lsstSim", "coadd"]
-    cameraInfos = {
-#       "cfht": qaCamInfo.CfhtCameraInfo(), # XXX CFHT camera geometry is currently broken following #1767
-        "hsc" : qaCamInfo.HscCameraInfo(),
-        "suprimecam": qaCamInfo.SuprimecamCameraInfo(),
-        "suprimecam-old": qaCamInfo.SuprimecamCameraInfo(True),
-        "sdss" : qaCamInfo.SdssCameraInfo(),
-        "coadd" : qaCamInfo.CoaddCameraInfo(),
-        "lsstsim": qaCamInfo.LsstSimCameraInfo(),
-        }
-
-    # try each camera ***in-order***
-    # note that LsstSim will look like all other as it uses the same registry for data and calib
-    # ... must test it last
-    cameraToUse = None
-    if not camera is None:
-        cameraToUse = cameraInfos[camera]
-    else:
-
-        for cameraKey in cameraKeys:
-            cameraInfo = cameraInfos[cameraKey]
-            # if the mapper couldn't be found, we can't use this camera
-            hasMapper = not cameraInfo.mapperClass is None
-            validReg = cameraInfo.verifyRegistries(testdataDir)
-            #print cameraInfo.name, "valid: ", validReg
-            if hasMapper and validReg:
-                cameraToUse = cameraInfo
-                break
-
-    if cameraToUse is None:
-        raise Exception("Can't find registries usable with any mappers.")
-    else:
-        if rerun is None:
-            rerun = cameraToUse.getDefaultRerun()
-        print "label:       ", label
-        print "rerun:       ", rerun
-        print "camera:      ", cameraToUse.name
-        print "testdataDir: ", testdataDir
-        return ButlerQaData(label, rerun, cameraToUse, testdataDir, **kwargs)
-
-

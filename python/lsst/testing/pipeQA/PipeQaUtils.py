@@ -1,5 +1,3 @@
-from lsst.obs.lsstSim import LsstSimMapper
-import lsst.daf.persistence as dafPersist
 import numpy as num
 
 #
@@ -31,11 +29,6 @@ class SdqaMetric(object):
 ### HELPER FUNCTIONS
 #
 
-def getInputButler(inRoot, registry):
-    inmapper = LsstSimMapper(root = inRoot, registry = registry)
-    bf = dafPersist.ButlerFactory(mapper=inmapper)
-    inButler = bf.create()
-    return inButler
 
 # Example on how to use the butler
 def getAllKeys(inButler):

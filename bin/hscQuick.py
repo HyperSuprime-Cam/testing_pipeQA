@@ -41,19 +41,16 @@ class QuickInfo(object):
 #
 #############################################################
 
-def main(rerun, visits, ccds, camera="suprimecam", testRegex=".*"):
+def main(root, rerun, visits, ccds, camera="hsc", testRegex=".*",
+         doCopy=False, doConvert=False):
 
-    
-
+    datadir = os.path.join(root, rerun)
+    if not os.path.exists(datadir):
+        raise RuntimeError("Data directory does not exist:" + datadir)
+    butler = dafPersist.Butler(datadir)
     if camera == 'suprimecam':
-        root = os.path.join(os.getenv('SUPRIME_DATA_DIR'), "SUPA")
-        calib = os.path.join(os.getenv('SUPRIME_DATA_DIR'), "SUPA", "CALIB")
-        butler = hscCamera.getButler('suprimecam', rerun=rerun, root=root)
         camInfo = pqa.SuprimecamCameraInfo(mit=False)
-    elif camera == 'hsc':
-        root = os.path.join(os.getenv('SUPRIME_DATA_DIR'), "HSC")
-        outputRoot = "/data/data2/Subaru/HSC/rerun/" +  rerun
-        butler = dafPersist.ButlerFactory(mapper=hscSim.HscSimMapper(root=root, outputRoot=outputRoot)).create()
+    elif camera in ['hsc', 'hscsim']:
         camInfo = pqa.HscCameraInfo()
     else:
         raise ValueError, "Unknown camera."
@@ -82,6 +79,8 @@ def main(rerun, visits, ccds, camera="suprimecam", testRegex=".*"):
         QuickInfo("plotEllipticityGrid", "elly.Grid"),
         QuickInfo("plotMagHist",         "magHist"),
         QuickInfo("plotSeeingRough",     "seeing.Rough"),
+        QuickInfo("plotPsfSrcGrid",      "psfCont.Src"),
+        QuickInfo("plotPsfModelGrid",    "psfCont.Model"),
         ]
     
     
@@ -103,7 +102,7 @@ def main(rerun, visits, ccds, camera="suprimecam", testRegex=".*"):
 
                 ####
                 # butler.get() fails without filter and pointing ... why?
-                dataId = {'visit': visit, 'ccd': ccd, 'filter':'W-S-I+', 'pointing' : 41}
+                dataId = {'visit': visit, 'ccd': ccd} #, 'filter':'W-S-I+', 'pointing' : 41}
                 #### 
 
                 
@@ -123,7 +122,7 @@ def main(rerun, visits, ccds, camera="suprimecam", testRegex=".*"):
                 figNames = butler.get(camel, dataId)
                 caption = "Figure " + f
                 if os.path.exists(figNames[0]):
-                    ts.addFigureFile(figNames[0], caption, areaLabel=areaLabel)
+                    ts.addFigureFile(figNames[0], caption, areaLabel=areaLabel, doCopy=doCopy, doConvert=doConvert)
                 else:
                     print "Warning: File does not exist ... "+ "\n".join(figNames)
 
@@ -157,18 +156,22 @@ def parseRange(s):
         
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("rerun", help="Rerun for the data to be run.")
+    parser.add_argument("root",   help="Data root directory.")
+    parser.add_argument("rerun",  help="Rerun for the data to be run.")
     parser.add_argument("visits", help="Visits to run.  Use colon to separate values.  Use dash to denote range.")
-    parser.add_argument("-C",  "--camera", default="suprimecam",
-                        help="Specify camera (default=%default)")
+    parser.add_argument("-C",  "--camera", default="hsc",
+                        help="Specify camera")
     parser.add_argument("-c",  "--ccds", default="0-9",
                         help="Ccds to run.  Use colon to separate values.  Use dash to denote range.")
     parser.add_argument("-t", "--testRegex", default=".*",
-                        help="regular expression to match tests to be run (default=%default)")
+                        help="regular expression to match tests to be run")
+    parser.add_argument("--do-copy", dest="doCopy", action="store_true", help="if set, make copies of files onto pipeQa's web direcotry ($WWW_ROOT/$WWW_RERUN) rather than making symlinks.")
+    parser.add_argument("--do-convert", dest="doConvert", action="store_true", help="if set, make thumbnail files by converting original png files. Otherwise, just use symlinks.")
+    
     args = parser.parse_args()
 
     visits = parseRange(args.visits)
     ccds   = parseRange(args.ccds)
     
-    main(args.rerun, visits, ccds, testRegex=args.testRegex, camera=args.camera)
-    
+    main(args.root, args.rerun, visits, ccds, testRegex=args.testRegex, camera=args.camera,
+         doCopy=args.doCopy, doConvert=args.doConvert)

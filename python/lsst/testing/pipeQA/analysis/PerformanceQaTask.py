@@ -134,16 +134,15 @@ class PerformanceQaTask(QaAnalysisTask):
         # memory
         ################################
 
-        if True:
-            # make fpa figures - for all detections, and for matched detections
-            memBase = "mem"
 
-            memData, memMap       = testSet.unpickle(memBase, [None, None])
-            memFig    = qaFig.FpaQaFigure(data.cameraInfo, data=memData, map=memMap)
+        # make fpa figures - for all detections, and for matched detections
+        memBase = "mem"
 
+        memFig    = qaFig.FpaQaFigure(data.cameraInfo, data=None, map=None)
+
+        if self.summaryProcessing != self.summOpt['summOnly']:
             for raft, ccdDict in memFig.data.items():
                 for ccd, value in ccdDict.items():
-
                     # set values for data[raft][ccd] (color coding)
                     # set values for map[raft][ccd]  (tooltip text)
                     if not self.mem.get(raft, ccd) is None:
@@ -151,23 +150,30 @@ class PerformanceQaTask(QaAnalysisTask):
                         memFig.data[raft][ccd] = mem
                         memFig.map[raft][ccd] = "%.1fMB" % (mem)
 
-            testSet.pickle(memBase, [memFig.data, memFig.map])
+                        label = data.cameraInfo.getDetectorName(raft, ccd)
+                        testSet.pickle(memBase+label, [memFig.data, memFig.map])
 
 
-            # make the figures and add them to the testSet
-            # sample colormaps at: http://www.scipy.org/Cookbook/Matplotlib/Show_colormaps
-            if not self.delaySummary or isFinalDataId:
-                self.log.log(self.log.INFO, "plotting FPAs")
-                memFig.makeFigure(showUndefined=showUndefined, cmap="gist_heat_r",
-                                      vlimits=self.limits, 
-                                      title="Memory Usage [MB]",
-                                      failLimits=self.limits)
-                testSet.addFigure(memFig, memBase+".png",
-                                  "memory usage in MB", navMap=True)
-                del memFig
+        # make the figures and add them to the testSet
+        # sample colormaps at: http://www.scipy.org/Cookbook/Matplotlib/Show_colormaps
 
-            else:
-                del memFig
+        if (self.summaryProcessing in [self.summOpt['summOnly'], self.summOpt['delay']]) and isFinalDataId:
+
+            for raft, ccdDict in memFig.data.items():
+                for ccd, value in ccdDict.items():
+                    label = data.cameraInfo.getDetectorName(raft, ccd)
+                    memDataTmp, memMapTmp       = testSet.unpickle(memBase+label, [None, None])
+                    memFig.mergeValues(memDataTmp, memMapTmp)
+
+            self.log.log(self.log.INFO, "plotting FPAs")
+            memFig.makeFigure(showUndefined=showUndefined, cmap="gist_heat_r",
+                                  vlimits=self.limits, 
+                                  title="Memory Usage [MB]",
+                                  failLimits=self.limits)
+            testSet.addFigure(memFig, memBase+".png",
+                              "memory usage in MB", navMap=True)
+            
+        del memFig
 
 
 
@@ -175,44 +181,49 @@ class PerformanceQaTask(QaAnalysisTask):
         # runtime
         ################################
 
-        if True:
-            # make fpa figures - for all detections, and for matched detections
-            runtimeBase = "runtime"
+        # make fpa figures - for all detections, and for matched detections
+        runtimeBase = "runtime"
 
-            runtimeData, runtimeMap       = testSet.unpickle(runtimeBase, [None, None])
-            runtimeFig    = qaFig.FpaQaFigure(data.cameraInfo, data=runtimeData, map=runtimeMap)
+        runtimeFig    = qaFig.FpaQaFigure(data.cameraInfo, data=None, map=None)
 
-            #print "min/max", mintime, maxtime
+        #print "min/max", mintime, maxtime
+        if self.summaryProcessing != self.summOpt['summOnly']:
             for raft, ccdDict in runtimeFig.data.items():
                 for ccd, value in ccdDict.items():
-
-                    # set values for data[raft][ccd] (color coding)
-                    # set values for map[raft][ccd]  (tooltip text)
                     if not self.testRuntime.get(raft, ccd) is None:
                         testRuntime = self.testRuntime.get(raft, ccd)
                         plotRuntime = self.plotRuntime.get(raft, ccd)
                         runtimeFig.data[raft][ccd] = testRuntime + plotRuntime
                         runtimeFig.map[raft][ccd] = "t=%.1fsec+p=%.1fsec" % (testRuntime, plotRuntime)
 
-            testSet.pickle(runtimeBase, [runtimeFig.data, runtimeFig.map])
+                        label = data.cameraInfo.getDetectorName(raft, ccd)
+                        testSet.pickle(runtimeBase+label, [runtimeFig.data, runtimeFig.map])
 
+
+
+        # make the figures and add them to the testSet
+        # sample colormaps at: http://www.scipy.org/Cookbook/Matplotlib/Show_colormaps
+        if (self.summaryProcessing in [self.summOpt['summOnly'], self.summOpt['delay']]) and isFinalDataId:
             runArray = runtimeFig.getArray()
             if len(runArray) == 0:
                 runArray = numpy.zeros(1)
             mintime, maxtime = runArray.min()-1.0, runArray.max()+1.0
+
+            for raft, ccdDict in runtimeFig.data.items():
+                for ccd, value in ccdDict.items():
+                    label = data.cameraInfo.getDetectorName(raft, ccd)
+                    runtimeDataTmp, runtimeMapTmp       = testSet.unpickle(runtimeBase+label, [None, None])
+                    runtimeFig.mergeValues(runtimeDataTmp, runtimeMapTmp)
             
-            # make the figures and add them to the testSet
-            # sample colormaps at: http://www.scipy.org/Cookbook/Matplotlib/Show_colormaps
-            if not self.delaySummary or isFinalDataId:
-                runtimeFig.makeFigure(showUndefined=showUndefined, cmap="gist_heat_r",
-                                      vlimits=[mintime, maxtime], 
-                                      title="Runtime [Sec]",
-                                      failLimits=[mintime, maxtime])
-                testSet.addFigure(runtimeFig, runtimeBase+".png",
-                                  "Runtime", navMap=True)
-                del runtimeFig
-
-            else:
-                del runtimeFig
+            runtimeFig.makeFigure(showUndefined=showUndefined, cmap="gist_heat_r",
+                                  vlimits=[mintime, maxtime], 
+                                  title="Runtime [Sec]",
+                                  failLimits=[mintime, maxtime])
+            testSet.addFigure(runtimeFig, runtimeBase+".png",
+                              "Runtime", navMap=True)
                 
+        del runtimeFig
 
+
+        if (self.summaryProcessing in [self.summOpt['summOnly'], self.summOpt['delay']]) and isFinalDataId:
+            self.combineOutputs(data, dataId)

@@ -1,4 +1,5 @@
 import os, sys, re
+import copy
 
 import numpy
 import numpy.ma as numpyMa
@@ -59,6 +60,18 @@ class FpaQaFigure(QaFigure):
             for raft, ccdDict in data.items():
                 for ccd, value in ccdDict.items():
                     self.map[raft][ccd] = map[raft][ccd]
+
+
+
+    def mergeValues(self, data, map):
+        for raft, ccdDict in self.data.items():
+            for ccd, value in ccdDict.items():
+                if data and (raft in data) and (ccd in data[raft]) and (not data[raft][ccd] is None):
+                    self.data[raft][ccd] = copy.copy(data[raft][ccd])
+                if map and (raft in map) and (ccd in map[raft]) and (not map[raft][ccd] is None):
+                    self.map[raft][ccd] = copy.copy(map[raft][ccd])
+
+                    
 
     def getArray(self):
         array = []

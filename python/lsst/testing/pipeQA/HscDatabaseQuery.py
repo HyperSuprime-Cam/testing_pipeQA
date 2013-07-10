@@ -18,13 +18,14 @@ class DatabaseIdentity:
     }
     """
     def __init__(self, postgreSqlDb):
-        self.sqlDb   = postgreSqlDb
+        self.sqlSchema   = postgreSqlDb
         self.loadId()
 
     def loadId(self):
         dbAuth = os.path.join(os.environ["HOME"], ".hsc", "db-auth.paf")
         policy = pexPolicy.Policy(dbAuth)
         authPolicy = policy.get("database").get("authInfo")
+        self.sqlDb   = authPolicy.get("db")
         self.sqlUser = authPolicy.get("user")
         self.sqlHost = authPolicy.get("host")
         self.sqlPasswd = authPolicy.get("password")
@@ -60,6 +61,7 @@ class DbInterface(DatabaseInterface):
             port     = self.dbId.sqlPort
             )
         self.cursor = self.db.cursor()
+        self.cursor.execute("set search_path to '%s'" % (self.dbId.sqlSchema))
 
 
     def execute(self, sql):

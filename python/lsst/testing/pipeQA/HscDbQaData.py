@@ -119,6 +119,13 @@ class HscDbQaData(QaData):
             val = numpy.NaN 
         return val
 
+
+    def verify(self, dataId):
+        # just load the calexp, you'll need it anyway
+        self.loadCalexp(dataId)
+        key = self._dataIdToString(dataId, defineFully=True)
+        haveIt = True if key in self.calexpQueryCache else False
+        return haveIt
     
     def getMatchListBySensor(self, dataIdRegex, useRef='src'):
         """Get a dict of all SourceMatches matching dataId, with sensor name as dict keys.
@@ -192,14 +199,14 @@ class HscDbQaData(QaData):
         result = self.dbInterface.execute(sql)
         filterName = result[0]
 
-        arcsecErr = 1.0/206265.0
+        arcsecErr = 1.0/3600.0
 
 
-        flagBad   = "s.flag_badctd"
-        flagSat   = "s.flag_pixsttctr"
-        flagIntrp = "s.flag_pixiplctr"
-        flagEdge  = "s.flag_pixedg"
-        flagNeg   = "s.flag_neg"
+        flagBad   = "s.flag_flags_badcentroid"
+        flagSat   = "s.flag_flags_pixel_saturated_center"
+        flagIntrp = "s.flag_flags_pixel_interpolated_center"
+        flagEdge  = "s.flag_flags_pixel_edge"
+        flagNeg   = "s.flag_flags_negative"
 
 
         slist = 'frame_sourcelist' + self.tableSuffix
@@ -210,28 +217,16 @@ class HscDbQaData(QaData):
             sql  = 'select '+','.join(zip(*sceNames)[1])+', m.ref_flux, '
             sql += 'm.ref_ra2000, m.ref_dec2000, m.ra2000, m.dec2000, '
             sql += ", ".join([flagBad,flagSat,flagIntrp,flagEdge,flagNeg]) + ", "
-            sql += 'm.classification_extendedness, m.ref_id, m.obj_id, '
+            sql += 'm.classification_extendedness, m.ref_id, m.id, '
             sql += selectStr
             sql += '  from '+slist+' as s, '+ftab+' as sce, '+mlist+' as m'
-            #sql += '  where (sce.frame_id = m.frame_id) and (s.obj_id = m.obj_id) '
+            #sql += '  where (sce.frame_id = m.frame_id) and (s.id = m.id) '
             sql += '  where (sce.frame_id = m.frame_id) and '
             sql += '        (sce.frame_id = s.frame_id) and '
             sql += '        (abs(s.ra2000 - m.ra2000) < '+str(arcsecErr)+") and "
             sql += '        (abs(s.dec2000 - m.dec2000) < '+str(arcsecErr)+") "
             sql += '    and '+idWhere
-        else:
-            # this will have to be updated for the different dataIdNames when non-lsst cameras get used.
-            sql  = 'select '+ ", ".join(zip(*sceNames)[1])+', sro.%sMag, sro.ra, sro.decl, sro.isStar, sro.refObjectId, s.sourceId, '%(filterName)
-            sql += ' rom.n%sMatches,' % (self.refStr[useRef][0])
-            sql += selectStr
-            sql += '  from Source as s, Science_Ccd_Exposure as sce,'
-            sql += '    Ref%sMatch as rom, RefObject as sro' % (self.refStr[useRef][0])
-            sql += '  where (s.scienceCcdExposureId = sce.scienceCcdExposureId)'
-            sql += '    and (s.%sId = rom.%sId) and (rom.refObjectId = sro.refObjectId)' % \
-                   (self.refStr[useRef][1], self.refStr[useRef][1])
-            if useRef == 'obj':
-                sql += '    and (s.objectID is not NULL) '
-            sql += '    and '+idWhere
+
 
         self.printStartLoad("Loading MatchList ("+ self.refStr[useRef][1]  +") for: " + dataIdStr + "...")
 
@@ -239,9 +234,10 @@ class HscDbQaData(QaData):
         # run the query
         #print sql
 
+        results  = self.dbInterface.execute(sql)
+
         self.sqlCache['match'][dataIdStr] = sql
 
-        results  = self.dbInterface.execute(sql)
 
         # parse results and put them in a sourceSet
         multiplicity = {}
@@ -256,9 +252,7 @@ class HscDbQaData(QaData):
                 isBad, isSat, isIntrp, isEdge, isNeg, \
                 isStar, refObjId, srcId = row[nDataId:nFields]
             mag = -2.5*numpy.log10(refflux)
-            ra = numpy.degrees(ra)
-            dec = numpy.degrees(dec)
-
+            
             nMatches = 1
             dataIdTmp = {}
             for j in range(nDataId):
@@ -276,30 +270,6 @@ class HscDbQaData(QaData):
                 cat       = catObj.catalog
                 
                 matchListDict[key] = []
-
-                if False:
-                    refRaKey   = refCatObj.keyDict['Ra']
-                    refDecKey  = refCatObj.keyDict['Dec']
-                    refPsfKey  = refCatObj.keyDict['PsfFlux']
-                    refApKey   = refCatObj.keyDict['ApFlux']
-                    refModKey  = refCatObj.keyDict['ModelFlux']
-                    refInstKey = refCatObj.keyDict['InstFlux']
-
-                    psfKey     = catObj.keyDict['PsfFlux']
-                    apKey      = catObj.keyDict['ApFlux']
-                    modKey     = catObj.keyDict['ModelFlux']
-                    self.k_Inst    = catObj.keyDict['InstFlux']
-
-                    psfErrKey  = catObj.keyDict['PsfFluxErr']
-                    apErrKey   = catObj.keyDict['ApFluxErr']
-                    modErrKey  = catObj.keyDict['ModelFluxErr']
-                    instErrKey = catObj.keyDict['InstFluxErr']
-
-                    fPixInterpCenKey = catObj.keyDict['FlagPixInterpCen']
-                    fNegativeKey     = catObj.keyDict['FlagNegative']
-                    fPixEdgeKey      = catObj.keyDict['FlagPixEdge']
-                    fBadCentroidKey  = catObj.keyDict['FlagBadCentroid']
-                    fPixSaturCenKey  = catObj.keyDict['FlagPixSaturCen']
 
                     
             matchList = matchListDict[key]
@@ -340,11 +310,6 @@ class HscDbQaData(QaData):
                     if isinstance(value, str):
                         #print ord(value)
                         value = 1 if ord(value) else 0
-                    if keyName == 'Ra':
-                        value = numpy.degrees(value)
-                    if keyName == 'Dec':
-                        value = numpy.degrees(value)
-                    #print keyName, value, type(value)
                     if value is None:
                         value = numpy.nan
                     s.set(setKey, value)
@@ -523,7 +488,7 @@ class HscDbQaData(QaData):
         slist = 'frame_sourcelist' + self.tableSuffix
         ftab = 'frame' + self.tableSuffix
         
-        sql  = 'select '+", ".join(zip(*sceNames)[1])+',s.obj_id,'+selectStr
+        sql  = 'select '+", ".join(zip(*sceNames)[1])+',s.id,'+selectStr
         sql += '  from '+slist+' as s, '+ftab+' as sce'
         sql += '  where (s.frame_id = sce.frame_id)'
         haveAllKeys = True
@@ -618,10 +583,6 @@ class HscDbQaData(QaData):
                     keyName = catObj.keyNames[i]
                     if isinstance(value, str) and len(value) == 1:
                         value = 1 if ord(value) else 0
-                    if keyName == 'Ra':
-                        value = numpy.degrees(value)
-                    if keyName == 'Dec':
-                        value = numpy.degrees(value)
                     s.set(setKey, value)
                 i += 1
 
@@ -1205,8 +1166,8 @@ class HscDbQaData(QaData):
             summary[dataId]["INSROT"]       = ce['insrot']
             summary[dataId]["PA"]           = ce['pa']            
             summary[dataId]["MJD"]          = ce['mjd']
-            summary[dataId]["FOCUSZ"]       = ce['focusz']
-            summary[dataId]["ADCPOS"]       = ce['adcpos']
+            summary[dataId]["FOCUSZ"]       = ce.get('focusz', 0.0)
+            summary[dataId]["ADCPOS"]       = ce.get('adcpos', 0.0)
             #summary[dataId][""] = ce['']
             #summary[dataId][""] = ce['']
             
@@ -1235,12 +1196,19 @@ class HscDbQaData(QaData):
 
         # NOTE: HSC places focusz and adcpos in the Exposure table (not Frame)
         # So, getSceFoo mechanism is augmented slightly here to get the extra two values
+
+        # Seems the exp table isn't loading properly, so I'll disable it
+        # temporarily here until it's working again.
+        haveExpTable = False
         
         ftab = 'frame' + self.tableSuffix
         etab = 'exposure' + self.tableSuffix
         sql  = 'select '+selectStr
-        sql += ', exp.focusz, exp.adcpos'
-        sql += '  from '+ftab+' as sce, '+etab+' as exp'
+        if haveExpTable:
+            sql += ', exp.focusz, exp.adcpos'
+        sql += '  from '+ftab+' as sce'
+        if haveExpTable:
+            sql += ', '+etab+' as exp'
         sql += '  where '
 
         haveAllKeys = True
@@ -1255,7 +1223,8 @@ class HscDbQaData(QaData):
                 whereList.append(self._sqlLikeEqual(sqlName, dataIdRegex[key]))
             else:
                 haveAllKeys = False
-        sql += " (sce.exp_id = exp.exp_id) and "
+        if haveExpTable:
+            sql += " (sce.exp_id = exp.exp_id) and "
         sql += " and ".join(whereList)
 
 
@@ -1280,7 +1249,9 @@ class HscDbQaData(QaData):
 
         for row in results:
 
-            rowNames = qaDataUtils.getSceDbNames(sceDataIdNames) + ('focusz', 'adcpos')
+            rowNames = qaDataUtils.getSceDbNames(sceDataIdNames)
+            if haveExpTable:
+                rowNames += ('focusz', 'adcpos')
             rowDict = dict(zip(rowNames, row))
 
             dataIdTmp = {}
@@ -1297,15 +1268,14 @@ class HscDbQaData(QaData):
                 crval = afwCoord.Coord(afwGeom.PointD(rowDict['crval1'], rowDict['crval2']))
                 crpix = afwGeom.PointD(rowDict['crpix1'], rowDict['crpix2'])
                 cd11, cd12, cd21, cd22 = rowDict['cd1_1'], rowDict['cd1_2'], rowDict['cd2_1'], rowDict['cd2_2']
-                wcs = afwImage.makeWcs(crval, crpix, cd11, cd12, cd21, cd22)
-                self.wcsCache[key] = wcs
 
             else:
                 cd11, cd12, cd21, cd22 = 1.0, 0.0, 0.0, 1.0
                 crval = afwCoord.Coord(afwGeom.PointD(0.0, 0.0))
                 crpix = afwGeom.PointD(0.0, 0.0)
-                wcs = afwImage.makeWcs(crval, crpix, cd11, cd12, cd21, cd22)
-                self.wcsCache[key] = wcs
+                
+            wcs = afwImage.makeWcs(crval, crpix, cd11, cd12, cd21, cd22)
+            self.wcsCache[key] = wcs
 
             if not self.detectorCache.has_key(key):
                 raftName, ccdName = self.cameraInfo.getRaftAndSensorNames(dataIdTmp)

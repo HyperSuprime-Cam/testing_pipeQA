@@ -108,9 +108,6 @@ class EmptySectorQaTask(QaAnalysisTask):
         # analyse each sensor and put the values in a raftccd container
         self.emptySectors    = raftCcdData.RaftCcdData(self.detector, initValue=self.nx*self.ny)
         self.emptySectorsMat = raftCcdData.RaftCcdData(self.detector, initValue=self.nx*self.ny)
-
-        countBase = "countShelf"
-        nShelf = testSet.unshelve(countBase)
         
         for raft, ccd in self.emptySectors.raftCcdKeys():
             x, y       = self.x.get(raft, ccd), self.y.get(raft, ccd)
@@ -125,9 +122,11 @@ class EmptySectorQaTask(QaAnalysisTask):
             def countEmptySectors(x, y):
                 counts = numpy.zeros([self.nx, self.ny])
                 for i in range(len(x)):
-                    xi, yi = int(self.nx*x[i]/xwid), int(self.ny*y[i]/ywid)
-                    if xi >= 0 and xi < self.nx and yi >= 0 and yi < self.ny:
-                        counts[xi,yi] += 1
+                    # nan check
+                    if x[i] == x[i] and y[i] == y[i]:
+                        xi, yi = int(self.nx*x[i]/xwid), int(self.ny*y[i]/ywid)
+                        if xi >= 0 and xi < self.nx and yi >= 0 and yi < self.ny:
+                            counts[xi,yi] += 1
                 whereEmpty = numpy.where(counts.flatten() == 0)[0]
                 nEmpty = len(whereEmpty)
                 return nEmpty
@@ -147,23 +146,14 @@ class EmptySectorQaTask(QaAnalysisTask):
             test = testCode.Test(label+" (matched)", nEmptyMat, self.limits, comment, areaLabel=areaLabel)
             testSet.addTest(test)
 
-            nShelf[ccd] = len(x)
-
-        testSet.shelve(countBase, nShelf)
-
-        nCcd, nDet = 0, 0
-        for k,v in nShelf.items():
-            if v > 0:
-                nCcd += 1
-                nDet += v
-
-        # a bit sketchy adding tests in the plot section, but these are dummies
-        # they pass useful numbers through to the display, but don't actually test
-        # anything useful
-        test = testCode.Test("nDetections", nDet, [1, None], "number of detected sources", areaLabel="all")
-        testSet.addTest(test)
-        test = testCode.Test("nCcd", nCcd, [1, None], "number of ccds processed", areaLabel="all")
-        testSet.addTest(test)
+            # a bit sketchy adding tests in the plot section, but these are dummies
+            # they pass useful numbers through to the display, but don't actually test
+            # anything useful
+            test = testCode.Test("nDetections", len(x), [1, None], "number of detected sources",
+                                 areaLabel=areaLabel)
+            testSet.addTest(test)
+            test = testCode.Test("nCcd", 1, [1, None], "number of ccds processed", areaLabel=areaLabel)
+            testSet.addTest(test)
 
 
     def plot(self, data, dataId, showUndefined=False):
@@ -176,35 +166,51 @@ class EmptySectorQaTask(QaAnalysisTask):
             isFinalDataId = True
         
         # make fpa figures - for all detections, and for matched detections
-        emptyBase = "emptySectors"
+        emptyBase    = "emptySectors"
         emptyMatBase = "aa_emptySectorsMat"
 
-        emptyData, emptyMap       = testSet.unpickle(emptyBase, [None, None])
-        emptyMatData, emptyMatMap = testSet.unpickle(emptyMatBase, [None, None])
-        
-        emptyFig    = qaFig.FpaQaFigure(data.cameraInfo, data=emptyData, map=emptyMap)
-        emptyFigMat = qaFig.FpaQaFigure(data.cameraInfo, data=emptyMatData, map=emptyMatMap)
+        #emptyFig    = qaFig.FpaQaFigure(data.cameraInfo, data=emptyData, map=emptyMap)
+        #emptyFigMat = qaFig.FpaQaFigure(data.cameraInfo, data=emptyMatData, map=emptyMatMap)
 
-        for raft, ccdDict in emptyFig.data.items():
-            for ccd, value in ccdDict.items():
+        emptyFig    = qaFig.FpaQaFigure(data.cameraInfo, data=None, map=None)
+        emptyFigMat = qaFig.FpaQaFigure(data.cameraInfo, data=None, map=None)
 
-                # set values for data[raft][ccd] (color coding)
-                # set values for map[raft][ccd]  (tooltip text)
-                if not self.emptySectors.get(raft, ccd) is None:
-                    nEmpty = self.emptySectors.get(raft, ccd)
-                    emptyFig.data[raft][ccd] = nEmpty
-                    emptyFig.map[raft][ccd] = "%dx%d,empty=%d" % (self.nx, self.ny, nEmpty)
-                    
-                    nEmptyMat = self.emptySectorsMat.get(raft, ccd)
-                    emptyFigMat.data[raft][ccd] = nEmptyMat
-                    emptyFigMat.map[raft][ccd] = "%dx%d,empty=%d" % (self.nx, self.ny, nEmptyMat)
+        if self.summaryProcessing != self.summOpt['summOnly']:
+            for raft, ccdDict in emptyFig.data.items():
+                for ccd, value in ccdDict.items():
 
-        testSet.pickle(emptyBase, [emptyFig.data, emptyFig.map])
-        testSet.pickle(emptyMatBase, [emptyFigMat.data, emptyFigMat.map])
+                    # set values for data[raft][ccd] (color coding)
+                    # set values for map[raft][ccd]  (tooltip text)
+                    if self.emptySectors.get(raft, ccd) is not None:
+                        nEmpty = self.emptySectors.get(raft, ccd)
+                        emptyFig.data[raft][ccd] = nEmpty
+                        emptyFig.map[raft][ccd] = "%dx%d,empty=%d" % (self.nx, self.ny, nEmpty)
+
+                        nEmptyMat = self.emptySectorsMat.get(raft, ccd)
+                        emptyFigMat.data[raft][ccd] = nEmptyMat
+                        emptyFigMat.map[raft][ccd] = "%dx%d,empty=%d" % (self.nx, self.ny, nEmptyMat)
+                        
+                        label = data.cameraInfo.getDetectorName(raft, ccd)
+                        
+                        testSet.pickle(emptyBase + label, [emptyFig.data, emptyFig.map])
+                        testSet.pickle(emptyMatBase + label, [emptyFigMat.data, emptyFigMat.map])
+
 
         # make the figures and add them to the testSet
         # sample colormaps at: http://www.scipy.org/Cookbook/Matplotlib/Show_colormaps
-        if not self.delaySummary or isFinalDataId:
+
+
+        if (self.summaryProcessing in [self.summOpt['summOnly'], self.summOpt['delay']]) and isFinalDataId:
+
+            for raft, ccdDict in emptyFig.data.items():
+                for ccd, value in ccdDict.items():
+                    label = data.cameraInfo.getDetectorName(raft, ccd)
+                    emptyDataTmp, emptyMapTmp       = testSet.unpickle(emptyBase+label, [None, None])
+                    emptyFig.mergeValues(emptyDataTmp, emptyMapTmp)
+                    emptyMatDataTmp, emptyMatMapTmp = testSet.unpickle(emptyMatBase+label, [None, None])
+                    emptyFigMat.mergeValues(emptyMatDataTmp, emptyMatMapTmp)
+
+
             self.log.log(self.log.INFO, "plotting FPAs")
             emptyFig.makeFigure(showUndefined=showUndefined, cmap="gist_heat_r",
                                 vlimits=[0, self.nx*self.ny],
@@ -212,7 +218,6 @@ class EmptySectorQaTask(QaAnalysisTask):
                                 failLimits=self.limits)
             testSet.addFigure(emptyFig, emptyBase+".png",
                               "Empty Sectors in %dx%d grid." % (self.nx, self.ny), navMap=True)
-            del emptyFig
             
             emptyFigMat.makeFigure(showUndefined=showUndefined, cmap="gist_heat_r",
                                    vlimits=[0, self.nx*self.ny],
@@ -220,68 +225,77 @@ class EmptySectorQaTask(QaAnalysisTask):
                                    failLimits=self.limits)
             testSet.addFigure(emptyFigMat, emptyMatBase+".png",
                               "Empty Sectors in %dx%d grid." % (self.nx, self.ny), navMap=True)
-            del emptyFigMat
-        else:
-            del emptyFig, emptyFigMat
+
+
+        del emptyFig, emptyFigMat
 
 
         cacheLabel = "pointPositions"
-        shelfData = {}
 
-        xlo, xhi, ylo, yhi = 1.e10, -1.e10, 1.e10, -1.e10
-        for raft,ccd in data.cameraInfo.raftCcdKeys:
-            if data.cameraInfo.name == 'coadd':
-                xtmp, ytmp = self.x.get(raft, ccd), self.y.get(raft, ccd)
-                xxlo, yylo, xxhi, yyhi = xtmp.min(), ytmp.min(), xtmp.max(), ytmp.max()
-            else:
-                xxlo, yylo, xxhi, yyhi = data.cameraInfo.getBbox(raft, ccd)
-            if xxlo < xlo: xlo = xxlo
-            if xxhi > xhi: xhi = xxhi
-            if yylo < ylo: ylo = yylo
-            if yyhi > yhi: yhi = yyhi
-
-        # make any individual (ie. per sensor) plots
-        for raft, ccd in self.emptySectors.raftCcdKeys():
-
-            # get the data we want for this sensor (we stored it here in test() method above)
-            x, y       = self.x.get(raft, ccd), self.y.get(raft, ccd)
-            xmat, ymat = self.xmat.get(raft, ccd), self.ymat.get(raft, ccd)
-            xwid, ywid = self.size.get(raft, ccd)
-
-            if data.cameraInfo.name == 'coadd':
-                xmin, ymin, xmax, ymax = x.min(), y.min(), x.max(), y.max()
-                x -= xmin
-                y -= ymin
-                xmat -= xmin
-                ymat -= ymin
-                xxlo, yylo, xxhi, yyhi = xmin, ymin, xmax, ymax
-            else:
-                xxlo, yylo, xxhi, yyhi = data.cameraInfo.getBbox(raft, ccd)
-                
-            dataDict = {'x' : x+xxlo, 'y' : y+yylo, 'xmat' : xmat+xxlo, 'ymat' : ymat+yylo,
-                        'limits' : [0, xwid, 0, ywid],
-                        'summary' : False, 'alllimits' : [xlo, xhi, ylo, yhi],
-                        'bbox' : [xxlo, xxhi, yylo, yyhi],
-                        'nxn' : [self.nx, self.ny]}
+        if self.summaryProcessing != self.summOpt['summOnly']:
             
-            self.log.log(self.log.INFO, "plotting %s" % (ccd))
-            import EmptySectorQaAnalysisPlot as plotModule
-            label = data.cameraInfo.getDetectorName(raft, ccd)
-            caption = "Pixel coordinates of all (black) and matched (red) detections." + label
-            pngFile = cacheLabel+".png"
+            xlo, xhi, ylo, yhi = 1.e10, -1.e10, 1.e10, -1.e10
+            if data.cameraInfo.name == 'coadd':
+                for raft,ccd in data.cameraInfo.raftCcdKeys:
+                    xtmp, ytmp = self.x.get(raft, ccd), self.y.get(raft, ccd)
+                    xxlo, yylo, xxhi, yyhi = xtmp.min(), ytmp.min(), xtmp.max(), ytmp.max()
+                if xxlo < xlo: xlo = xxlo
+                if xxhi > xhi: xhi = xxhi
+                if yylo < ylo: ylo = yylo
+                if yyhi > yhi: yhi = yyhi
 
-
-            if self.lazyPlot.lower() in ['sensor', 'all']:
-                testSet.addLazyFigure(dataDict, pngFile, caption,
-                                      plotModule, areaLabel=label, plotargs="")
+                    
             else:
-                testSet.cacheLazyData(dataDict, pngFile, areaLabel=label)
-                fig = plotModule.plot(dataDict)
-                testSet.addFigure(fig, pngFile, caption, areaLabel=label)
-                del fig
+                allpix = data.cameraInfo.camera.getAllPixels()
+                xlo = -0.5*(allpix.getMaxX() - allpix.getMinX())
+                xhi = -xlo
+                ylo = -0.5*(allpix.getMaxY() - allpix.getMinY())
+                yhi = -ylo
+            
+            
+            # make any individual (ie. per sensor) plots
+            for raft, ccd in self.emptySectors.raftCcdKeys():
+
+                # get the data we want for this sensor (we stored it here in test() method above)
+                x, y       = self.x.get(raft, ccd), self.y.get(raft, ccd)
+                xmat, ymat = self.xmat.get(raft, ccd), self.ymat.get(raft, ccd)
+                xwid, ywid = self.size.get(raft, ccd)
+
+                if data.cameraInfo.name == 'coadd':
+                    xmin, ymin, xmax, ymax = x.min(), y.min(), x.max(), y.max()
+                    x -= xmin
+                    y -= ymin
+                    xmat -= xmin
+                    ymat -= ymin
+                    xxlo, yylo, xxhi, yyhi = xmin, ymin, xmax, ymax
+                else:
+                    xxlo, yylo, xxhi, yyhi = data.cameraInfo.getBbox(raft, ccd)
+
+                dataDict = {'x' : x+xxlo, 'y' : y+yylo, 'xmat' : xmat+xxlo, 'ymat' : ymat+yylo,
+                            'limits' : [0, xwid, 0, ywid],
+                            'summary' : False, 'alllimits' : [xlo, xhi, ylo, yhi],
+                            'bbox' : [xxlo, xxhi, yylo, yyhi],
+                            'nxn' : [self.nx, self.ny]}
+
+                self.log.log(self.log.INFO, "plotting %s" % (ccd))
+                import EmptySectorQaAnalysisPlot as plotModule
+                label = data.cameraInfo.getDetectorName(raft, ccd)
+                caption = "Pixel coordinates of all (black) and matched (red) detections." + label
+                pngFile = cacheLabel+".png"
+
+
+                if self.lazyPlot.lower() in ['sensor', 'all']:
+                    testSet.addLazyFigure(dataDict, pngFile, caption,
+                                          plotModule, areaLabel=label, plotargs="")
+                else:
+                    testSet.cacheLazyData(dataDict, pngFile, areaLabel=label)
+                    fig = plotModule.plot(dataDict)
+                    testSet.addFigure(fig, pngFile, caption, areaLabel=label)
+                    del fig
 
             
-        if not self.delaySummary or isFinalDataId:
+        if (self.summaryProcessing in [self.summOpt['summOnly'], self.summOpt['delay']]) and isFinalDataId:
+
             self.log.log(self.log.INFO, "plotting Summary figure")
 
 
@@ -296,9 +310,11 @@ class EmptySectorQaTask(QaAnalysisTask):
             else:
                 dataDict, isSummary = qaPlotUtil.unshelveGlob(cacheLabel+"-all.png", testSet=testSet)
                 dataDict['summary'] = True
-                dataDict['limits'] = dataDict['alllimits']                
-                fig = plotModule.plot(dataDict)                
-                testSet.addFigure(fig, pngFile, caption, areaLabel=label)
-                del fig
+                if 'x' in dataDict:
+                    dataDict['limits'] = dataDict['alllimits']
+                    fig = plotModule.plot(dataDict)                
+                    testSet.addFigure(fig, pngFile, caption, areaLabel=label)
+                    del fig
 
+            self.combineOutputs(data, dataId)
 

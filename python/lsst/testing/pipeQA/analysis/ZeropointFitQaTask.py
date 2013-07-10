@@ -214,35 +214,46 @@ class ZeropointFitQaTask(QaAnalysisTask):
             isFinalDataId = True
 
         # fpa figure
-        zpts = []
         zptBase = "zeropoint"
-        zptData, zptMap = testSet.unpickle(zptBase, default=[None, None])
-        zptFig = qaFig.FpaQaFigure(data.cameraInfo, data=zptData, map=zptMap)
+        zptFig = qaFig.FpaQaFigure(data.cameraInfo, data=None, map=None)
 
         offsetBase = "medZeropointOffset"
-        offsetData, offsetMap = testSet.unpickle(offsetBase, default=[None, None])
-        offsetFig = qaFig.FpaQaFigure(data.cameraInfo, data=offsetData, map=offsetMap)
+        offsetFig = qaFig.FpaQaFigure(data.cameraInfo, data=None, map=None)
 
-        for raft, ccdDict in zptFig.data.items():
-            for ccd, value in ccdDict.items():
-                if not self.zeroPoint.get(raft, ccd) is None:
-                    zpt = self.zeroPoint.get(raft, ccd)
-                    zpts.append(zpt)
-                    zptFig.data[raft][ccd] = zpt
-                    zptFig.map[raft][ccd] = 'zpt=%.2f' % (zpt)
+        if self.summaryProcessing != self.summOpt['summOnly']:
+            for raft, ccdDict in zptFig.data.items():
+                for ccd, value in ccdDict.items():
+                    
+                    label = data.cameraInfo.getDetectorName(raft, ccd)                    
+                    if not self.zeroPoint.get(raft, ccd) is None:
+                        zpt = self.zeroPoint.get(raft, ccd)
+                        zptFig.data[raft][ccd] = zpt
+                        zptFig.map[raft][ccd] = 'zpt=%.2f' % (zpt)
 
-                    offset = self.medOffset.get(raft, ccd)
-                    offsetFig.data[raft][ccd] = offset
-                    offsetFig.map[raft][ccd] = 'offset=%.2f' % (offset)
-                else:
-                    if not zptFig.data[raft][ccd] is None:
-                        zpts.append(zptFig.data[raft][ccd])
-                    
-                    
-        testSet.pickle(zptBase, [zptFig.data, zptFig.map])
-        testSet.pickle(offsetBase, [offsetFig.data, offsetFig.map])
+                        offset = self.medOffset.get(raft, ccd)
+                        offsetFig.data[raft][ccd] = offset
+                        offsetFig.map[raft][ccd] = 'offset=%.2f' % (offset)
+                        
+                        testSet.pickle(zptBase + label,    [zptFig.data, zptFig.map])
+                        testSet.pickle(offsetBase + label, [offsetFig.data, offsetFig.map])
+
+
         
-        if not self.delaySummary or isFinalDataId:
+        if (self.summaryProcessing in [self.summOpt['summOnly'], self.summOpt['delay']]) and isFinalDataId:
+
+            zpts = []
+            for raft, ccdDict in zptFig.data.items():
+                for ccd, value in ccdDict.items():
+                    label = data.cameraInfo.getDetectorName(raft, ccd)                    
+                    zptData, zptMap = testSet.unpickle(zptBase, default=[None, None])
+                    offsetData, offsetMap = testSet.unpickle(offsetBase+label, default=[None, None])
+                    if not self.zptData[raft, ccd] is None:
+                        zpt = self.zptData[raft, ccd]
+                        zpts.append(zpt)
+            if len(zpts) == 0:
+                zpts.append(0.0)
+                
+            
             self.log.log(self.log.INFO, "plotting FPAs")
             
             blue = '#0000ff'
@@ -313,7 +324,8 @@ class ZeropointFitQaTask(QaAnalysisTask):
                 del fig
             
 
-        if not self.delaySummary or isFinalDataId:
+        if (self.summaryProcessing in [self.summOpt['summOnly'], self.summOpt['delay']]) and isFinalDataId:
+
             self.log.log(self.log.INFO, "plotting Summary figure")
 
             label = 'all'
@@ -331,3 +343,5 @@ class ZeropointFitQaTask(QaAnalysisTask):
                 testSet.addFigure(fig, pngFile, caption, areaLabel=label)
                 del fig
             
+
+            self.combineOutputs(data, dataId)

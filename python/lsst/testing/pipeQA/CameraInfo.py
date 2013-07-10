@@ -17,17 +17,15 @@ import lsst.afw.cameraGeom.utils as cameraGeomUtils
 
 class CameraInfo(object):
     
-    def __init__(self, name, dataInfo, mapperClass=None, camera=None):
+    def __init__(self, name, dataInfo, camera=None):
         """
         @param name         A name for this camera
         @param dataInfo     List of dataId [name,distinguisher] pairs (distinguisher now depricated)
-        @param mapperClass  Mapper class for this camera
         @param camera       LSST camera object for this camera
         """
         
         self.name        = name
         self.dataInfo    = dataInfo
-        self.mapperClass = mapperClass
         self.camera      = camera
 
         self.rafts       = {}
@@ -170,7 +168,8 @@ class CameraInfo(object):
         name = re.sub("\s+", "_", ccdId.getName())
         serial = "%04d" % (ccdId.getSerial())
         return name + "--" + serial
-                
+
+    
     def getRoots(self, data, calib, output):
         """Store data directories in a dictionary
         
@@ -179,29 +178,6 @@ class CameraInfo(object):
         @param output  Output directory
         """
         return {'data': data, 'calib': calib, 'output': output}
-
-    def getRegistries(self, baseDir):
-        """Given a directory, get the registry files for this data set.
-        
-        @param baseDir  Directory wherein lives the registry
-        """
-        roots = self.getRoots(baseDir)
-        registry      = os.path.join(roots['data'], "registry.sqlite3")
-        calibRegistry = os.path.join(roots['calib'], "calibRegistry.sqlite3")
-        return registry, calibRegistry
-
-        
-    def verifyRegistries(self, baseDir):
-        """Verify that registry.sqlite files exist in the specified directory
-
-        @param baseDir  Directory to check for registries.
-        """
-        
-        registry, calibRegistry = self.getRegistries(baseDir)
-        haveReg = os.path.exists(registry)
-        haveCalib = os.path.exists(calibRegistry)
-        #print self.name, registry, calibRegistry, haveReg, haveCalib
-        return haveReg and haveCalib
 
 
     def __str__(self):
@@ -253,12 +229,14 @@ class CameraInfo(object):
         if self.rafts.has_key(raftName):
             raft = self.rafts[raftName]
             # NOTE: all ccd coords are w.r.t. the *center* of the raft, not its LLC
-            rxc     = raft.getCenterPixel().getX()
-            ryc     = raft.getCenterPixel().getY()
+            rc   = raft.getCenter().getPixels(raft.getPixelSize())
+            rxc     = rc.getX()
+            ryc     = rc.getY()
 
         ccd   = self.sensors[ccdName]
-        cxc     = ccd.getCenterPixel().getX()
-        cyc     = ccd.getCenterPixel().getY()
+        cc    = ccd.getCenter().getPixels(ccd.getPixelSize())
+        cxc     = cc.getX()
+        cyc     = cc.getY()
         orient  = ccd.getOrientation()
         nQuart  = ccd.getOrientation().getNQuarter()
         yaw     = orient.getYaw()
@@ -276,7 +254,8 @@ class CameraInfo(object):
         cx1     = cx0 + cwidth
         cy1     = cy0 + cheight
 
-        return [cx0, cy0, cx1, cy1]
+        box = [cx0, cy0, cx1, cy1]
+        return box
 
     
 
@@ -298,12 +277,6 @@ class LsstSimCameraInfo(CameraInfo):
     
     def __init__(self):
         """ """
-        try:
-            import lsst.obs.lsstSim           as obsLsst
-            mapper = obsLsst.LsstSimMapper
-        except Exception, e:
-            print "Failed to import lsst.obs.lsstSim", e
-            mapper = None
         dataInfo       = [['visit',1], ['snap', 0], ['raft',0], ['sensor',0]]
 
         #simdir        = eups.productDir("obs_lsstSim")
@@ -315,7 +288,7 @@ class LsstSimCameraInfo(CameraInfo):
         else:
             camera = None
         
-        CameraInfo.__init__(self, "lsstSim", dataInfo, mapper, camera)
+        CameraInfo.__init__(self, "lsstSim", dataInfo, camera)
 
         self.doLabel = False
 
@@ -326,38 +299,17 @@ class LsstSimCameraInfo(CameraInfo):
             'raft'   : 'raft',
             'sensor'    : 'sensor',
             }
+
+        self.dataIdDbNames = {
+            'visit' : 'visit',
+            'raft'  : 'raftName',
+            'sensor' : 'ccdName',
+            'snap'  : 'snap',
+            }
+
         
-    def getRoots(self, baseDir, output=None):
-        """Get data directories in a dictionary
 
-        @param baseDir The base directory where the registries can be found.
-        """
-        baseOut = baseDir
-        if not output is None:
-            baseOut = output
-        return CameraInfo.getRoots(self, baseDir, baseDir, baseOut)
-
-    def verifyRegistries(self, baseDir):
-        """Verify that registry.sqlite files exist in the specified directory
-
-        @param baseDir  Directory to check for registries.
-        """
-        roots = self.getRoots(baseDir)
-        registry = os.path.join(roots['data'], "registry.sqlite3")
-        #calibRegistry = os.path.join(roots['data'], "registry.sqlite3")
-        return os.path.exists(registry)
-
-    def getMapper(self, baseDir, rerun=None):
-        """Get a mapper for data in specified directory
-
-        @param baseDir  Directory where the registry files are to be found.
-        @param rerun    The rerun of the data we want.
-        """
-        roots = self.getRoots(baseDir)
-        registry, calibRegistry = self.getRegistries(baseDir)
-
-        return self.mapperClass(root=roots['output'], calibRoot=roots['calib'], registry=registry)
-
+    
 ####################################################################
 #
 # CfhtCameraInfo class
@@ -365,15 +317,9 @@ class LsstSimCameraInfo(CameraInfo):
 ####################################################################
 class CfhtCameraInfo(CameraInfo):
     def __init__(self):
-        try:
-            import lsst.obs.cfht              as obsCfht
-            mapper = obsCfht.CfhtMapper
-        except Exception, e:
-            print "Failed to import lsst.obs.cfht", e
-            mapper = None
+        
         dataInfo       = [['visit',1], ['ccd', 0]]
         
-        #simdir        = eups.productDir("obs_cfht")
         if os.environ.has_key('OBS_CFHT_DIR'):
             simdir         = os.environ['OBS_CFHT_DIR']
             cameraGeomPaf = os.path.join(simdir, "megacam", "description", "Full_Megacam_geom.paf")
@@ -382,30 +328,11 @@ class CfhtCameraInfo(CameraInfo):
         else:
             camera = None
 
-        CameraInfo.__init__(self, "cfht", dataInfo, mapper, camera)
+        CameraInfo.__init__(self, "cfht", dataInfo, camera)
         self.doLabel = True
         
-    def getRoots(self, baseDir, output=None):
-        """Get data directories in a dictionary
 
-        @param baseDir The base directory where the registries can be found.
-        """
-        baseOut = baseDir
-        if not output is None:
-            baseOut = output
-        return CameraInfo.getRoots(self, baseDir, os.path.join(baseDir, "calib"), baseDir)
-
-
-    def getMapper(self, baseDir, rerun=None):
-        """Get a mapper for data in specified directory
         
-        @param baseDir  Directory where the registry files are to be found.
-        @param rerun    The rerun of the data we want
-        """
-        roots = self.getRoots(baseDir)
-        registry, calibRegistry = self.getRegistries(baseDir)
-        return self.mapperClass(root=roots['output'], calibRoot=roots['calib'], registry=registry)
-
 
 ####################################################################
 #
@@ -413,19 +340,24 @@ class CfhtCameraInfo(CameraInfo):
 #
 ####################################################################
 class HscCameraInfo(CameraInfo):
+    # Names of CCDs, indexed by 0-indexed serial number
+    _ccdNames = [
+        "1_53", "1_54", "1_55", "1_56", "1_42", "1_43", "1_44", "1_45", "1_46", "1_47",
+        "1_36", "1_37", "1_38", "1_39", "1_40", "1_41", "0_30", "0_29", "0_28", "1_32",
+        "1_33", "1_34", "0_27", "0_26", "0_25", "0_24", "1_00", "1_01", "1_02", "1_03",
+        "0_23", "0_22", "0_21", "0_20", "1_04", "1_05", "1_06", "1_07", "0_19", "0_18",
+        "0_17", "0_16", "1_08", "1_09", "1_10", "1_11", "0_15", "0_14", "0_13", "0_12",
+        "1_12", "1_13", "1_14", "1_15", "0_11", "0_10", "0_09", "0_08", "1_16", "1_17",
+        "1_18", "1_19", "0_07", "0_06", "0_05", "0_04", "1_20", "1_21", "1_22", "1_23",
+        "0_03", "0_02", "0_01", "0_00", "1_24", "1_25", "1_26", "1_27", "0_34", "0_33",
+        "0_32", "1_28", "1_29", "1_30", "0_41", "0_40", "0_39", "0_38", "0_37", "0_36",
+        "0_47", "0_46", "0_45", "0_44", "0_43", "0_42", "0_56", "0_55", "0_54", "0_53",
+        "0_31", "1_35", "0_35", "1_31",]
     
     def __init__(self):
         """ """
-        try:
-            import lsst.obs.hscSim            as obsHsc
-            mapper = obsHsc.HscSimMapper
-        except Exception, e:
-            print "Failed to import lsst.obs.hscSim", e
-            print "  Did you setup obs_subaru?"
-            mapper = None
         dataInfo       = [['visit',1], ['ccd', 0]]
 
-        #simdir        = eups.productDir("obs_subaru")
         if os.environ.has_key('OBS_SUBARU_DIR'):
             simdir         = os.environ['OBS_SUBARU_DIR']
             cameraGeomPaf = os.path.join(simdir, "hscSim", "description", "hscSim_geom.paf")
@@ -438,11 +370,11 @@ class HscCameraInfo(CameraInfo):
         else:
             camera = None
             
-        CameraInfo.__init__(self, "hscSim", dataInfo, mapper, camera)
+        CameraInfo.__init__(self, "hscSim", dataInfo, camera)
 
         self.dataIdTranslationMap = {
-            'visit' : 'visit',
-            'sensor'   : 'ccd',
+            'visit'  : 'visit',
+            'sensor' : 'ccd',
             }
 
         self.dataIdDbNames = {
@@ -453,46 +385,12 @@ class HscCameraInfo(CameraInfo):
         
         self.doLabel = False
         
-    def getRoots(self, baseDir, output=None, rerun=None):
-        """Get data directories in a dictionary
 
-        @param baseDir The base directory where the registries can be found.
-        """
-        baseOut = os.path.join(baseDir, "HSC")
-        if not output is None:
-            baseOut = output
-        data = os.path.join(baseDir, "HSC")
-        if rerun is not None:
-            data = os.path.join(data, "rerun", rerun)
-            baseOut = os.path.join(baseOut, "rerun", rerun)
-        return CameraInfo.getRoots(self, data, os.path.join(baseDir, "CALIB"), baseOut)
-
-    def getDefaultRerun(self):
-        return "pipeQA"
-    
     def getRaftAndSensorNames(self, dataId):
-            names = ["hsc%03d" % (x) for x in range(104)]
-            ccdName = None
-            if dataId.has_key('ccd'):
-                dataIdUse = dataId['ccd']
-                if isinstance(dataId['ccd'], str):
-                    dataIdUse = dataId['ccd'].strip()
-                    if re.search('^\d+$', dataIdUse):
-                        dataIdUse = int(dataIdUse)
-                ccdName = names[dataIdUse]
-            return None, ccdName
-                
-    def getMapper(self, baseDir, rerun=None):
-        """Get a mapper for data in specified directory
-
-        @param baseDir  Directory where the registry files are to be found.
-        @param rerun    The rerun of the data we want
-        """
-       
-        roots = self.getRoots(baseDir, rerun)
-        registry, calibRegistry = self.getRegistries(baseDir)
-        return self.mapperClass(root=roots['output'], calibRoot=roots['calib'], registry=registry)
-
+        raftName = ''
+        ccdName  = "hsc%03d" % (int(dataId[self.dataIdTranslationMap['sensor']]))
+        return raftName, ccdName
+        
 
 ####################################################################
 #
@@ -501,27 +399,23 @@ class HscCameraInfo(CameraInfo):
 ####################################################################
 class SuprimecamCameraInfo(CameraInfo):
     def __init__(self, mit=False):
-        try:
-            import lsst.obs.suprimecam        as obsSuprimecam
-            mapper = obsSuprimecam.SuprimecamMapperMit if mit else obsSuprimecam.SuprimecamMapper
-        except Exception, e:
-            print "Failed to import lsst.obs.suprimecam", e
-            mapper = None
+        
         dataInfo       = [['visit',1], ['ccd', 0]]
 
-        #simdir        = eups.productDir("obs_subaru")
         if os.environ.has_key('OBS_SUBARU_DIR'):
             simdir         = os.environ['OBS_SUBARU_DIR']
-            cameraGeomPaf = os.path.join(simdir, "suprimecam",
-                                         "Full_Suprimecam_MIT_geom.paf" if mit else "Full_Suprimecam_geom.paf")
+            pafBase = "Full_Suprimecam_MIT_geom.paf" if mit else "Full_Suprimecam_geom.paf"
+            cameraGeomPaf = os.path.join(simdir, "suprimecam", pafBase)
+                                         
             if not os.path.exists(cameraGeomPaf):
                 raise Exception("Unable to find cameraGeom Policy file: %s" % (cameraGeomPaf))
+            
             cameraGeomPolicy = cameraGeomUtils.getGeomPolicy(cameraGeomPaf)
             camera           = cameraGeomUtils.makeCamera(cameraGeomPolicy)
         else:
             camera           = None
 
-        CameraInfo.__init__(self, "suprimecam", dataInfo, mapper, camera)
+        CameraInfo.__init__(self, "suprimecam", dataInfo, camera)
 
         self.doLabel = True
         self.mit = mit
@@ -537,8 +431,12 @@ class SuprimecamCameraInfo(CameraInfo):
             }
 
     def getRaftAndSensorNames(self, dataId):
-        #names = ['Sheeta', 'Ponyo', "Nausicaa", 'Satsuki', 'Chihiro', 'Kiki', 'Clarisse', 'Sophie', 'Fio', 'San']
-        names = ["Nausicaa", 'Kiki', 'Fio', 'Sophie', 'Sheeta', 'Satsuki', 'Chihiro', 'Clarisse', 'Ponyo', 'San']
+        if self.mit:
+            names = ['w4c5',      'si006s',  'w7c3',     'w9c2',   'w67c1',
+                     'si002s',    'w93c2',   'si001s',   'si005s',  'w6c1']
+        else:
+            names = ["Nausicaa",  'Kiki',    'Fio',      'Sophie', 'Sheeta',
+                     'Satsuki',   'Chihiro', 'Clarisse', 'Ponyo',  'San']
         ccdName = None
         if dataId.has_key('ccd'):
             dataIdUse = dataId['ccd']
@@ -550,36 +448,6 @@ class SuprimecamCameraInfo(CameraInfo):
         return None, ccdName
         
         
-    def getRoots(self, baseDir, output=None, rerun=None):
-        """Get data directories in a dictionary
-
-        @param baseDir The base directory where the registries can be found.
-        """
-        baseOut = os.path.join(baseDir, "SUPA")
-        if not output is None:
-            baseOut = output
-        data = os.path.join(baseDir, "SUPA")
-        if rerun is not None:
-            data = os.path.join(data, "rerun", rerun)
-            baseOut = os.path.join(baseOut, "rerun", rerun)
-        calib = os.path.join(baseDir, "SUPA", "CALIB")
-        return CameraInfo.getRoots(self, data, calib, baseOut)
-
-    def getDefaultRerun(self):
-        return "pipeQA"
-    
-
-    def getMapper(self, baseDir, rerun=None):
-        """Get a mapper for data in specified directory
-
-        @param baseDir  Directory where the registry files are to be found.
-        @param rerun    The rerun of the data we want
-        """
-
-        roots = self.getRoots(baseDir, rerun=rerun)
-        registry, calibRegistry = self.getRegistries(baseDir)
-        return self.mapperClass(root=roots['data'], outputRoot=None, calibRoot=roots['calib'], registry=registry) #, mit=self.mit)
-    
 
 
 
@@ -590,14 +458,7 @@ class SuprimecamCameraInfo(CameraInfo):
 ####################################################################
 class SdssCameraInfo(CameraInfo):
     def __init__(self):
-        try:
-            import lsst.obs.sdss        as obsSdss
-            mapper = obsSdss.SdssMapper
-        except Exception, e:
-            print "Failed to import lsst.obs.sdss", e
-            obsSdss = None
-            mapper = None
-
+        
         messingWithNames = True
         if messingWithNames:
             dataInfo       = [['run', 1], ['filter', 0], ['field',1], ['camcol', 0]]
@@ -607,18 +468,11 @@ class SdssCameraInfo(CameraInfo):
         #simdir        = eups.productDir("obs_subaru")
         if os.environ.has_key('OBS_SDSS_DIR') and obsSdss is not None:
             simdir         = os.environ['OBS_SDSS_DIR']
-            #cameraGeomPaf = os.path.join(simdir, "sdss", "description", "Full_Suprimecam_geom.paf")
-            #if not os.path.exists(cameraGeomPaf):
-            #    cameraGeomPaf = os.path.join(simdir, "sdss", "Full_Sdss_geom.paf")
-            #    if not os.path.exists(cameraGeomPaf):
-            #        raise Exception("Unable to find cameraGeom Policy file: %s" % (cameraGeomPaf))
-            #cameraGeomPolicy = cameraGeomUtils.getGeomPolicy(cameraGeomPaf)
-            #camera           = cameraGeomUtils.makeCamera(cameraGeomPolicy)
             camera = obsSdss.makeCamera.makeCamera(name='SDSS')
         else:
             camera           = None
 
-        CameraInfo.__init__(self, "sdss", dataInfo, mapper, camera)
+        CameraInfo.__init__(self, "sdss", dataInfo, camera)
         self.rawName = "fpC"
         
         self.doLabel = True
@@ -657,46 +511,6 @@ class SdssCameraInfo(CameraInfo):
         return raftName, ccdName
 
     
-    def getRoots(self, baseDir, output=None):
-        """Get data directories in a dictionary
-
-        @param baseDir The base directory where the registries can be found.
-        """
-        baseOut = baseDir
-        if not output is None:
-            baseOut = output
-        return CameraInfo.getRoots(self, baseDir, baseDir, baseOut)
-
-        
-
-    def verifyRegistries(self, baseDir):
-        """Verify that registry.sqlite files exist in the specified directory
-
-        @param baseDir  Directory to check for registries.
-        """
-        roots = self.getRoots(baseDir)
-        registry = os.path.join(roots['data'], "registry.sqlite3")
-        #calibRegistry = os.path.join(roots['data'], "registry.sqlite3")
-        return os.path.exists(registry)
-
-
-    
-    def getDefaultRerun(self):
-        return "pipeQA"
-    
-
-    def getMapper(self, baseDir, rerun=None):
-        """Get a mapper for data in specified directory
-
-        @param baseDir  Directory where the registry files are to be found.
-        @param rerun    The rerun of the data we want
-        """
-
-        roots = self.getRoots(baseDir)
-        registry, calibRegistry = self.getRegistries(baseDir)
-        return self.mapperClass(root=roots['output'],
-                                calibRoot=roots['calib'], registry=registry)
-    
 
 
 
@@ -709,12 +523,6 @@ class SdssCameraInfo(CameraInfo):
 class CoaddCameraInfo(CameraInfo):
 
     def __init__(self):
-        try:
-            #import lsst.obs.coadd        as obsCoadd
-            mapper = None #obsCoadd.CoaddMapper
-        except Exception, e:
-            print "Failed to import lsst.obs.coadd", e
-            mapper = None
         dataInfo       = [['tract', 1], ['patch', 1], ['filterName', 1]]
 
         simdir        = os.environ['TESTING_PIPEQA_DIR']
@@ -722,20 +530,7 @@ class CoaddCameraInfo(CameraInfo):
         cameraGeomPolicy = cameraGeomUtils.getGeomPolicy(cameraGeomPaf)
         camera           = cameraGeomUtils.makeCamera(cameraGeomPolicy)
 
-        # obs_coadd not going to be used
-        if False:
-            if os.environ.has_key('OBS_COADD_DIR'):
-                simdir         = os.environ['OBS_COADD_DIR']
-                cameraGeomPaf = os.path.join(simdir, "description", "Full_geom.paf")
-                if not os.path.exists(cameraGeomPaf):
-                    raise Exception("Unable to find cameraGeom Policy file: %s" % (cameraGeomPaf))
-                cameraGeomPolicy = cameraGeomUtils.getGeomPolicy(cameraGeomPaf)
-                camera           = cameraGeomUtils.makeCamera(cameraGeomPolicy)
-            else:
-                camera           = None
-
-
-        CameraInfo.__init__(self, "coadd", dataInfo, mapper, camera)
+        CameraInfo.__init__(self, "coadd", dataInfo, camera)
         
         self.doLabel = True
 
@@ -761,46 +556,6 @@ class CoaddCameraInfo(CameraInfo):
         ccdName =  'pseudo' #str(dataId['tract']) + '-' + str(dataId['patch'])
         return None, ccdName
 
-    
-    def getRoots(self, baseDir, output=None):
-        """Get data directories in a dictionary
-
-        @param baseDir The base directory where the registries can be found.
-        """
-        baseOut = baseDir
-        if not output is None:
-            baseOut = output
-        return CameraInfo.getRoots(self, baseDir, baseDir, baseOut)
-
-        
-
-    def verifyRegistries(self, baseDir):
-        """Verify that registry.sqlite files exist in the specified directory
-
-        @param baseDir  Directory to check for registries.
-        """
-        roots = self.getRoots(baseDir)
-        registry = os.path.join(roots['data'], "registry.sqlite3")
-        #calibRegistry = os.path.join(roots['data'], "registry.sqlite3")
-        return os.path.exists(registry)
-
-
-    
-    def getDefaultRerun(self):
-        return "pipeQA"
-    
-
-    def getMapper(self, baseDir, rerun=None):
-        """Get a mapper for data in specified directory
-
-        @param baseDir  Directory where the registry files are to be found.
-        @param rerun    The rerun of the data we want
-        """
-
-        roots = self.getRoots(baseDir)
-        registry, calibRegistry = self.getRegistries(baseDir)
-        return self.mapperClass(root=roots['output'],
-                                calibRoot=roots['calib'], registry=registry)
     
 
     

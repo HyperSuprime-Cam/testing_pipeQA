@@ -1,6 +1,7 @@
 import sys, os, re
 
 from  QaDataUtils import QaDataUtils
+import CameraInfo as qaCamInfo
 
 
 ###################################################
@@ -9,87 +10,65 @@ from  QaDataUtils import QaDataUtils
 def makeQaData(label, rerun=None, retrievalType=None, camera=None, **kwargs):
     """Factory to make a QaData object for either Butler data, or Database data.
 
-    @param label         identifier for the data - either a directory in TESTBED_PATH/SUPRIME_DATA_DIR or a DB name
+    @param label         data identifier - either a directory in TESTBED_PATH/SUPRIME_DATA_DIR or a DB name
     @param rerun         data rerun to retrieve
     @param retrievalType 'butler', 'db', or None (will search first for butler, then database)
     @param camera        Specify which camera is to be used
     """
     
-    if retrievalType is None:
-        
-        # if there's only one possibility, use that
-        
-        # see if there's a testbed directory called 'label'
-        # if TESTBED_PATH isn't set, skip this and assume it's a db
-        validButler = False
-        if os.environ.has_key('TESTBED_PATH') or os.environ.has_key('SUPRIME_DATA_DIR'):
-            qaDataUtils = QaDataUtils()            
-            testbedDir, testdataDir = qaDataUtils.findDataInTestbed(label, raiseOnFailure=False)
-            if (not testbedDir is None) and (not testdataDir is None):
-                validButler = True
-
-        # see if we can connect to a database with name 'label'
-        # NOTE: must update if/when non-lsst databases get used
-        validDb = True
-
-        try:
-            if not camera is None and  camera.lower() in ["suprimecam", "hsc"]:
-                from HscDatabaseQuery import DbInterface, DatabaseIdentity
-                identity = DatabaseIdentity(label)
-                dbInterface = DbInterface(identity)              
-            else:
-                from DatabaseQuery import LsstSimDbInterface, DatabaseIdentity
-                dbInterface = LsstSimDbInterface(DatabaseIdentity(label))
-        except Exception, e:
-            validDb = False
-
-        if validButler and not validDb:
-            retrievalType = 'butler'
-        if validDb and not validButler:
-            retrievalType = 'db'
-        if validDb and validButler:
-            raise Exception("The label "+label+" is present as both a testbed directory and a database."\
-                            "Please specify retrievalType='butler', or retrievalType='db'.")
-        if not validDb and not validButler:
-            raise Exception("Unable to find "+label+" as a testbed directory or a database.")
-
-
     print "RetrievalType=", retrievalType
     print "camera=", camera
+
+    cameraInfos = {
+        # "cfht": qaCamInfo.CfhtCameraInfo(), # CFHT camera geometry broken following #1767
+        "hsc"            : [qaCamInfo.HscCameraInfo,        []],
+        "suprimecam"     : [qaCamInfo.SuprimecamCameraInfo, []],
+        "suprimecam-mit" : [qaCamInfo.SuprimecamCameraInfo, [True]],
+        "sdss"           : [qaCamInfo.SdssCameraInfo,       []],
+        "coadd"          : [qaCamInfo.CoaddCameraInfo,      []],
+        "lsstSim"        : [qaCamInfo.LsstSimCameraInfo,    []],
+        }
+
+
+    cameraToUse = None
     
-    if re.search("^[Bb]utler$", retrievalType):
-        from ButlerQaData  import makeButlerQaData
-        return makeButlerQaData(label, rerun, camera=camera, **kwargs)
-    
-    if re.search("^([Dd][Bb]|[Dd]atabase)$", retrievalType):
-
-
-        import CameraInfo as qaCamInfo
-        cameraInfos = {
-    #       "cfht": qaCamInfo.CfhtCameraInfo(), # XXX CFHT camera geometry is currently broken following #1767
-            "hsc"            : [qaCamInfo.HscCameraInfo, []],
-            "suprimecam"     : [qaCamInfo.SuprimecamCameraInfo, []],
-            "suprimecam-old" : [qaCamInfo.SuprimecamCameraInfo, [True]],
-            "sdss"           : [qaCamInfo.SdssCameraInfo, []],
-            "coadd"          : [qaCamInfo.CoaddCameraInfo, []],
-            "lsstSim"        : [qaCamInfo.LsstSimCameraInfo, []],
-            }
-
-
-        cameraToUse = None
-        if not camera is None:
-            cam, args = cameraInfos[camera]
-            cameraToUse = cam(*args)
-        else:
-            cam, args = cameraInfos['lsstSim']
-            cameraToUse = cam(*args)
-            camera = 'lsstSim'
+    # default to lsst
+    if camera is None:
+        cam, args = cameraInfos['lsstSim']
+        cameraToUse = cam(*args)
+        camera = 'lsstSim'
+    else:
+        cam, args = cameraInfos[camera]
+        cameraToUse = cam(*args)
             
-        if re.search("^(hsc|suprimecam|suprimecam-old)$", camera):
+    # we should never get here as we default to LSST
+    if cameraToUse is None:
+        raise RuntimeError("Can't load camera:" + str(camera))
+
+    
+    #####################
+    # make a butler QaData
+    if retrievalType.lower() == "butler":
+        
+        qaDataUtils = QaDataUtils()
+        testbedDir, testdataDir = qaDataUtils.findDataInTestbed(label)
+        from ButlerQaData  import ButlerQaData
+        print "label:       ", label
+        print "rerun:       ", rerun
+        print "camera:      ", cameraToUse.name
+        print "testdataDir: ", testdataDir
+        return ButlerQaData(label, rerun, cameraToUse, testdataDir, **kwargs)
+
+    
+    #####################
+    # make a db QaData
+    if retrievalType.lower() in ['db', 'database']:
+
+        if camera in ["hsc","suprimecam","suprimecam-mit"]:
             from HscDbQaData      import HscDbQaData
             return HscDbQaData(label, rerun, cameraToUse)
         else:
-            from DbQaData      import DbQaData
+            from DbQaData         import DbQaData
             return DbQaData(label, rerun, cameraToUse)
 
 
