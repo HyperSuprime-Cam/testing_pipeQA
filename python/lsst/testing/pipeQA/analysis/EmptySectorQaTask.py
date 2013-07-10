@@ -87,8 +87,9 @@ class EmptySectorQaTask(QaAnalysisTask):
             filter = self.filter[key].getName()
             
             for s in ss:
-                self.x.append(raft, ccd, s.getD(data.k_x))
-                self.y.append(raft, ccd, s.getD(data.k_y))
+                if not data.isFlagged(s):
+                    self.x.append(raft, ccd, s.getD(data.k_x))
+                    self.y.append(raft, ccd, s.getD(data.k_y))
                 
             if self.matchListDictSrc.has_key(key):
                 for m in self.matchListDictSrc[key]['matched']:

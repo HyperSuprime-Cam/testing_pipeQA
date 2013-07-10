@@ -133,11 +133,7 @@ class VignettingQaTask(QaAnalysisTask):
                     f1 = self._getFlux(data, self.magType1, s, sref)
                     f2 = self._getFlux(data, self.magType2, s, sref)
 
-                    intcen = s.get(data.k_intc)
-                    satcen = s.get(data.k_satc)
-                    edge   = s.get(data.k_edg)
-                    
-                    if (f1 > 0.0 and f2 > 0.0  and not (intcen or satcen or edge)):
+                    if (f1 > 0.0 and f2 > 0.0  and not data.isFlagged(s)):
                         m1 = -2.5*num.log10(f1)
                         m2 = -2.5*num.log10(f2)
 

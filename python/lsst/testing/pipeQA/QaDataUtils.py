@@ -31,7 +31,8 @@ class QaDataUtils(object):
             "InstFluxErr", 
             "Ixx",         
             "Iyy",         
-            "Ixy",         
+            "Ixy",
+            "deblend_nchild",
             "FlagBadCentroid", 
             "FlagPixSaturCen", 
             "FlagPixInterpCen",
@@ -56,6 +57,7 @@ class QaDataUtils(object):
             "Ixx":          "D",
             "Iyy":          "D",
             "Ixy":          "D",
+            "deblend_nchild": "I",
             
             # source
             "FlagBadCentroid":  "I",

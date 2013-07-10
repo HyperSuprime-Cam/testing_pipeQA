@@ -94,7 +94,7 @@ class AstrometricErrorQaTask(QaAnalysisTask):
                 dDec = decRef - dec
                 dRa  = (raRef - ra)*abs(numpy.cos(decRef))
                 
-                if not (s.get(data.k_intc)):
+                if not data.isFlagged(s):
                     #print ra, dec, dRa, dDec, s.getD(xKey), s.getD(yKey), raRef, decRef
                     self.dRa.append(raft, ccd, dRa)
                     self.dDec.append(raft, ccd, dDec)

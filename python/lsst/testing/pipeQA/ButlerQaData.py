@@ -497,7 +497,7 @@ class ButlerQaData(QaData):
                     rec.setI(self.k_bad,  s.get('flags.badcentroid'))
                     rec.setI(self.k_satc, s.get('flags.pixel.saturated.center'))
                     rec.setD(self.k_ext,  s.get('classification.extendedness'))
-                    
+                    rec.setI(self.k_nchild, s.get('deblend_nchild'))
                     
                     # flux errors
                     psfFluxErr  = qaDataUtils.calibFluxError(float(s.getPsfFlux()), float(s.getPsfFluxErr()),

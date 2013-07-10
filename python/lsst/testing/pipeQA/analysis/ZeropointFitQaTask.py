@@ -136,11 +136,7 @@ class ZeropointFitQaTask(QaAnalysisTask):
                     # un-calibrate the magnitudes
                     f *= fmag0
                     
-                    intcen = s.get(data.k_intc)
-                    satcen = s.get(data.k_satc)
-                    edge   = s.get(data.k_edg)
-
-                    if (fref > 0.0 and f > 0.0 and not (intcen or satcen or edge)):
+                    if (fref > 0.0 and f > 0.0 and not data.isFlagged(s)):
                         mrefmag  = -2.5*num.log10(fref)
                         mimgmag  = -2.5*num.log10(f)
                         mimgmerr =  2.5 / num.log(10.0) * ferr / f

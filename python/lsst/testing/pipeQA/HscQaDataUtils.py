@@ -91,6 +91,7 @@ class HscQaDataUtils(QaDataUtils):
             #["FlagForDetection",             "flagForDetection",              ],
             #["FlagForWcs",                   "flagForWcs",                    ],
 
+            ["deblend_nchild",                "deblend_nchild"],
             # source
             ["FlagBadCentroid",               "flag_flags_badcentroid",                   ],
             ["FlagPixSaturCen",               "flag_flags_pixel_saturated_center",                ],

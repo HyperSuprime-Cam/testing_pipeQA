@@ -216,11 +216,7 @@ class PhotCompareQaTask(QaAnalysisTask):
                     df1 = self._getFluxErr(data, self.magType1, s, sref)
                     df2 = self._getFluxErr(data, self.magType2, s, sref)
 
-                    intcen = s.getI(data.k_intc)
-                    satcen = s.getI(data.k_satc)
-                    edge   = s.getI(data.k_edg)
-                    
-                    if (f1 > 0.0 and f2 > 0.0  and not (intcen or satcen or edge)):
+                    if (f1 > 0.0 and f2 > 0.0  and not data.isFlagged(s)):
                         m1  = -2.5*numpy.log10(f1)
                         m2  = -2.5*numpy.log10(f2)
                         dm1 = 2.5 / numpy.log(10.0) * df1 / f1
@@ -252,11 +248,8 @@ class PhotCompareQaTask(QaAnalysisTask):
                     f2 = self._getFlux(data, self.magType2, s, s)
                     df1 = self._getFluxErr(data, self.magType1, s, s)
                     df2 = self._getFluxErr(data, self.magType2, s, s)
-                    intcen = s.getI(data.k_intc)
-                    satcen = s.getI(data.k_satc)
-                    edge   = s.getI(data.k_edg)
-
-                    if ((f1 > 0.0 and f2 > 0.0) and not (intcen or satcen or edge)):
+                    
+                    if ((f1 > 0.0 and f2 > 0.0) and not data.isFlagged(s)):
 
                         m1 = -2.5*numpy.log10(f1) #self.calib[key].getMagnitude(f1)
                         m2 = -2.5*numpy.log10(f2) #self.calib[key].getMagnitude(f2)

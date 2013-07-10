@@ -88,8 +88,15 @@ class QaData(object):
         self.k_iyy    = catObj.keyDict['Iyy']
         self.k_ixy    = catObj.keyDict['Ixy']
                 
-
+        self.k_nchild  = catObj.keyDict['deblend_nchild']
             
+
+    def isFlagged(self, src):
+        intcen = src.getI(self.k_intc)
+        satcen = src.getI(self.k_satc)
+        edge   = src.getI(self.k_edg)
+        nchild = src.getI(self.k_nchild) > 0
+        return  intcen or satcen or edge or nchild
         
     def printStartLoad(self, message):
         self.loadStr = ""

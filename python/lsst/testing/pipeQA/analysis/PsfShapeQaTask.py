@@ -93,7 +93,7 @@ class PsfShapeQaTask(QaAnalysisTask):
             mags = []
             for s in ss:
                 flux = s.getD(data.k_Psf)
-                if numpy.isfinite(flux) and not s.getD(data.k_ext):
+                if flux > 0 and numpy.isfinite(flux) and not s.getD(data.k_ext):
                     m = -2.5*numpy.log10(flux)
                     mags.append(m)
             mag_med = numpy.median(mags)
@@ -131,7 +131,9 @@ class PsfShapeQaTask(QaAnalysisTask):
                 mag = 99.0
                 if flux > 0:
                     mag = -2.5*numpy.log10(s.getD(data.k_Psf))
-                if numpy.isfinite(ellip) and numpy.isfinite(theta) and isStar and mag < mag_med:
+                if (numpy.isfinite(ellip) and numpy.isfinite(theta) and
+                    isStar and mag < mag_med and not data.isFlagged(s)):
+
                     self.ellip.append(raft, ccd, ellip)
                     self.theta.append(raft, ccd, theta)
                     self.x.append(raft, ccd,   s.getD(data.k_x))
