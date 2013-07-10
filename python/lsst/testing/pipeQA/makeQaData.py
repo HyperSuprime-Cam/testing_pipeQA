@@ -50,8 +50,11 @@ def makeQaData(label, rerun=None, retrievalType=None, camera=None, **kwargs):
     # make a butler QaData
     if retrievalType.lower() == "butler":
         
-        qaDataUtils = QaDataUtils()
-        testbedDir, testdataDir = qaDataUtils.findDataInTestbed(label)
+        if os.environ.has_key('TESTBED_PATH'):
+            testdataDir = os.path.join(os.getenv("TESTBED_PATH"), label)
+        else:
+            raise Exception("Must specify environment variable TESTBED_PATH.")
+
         from ButlerQaData  import ButlerQaData
         print "label:       ", label
         print "rerun:       ", rerun

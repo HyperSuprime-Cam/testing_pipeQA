@@ -89,53 +89,6 @@ class QaDataUtils(object):
             raise RuntimeError, "Required values not provided by getSourceNameList():\n%s" % ("\n".join(missing))
         
 
-    def findDataInTestbed(self, label, raiseOnFailure=True):
-        """Scan TESTBED_PATH directories to find a testbed dataset with a given name
-
-        @param label            Directory name to look for in TESTBED_PATH directories.
-        @param raiseOnFailure   Raise an exception if nothing is found.
-        """
-
-        # If label==None -> use TESTBOT_DIR (_DIR, not _PATH ... only one dataset can be run)
-        if re.search("^testBot", label):
-            testbotDir = os.getenv("TESTBOT_DIR")
-            testbedDir, testdataDir  = os.path.split(testbotDir)
-            return testbedDir, testbotDir
-
-
-        # otherwise, get a specific test-data set from one of the testbed directories
-        if os.environ.has_key('TESTBED_PATH'):
-            testbedPath = os.getenv("TESTBED_PATH")
-
-        # if SUPRIME_DATA_DIR is set, override the others
-        if os.environ.has_key('SUPRIME_DATA_DIR'):
-            testbedPath = os.getenv('SUPRIME_DATA_DIR')
-
-
-        if testbedPath is not None:
-            testbedDirs = testbedPath.split(":")
-        else:
-            raise Exception("Must specify environment variable TESTBED_PATH.")
-
-
-        #############################
-        # find the label in the testbed path
-        testbedDir = None
-        testdataDir = None
-        for tbDir in testbedDirs:
-            path = os.path.join(tbDir, label)
-            if os.path.exists(path):
-                testbedDir = tbDir
-                testdataDir = path
-
-        if raiseOnFailure and (testbedDir is None):
-            msg = "Testbed %s was not found in any of the TESTBED_PATH directories:\n" % (label)
-            msg += "\n".join(testbedDirs) + "\n"
-            raise Exception(msg)
-
-        return testbedDir, testdataDir
-
-    
 
 
     def getSourceSetNameList(self):
