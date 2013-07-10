@@ -61,7 +61,7 @@ class Pbs(object):
 #############################################################################################
         
 def main(db, visit, noop=False, nCcd=10, queue='batch', nodes=None, ppn=None, camera="suprimecam-mit",
-         mail=None, rmlog=False):
+         mail=None, rmlog=False, newQa=False):
 
     ###############################
     # init some variables
@@ -94,7 +94,7 @@ def main(db, visit, noop=False, nCcd=10, queue='batch', nodes=None, ppn=None, ca
 
     # run newQa.py if the www directory is missing
     www = os.path.join(os.getenv("WWW_ROOT"), wwwrerun)
-    if not os.path.exists(www):
+    if not os.path.exists(www) or newQa:
         cmd =  "newQa.py -c green -p hsc -F %s" % (wwwrerun)
         print cmd
         qaProc = subprocess.call(cmd, shell=True)
@@ -153,6 +153,7 @@ if __name__ == "__main__":
     parser.add_argument("-M", "--mail", default="steven.bickerton@gmail.com",
                         help="email address for PBS messages")
     parser.add_argument("-n", "--noop", action='store_true', default=False,  help="Don't actually run.")
+    parser.add_argument("-N", "--newQa", action='store_true', default=False, help="Force-run newQa.py -F")
     parser.add_argument("--nodes", default=None, type=int, help="Number of nodes")
     parser.add_argument("--ppn", default=None, type=int, help="Processes per node")
     parser.add_argument("-Q", "--queue", type=str, default="batch", help="Name of PBS queue")
@@ -163,7 +164,7 @@ if __name__ == "__main__":
     main(args.db, args.visit,
          noop=args.noop, nCcd=args.nCcd, queue=args.queue,
          nodes=args.nodes, ppn=args.ppn,
-         camera=args.camera, mail=args.mail, rmlog=args.rmlog)
+         camera=args.camera, mail=args.mail, rmlog=args.rmlog, newQa=args.newQa)
 
     if args.monitor:
         import commands
