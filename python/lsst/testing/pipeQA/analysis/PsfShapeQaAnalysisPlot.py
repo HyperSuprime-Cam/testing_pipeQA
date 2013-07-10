@@ -70,7 +70,7 @@ def plot(data):
         vmin, vmax = sm.get_clim()
         color = fwhm
         q = ax.quiver(x, y, vLen*dx, vLen*dy, color=sm.to_rgba(color),
-                      scale=2.0*vLen, angles='xy', pivot='middle',
+                      scale=4.0*vLen, angles='xy', pivot='middle',
                       headlength=1.0, headwidth=1.0, width=0.002) 
         ax.quiverkey(q, 0.9, -0.12, 0.1*vLen, "e=0.1", coordinates='axes',
                      fontproperties={'size':"small"}, labelpos='E', color='k')
@@ -82,7 +82,7 @@ def plot(data):
             tick.set_size("x-small")
         ax.set_title("PSF Shape")
     else:
-        q = ax.quiver(x, y, vLen*dx, vLen*dy, color=color, scale=2.0*vLen, angles='xy', pivot='middle',
+        q = ax.quiver(x, y, vLen*dx, vLen*dy, color=color, scale=4.0*vLen, angles='xy', pivot='middle',
                       headlength=1.0, headwidth=1.0, width=0.002)
         ax.quiverkey(q, 0.9, -0.12, 0.1*vLen, "e=0.1", coordinates='axes',
                      fontproperties={'size':"small"}, labelpos='E', color='k')
