@@ -536,22 +536,6 @@ class HscDbQaData(QaData):
             catObj = pqaSource.Catalog(qaDataUtils)
             ssDict[k] = catObj.catalog
 
-            if False:
-                psfKey = catObj.keyDict['PsfFlux']
-                apKey  = catObj.keyDict['ApFlux']
-                modKey = catObj.keyDict['ModelFlux']
-                instKey = catObj.keyDict['InstFlux']
-
-                psfErrKey = catObj.keyDict['PsfFluxErr']
-                apErrKey  = catObj.keyDict['ApFluxErr']
-                modErrKey = catObj.keyDict['ModelFluxErr']
-                instErrKey = catObj.keyDict['InstFluxErr']
-
-                fPixInterpCenKey = catObj.keyDict['FlagPixInterpCen']
-                fNegativeKey     = catObj.keyDict['FlagNegative']
-                fPixEdgeKey      = catObj.keyDict['FlagPixEdge']
-                fBadCentroidKey  = catObj.keyDict['FlagBadCentroid']
-                fPixSaturCenKey  = catObj.keyDict['FlagPixSaturCen']
             
         for row in results:
 
@@ -562,10 +546,7 @@ class HscDbQaData(QaData):
                 dataIdTmp[idName] = row[i]
                 i += 1
             sid = row[i]
-            #refid = row[i+1]
-
-            #if refid:
-            #    sid = refid
+            
             nIdKeys = i+1
 
             key = self._dataIdToString(dataIdTmp, defineFully=True)
@@ -590,15 +571,9 @@ class HscDbQaData(QaData):
             # calibrate it
             fmag0, fmag0Err = calib[key].getFluxMag0()
 
-            # WARNGING - fmag0Err is wrong, it's the error on the per-second value (magzero_rms in db)
-            
-            # HSC database stores magzero and magzero_rms, convert to fmag0,fmag0Err
-            #fmag0Err = fmag0Err*fmag0*numpy.log(10.0)/2.5
-            #fmag0    = 10.0**(-fmag0/2.5)
-
             if (fmag0 == 0.0):
                 continue
-
+                
             # fluxes
             s.setD(self.k_Psf,   s.getD(self.k_Psf)/fmag0)
             s.setD(self.k_Ap,    s.getD(self.k_Ap)/fmag0)
