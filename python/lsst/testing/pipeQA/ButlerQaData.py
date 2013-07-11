@@ -23,7 +23,6 @@ import numpy
 import math
 import pyfits
 
-import Manifest   as manifest
 import CameraInfo as qaCamInfo
 
 from QaDataUtils import QaDataUtils
