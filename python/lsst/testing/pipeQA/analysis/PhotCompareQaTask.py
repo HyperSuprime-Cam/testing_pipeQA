@@ -206,7 +206,6 @@ class PhotCompareQaTask(QaAnalysisTask):
                 filter = self.filter[key].getName()
 
                 matchList = self.matchListDictSrc[key]['matched']
-                #qaAnaUtil.isStar(matchList)
 
                 for m in matchList:
                     sref, s, dist = m
@@ -225,7 +224,6 @@ class PhotCompareQaTask(QaAnalysisTask):
                         star = 0 if s.getD(data.k_ext) else 1
                         
                         if numpy.isfinite(m1) and numpy.isfinite(m2):
-                            #print m1, m2
                             self.derr.append(raft, ccd, numpy.sqrt(dm1**2 + dm2**2))
                             self.diff.append(raft, ccd, m1 - m2)
                             self.mag.append(raft, ccd, m1)
@@ -242,7 +240,6 @@ class PhotCompareQaTask(QaAnalysisTask):
                 
                 filter = self.filter[key].getName()
 
-                #qaAnaUtil.isStar(ss)  # sets the 'STAR' flag
                 for s in ss:
                     f1 = self._getFlux(data, self.magType1, s, s)
                     f2 = self._getFlux(data, self.magType2, s, s)
@@ -251,8 +248,8 @@ class PhotCompareQaTask(QaAnalysisTask):
                     
                     if ((f1 > 0.0 and f2 > 0.0) and not data.isFlagged(s)):
 
-                        m1 = -2.5*numpy.log10(f1) #self.calib[key].getMagnitude(f1)
-                        m2 = -2.5*numpy.log10(f2) #self.calib[key].getMagnitude(f2)
+                        m1 = -2.5*numpy.log10(f1)
+                        m2 = -2.5*numpy.log10(f2)
                         dm1 = 2.5 / numpy.log(10.0) * df1 / f1
                         dm2 = 2.5 / numpy.log(10.0) * df2 / f2
 
@@ -260,10 +257,7 @@ class PhotCompareQaTask(QaAnalysisTask):
 
                         star = 0 if extend else 1
 
-                        #if star:
-                        #    print "isStar: ", star
                         if numpy.isfinite(m1) and numpy.isfinite(m2):
-                            #print m1, m2
                             self.derr.append(raft, ccd, numpy.sqrt(dm1**2 + dm2**2))
                             self.diff.append(raft, ccd, m1 - m2)
                             self.mag.append(raft, ccd, m1)
@@ -379,7 +373,8 @@ class PhotCompareQaTask(QaAnalysisTask):
             lineCoeffs = lineFit[0], lineFit[2]
         label = "slope"
         slopeLimits = self.slopeLimits[0]*lineFit[1], self.slopeLimits[1]*lineFit[1]
-        comment = "slope for all ccds (mag lt %.1f, nstar=%d) limits=(%.1f,%.1f sigma)" % (self.magCut, len(allDiffs), self.slopeLimits[0], self.slopeLimits[1])
+        comment = "slope for all ccds (mag lt %.1f, nstar=%d) limits=(%.1f,%.1f sigma)" % \
+            (self.magCut, len(allDiffs), self.slopeLimits[0], self.slopeLimits[1])
         testSet.addTest( testCode.Test(label, lineCoeffs[0], slopeLimits, comment, areaLabel="all"))
 
 
@@ -403,10 +398,10 @@ class PhotCompareQaTask(QaAnalysisTask):
         wtag = self.magType1+"minus"+self.magType2
 
         # fpa figure
-        meanFilebase = "mean" + wtag
-        stdFilebase  = "std"+wtag
-        derrFilebase  = "derr"+wtag
-        slopeFilebase  = "slope"+wtag
+        meanFilebase   = "mean" + wtag
+        stdFilebase    = "std" + wtag
+        derrFilebase   = "derr" + wtag
+        slopeFilebase  = "slope" + wtag
 
         meanFig  = qaFig.FpaQaFigure(data.cameraInfo, data=None, map=None)
         stdFig   = qaFig.FpaQaFigure(data.cameraInfo, data=None, map=None)
@@ -496,15 +491,8 @@ class PhotCompareQaTask(QaAnalysisTask):
 
 
         #############################################
-        #
-        #xmin, xmax = self.mag.summarize('min', default=0.0), self.mag.summarize('max', default=25.0)
-        #ymin, ymax = self.diff.summarize('min', default=-1.0), self.diff.summarize('max', default=1.0)
-        #xrang = xmax-xmin
-        #xmin, xmax = int(xmin-0.05*xrang), int(xmax+0.05*xrang)+1
-        #yrang = ymax-ymin
-        #ymin, ymax = ymin-0.05*yrang, ymax+0.05*yrang
-        xlim2 = xlim        #[xmin, xmax]
-        ylim2 = [-2.0, 2.0] #[ymin, ymax]
+        xlim2 = xlim       
+        ylim2 = [-2.0, 2.0]
 
         figsize = (6.5, 3.75)
 

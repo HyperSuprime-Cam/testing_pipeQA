@@ -289,9 +289,6 @@ class PipeQaTask(pipeBase.Task):
             visitList = dataIdInput['visit']
             dataIdInput['visit'] = ".*"
             
-        #if exceptExit:
-        #    numpy.seterr(all="raise")
-    
         data = pipeQA.makeQaData(dataset, rerun=rerun, camera=camera,
                                  shapeAlg = self.config.shapeAlgorithm,
                                  retrievalType=retrievalType,

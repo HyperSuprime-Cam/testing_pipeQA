@@ -44,9 +44,6 @@ class QaAnalysisTask(pipeBase.Task):
             'none'      : 'none'    # don't make summary figures
             }
         
-        #self.delaySummary = delaySummary
-        #self.noSummary    = noSummary
-        #self.onlySummary  = onlySummary
 
         options = ['none', 'sensor', 'all']
         if not lazyPlot in options:

@@ -81,7 +81,7 @@ def standardFigure(*args):
     trendCoeffs = lineFit[0], lineFit[2]
     trendCoeffsLo = lineFit[0]+lineFit[1], lineFit[2]-lineFit[3]
     trendCoeffsHi = lineFit[0]-lineFit[1], lineFit[2]+lineFit[3]
-    #print trendCoeffs        
+
     if len(mag0) == 0:
         mag0 = numpy.array([xlim[1]])
         diff0 = numpy.array([eps])
@@ -169,7 +169,7 @@ def standardFigure(*args):
         maxSize = 6*midSize
         minSize = midSize/2
         magLo = xlim[0] if xlim[0] > mag0.min() else mag0.min()
-        magHi = magCut + 2.0 #xlim[1] if xlim[1] < mag0.max() else mag0.max()
+        magHi = magCut + 2.0
         sizes = minSize + (maxSize - minSize)*(magHi - mag)/(magHi - magLo)
         sizes = numpy.clip(sizes, minSize, maxSize)
         xyplot = ax_3.scatter(x, y, s=sizes, c=diff, marker='o',
@@ -183,7 +183,6 @@ def standardFigure(*args):
             ax_3.set_ylim(xlimDefault)
 
         ax_3.set_xlabel("x", size='x-small')
-        #ax_3.set_ylabel("y", labelpad=20, y=1.0, size='x-small', rotation=0.0)
         cb = fig.colorbar(xyplot)
         cb.ax.set_xlabel("$\delta$ mag", size="x-small")
         cb.ax.xaxis.set_label_position('top')
@@ -192,8 +191,6 @@ def standardFigure(*args):
         for t in ax_3.get_xticklabels() + ax_3.get_yticklabels():
             t.set_rotation(45.0)
             t.set_size('xx-small')
-        #for t in ax_3.get_yticklabels():
-        #    t.set_size('xx-small')
 
         lineVals = numpy.lib.polyval(trendCoeffs, xTrend)
         lineValsLo = numpy.lib.polyval(trendCoeffsLo, xTrend)
@@ -202,11 +199,6 @@ def standardFigure(*args):
 
         if abs(trendCoeffs[0] - 99.0) > 1.0e-6:
             lmin, lmax = lineVals.min(), lineVals.max()
-            if False:
-                if lmin < ylim[0]:
-                    ylim[0] = -(int(abs(lmin)/ylimStep) + 1)*ylimStep
-                if lmax > ylim[1]:
-                    ylim[1] = (int(lmax/ylimStep) + 1)*ylimStep
 
             ax_1.plot(xTrend, lineVals, "-r", lw=1.0)
             ax_1.plot(xTrend, lineValsLo, "--r", lw=1.0)
@@ -223,9 +215,6 @@ def standardFigure(*args):
         ax_1.set_ylim(ylim if ylim[0] != ylim[1] else [-0.1, 0.1])
         ax_2.set_ylim(ylim2 if ylim2[0] != ylim2[1] else [-0.1, 0.1])
 
-        # move the y axis on right panel
-        #ax_3.yaxis.set_label_position('right')
-        #ax_3.yaxis.set_ticks_position('right')
 
         dmag = 0.1
         ddiff1 = 0.02
@@ -329,10 +318,7 @@ def derrFigure(*args):
         idx = numpy.where((mag>bins1[i-1])&(mag<=bins1[i]))[0]
         if len(idx) == 0:
             continue
-        #avgMag  = afwMath.makeStatistics(mag[idx], afwMath.MEAN).getValue(afwMath.MEAN)
-        #stdDmag = 0.741 * afwMath.makeStatistics(diff[idx], afwMath.IQRANGE).getValue(afwMath.IQRANGE)
-        #avgEbar = afwMath.makeStatistics(derr[idx], afwMath.MEAN).getValue(afwMath.MEAN)
-        avgMag = mag[idx].mean()
+        avgMag  = mag[idx].mean()
         stdDmag = diff[idx].std()
         avgEbar = derr[idx].mean()
         binmag.append(avgMag)
@@ -441,8 +427,6 @@ def summaryFigure(*summaryArgs):
         haveData = False
         allMags = numpy.array([xlim[1]])
         allDiffs = numpy.array([0.0])
-        #allColor = [black]
-        #allLabels = ["no_valid_data"]
         trendCoeffs = [0.0, 0.0]
         trendCoeffsLo = [0.0, 0.0]
         trendCoeffsHi = [0.0, 0.0]
@@ -464,11 +448,8 @@ def summaryFigure(*summaryArgs):
             idx = numpy.where((mStar>bins1[i-1])&(mStar<bins1[i]))[0]
             if len(idx) == 0:
                 continue
-            #avgMag  = afwMath.makeStatistics(mStar[idx], afwMath.MEAN).getValue(afwMath.MEAN)
-            avgMag = mStar[idx].mean()
-            #stdDmag = 0.741 * afwMath.makeStatistics(dStar[idx], afwMath.IQRANGE).getValue(afwMath.IQRANGE)
+            avgMag  = mStar[idx].mean()
             stdDmag = dStar[idx].std()
-            #avgEbar = afwMath.makeStatistics(eStar[idx], afwMath.MEAN).getValue(afwMath.MEAN)
             avgEbar = eStar[idx].mean()
             binmag.append(avgMag)
             binstd.append(stdDmag)
@@ -492,9 +473,6 @@ def summaryFigure(*summaryArgs):
             if numpy.isnan(medresid) or medresid == None:
                medresid = 0.0
 
-        #label       = "Quad error"
-        #comment     = "Median value to add in quadrature to star phot error bars (mag < %.2f)" % (magCut)
-        #testSet.addTest( testCode.Test(label, medresid, derrLimits, comment, areaLabel="all"))
 
         # SECOND SUBPANEL
 
@@ -508,10 +486,7 @@ def summaryFigure(*summaryArgs):
             idx = numpy.where((mStar>bins2[i-1])&(mStar<bins2[i]))[0]
             if len(idx) == 0:
                 continue
-            #avgMag  = afwMath.makeStatistics(mStar[idx], afwMath.MEAN).getValue(afwMath.MEAN)
-            #stdDmag = 0.741 * afwMath.makeStatistics(dStar[idx], afwMath.IQRANGE).getValue(afwMath.IQRANGE)
-            #avgEbar = afwMath.makeStatistics(eStar[idx], afwMath.MEAN).getValue(afwMath.MEAN)
-            avgMag = mStar[idx].mean()
+            avgMag  = mStar[idx].mean()
             stdDmag = dStar[idx].std()
             avgEbar = eStar[idx].mean()
             binmag.append(avgMag)
@@ -531,7 +506,6 @@ def summaryFigure(*summaryArgs):
         # Lower plots
         #
 
-    #allColor = numpy.array(allColor)
     for ax in [ax0_1, ax0_2]:
         ax.plot(xlim2, [0.0, 0.0], "-k", lw=1.0)  # show an x-axis at y=0
         ax.plot(allMags[wGxy], allDiffs[wGxy], "bo", ms=size, label="galaxies", alpha=0.5)
@@ -565,8 +539,6 @@ def summaryFigure(*summaryArgs):
 
     del allMags
     del allDiffs
-    #del allColor
-    #del allLabels
 
     # move the yaxis ticks/labels to the other side
     ax0_2.yaxis.set_label_position('right')
@@ -604,9 +576,6 @@ def summaryFigure(*summaryArgs):
     ax0_2b.set_ylim(0.001, 0.99)
 
     return fig0
-
-
-
 
 
 if __name__ == '__main__':

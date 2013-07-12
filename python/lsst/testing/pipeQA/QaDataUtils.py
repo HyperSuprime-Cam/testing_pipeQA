@@ -271,7 +271,7 @@ class QaDataUtils(object):
         keepref = []
         keepi = []
         for i in xrange(len(refsources)):
-            ra, dec = refsources[i].getRa(), refsources[i].getDec() # ra,dec in Rads
+            ra, dec = refsources[i].getRa(), refsources[i].getDec()
             x, y = wcs.skyToPixel(afwCoord.Coord(afwGeom.PointD(numpy.degrees(ra), numpy.degrees(dec))))
 
             if x < 0 or y < 0 or x > W or y > H:

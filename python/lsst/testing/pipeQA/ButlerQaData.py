@@ -372,7 +372,6 @@ class ButlerQaData(QaData):
                 undetectedIds = refIds - matRef
                 orphanIds     = srcIds - matSrc
                 matchedIds    = srcIds & matSrc   # Does not know about duplicates
-                #print 'Undet, orphan, matched:', len(undetectedIds), len(orphanIds), len(matchedIds)
 
                 undetected = []
                 orphans    = []
@@ -475,8 +474,8 @@ class ButlerQaData(QaData):
 
                     rec.setD(self.k_Ra,    float(s.getRa().asDegrees()))
                     rec.setD(self.k_Dec,   float(s.getDec().asDegrees()))
-                    rec.setD(self.k_x,     float(s.getX())) #Astrom()))
-                    rec.setD(self.k_y,     float(s.getY())) #Astrom()))
+                    rec.setD(self.k_x,     float(s.getX()))
+                    rec.setD(self.k_y,     float(s.getY()))
                     
                     # fluxes
                     rec.setD(self.k_Psf,   float(s.getPsfFlux())/fmag0)

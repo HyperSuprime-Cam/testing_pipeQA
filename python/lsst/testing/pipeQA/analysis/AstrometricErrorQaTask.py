@@ -95,7 +95,6 @@ class AstrometricErrorQaTask(QaAnalysisTask):
                 dRa  = (raRef - ra)*abs(numpy.cos(decRef))
                 
                 if not data.isFlagged(s):
-                    #print ra, dec, dRa, dDec, s.getD(xKey), s.getD(yKey), raRef, decRef
                     self.dRa.append(raft, ccd, dRa)
                     self.dDec.append(raft, ccd, dDec)
                     self.x.append(raft, ccd, s.getD(data.k_x))
@@ -228,7 +227,6 @@ class AstrometricErrorQaTask(QaAnalysisTask):
                 dec = self.dDec.get(raft, ccd)
                 dAngle = numpy.sqrt(ra**2 + dec**2)
                 eLen = 3600.0*numpy.degrees(dAngle)
-                #eLen = 3600.0*numpy.sqrt(ra**2 + dec**2)
                 t = numpy.arctan2(dec, ra)
 
                 dx = eLen*numpy.cos(t)

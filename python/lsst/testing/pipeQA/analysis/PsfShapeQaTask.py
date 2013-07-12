@@ -86,8 +86,6 @@ class PsfShapeQaTask(QaAnalysisTask):
             else:
                 continue
 
-            #qaAnaUtil.isStar(ss)
-
             fwhmByKey[key] = 0.0
 
             mags = []
@@ -124,7 +122,6 @@ class PsfShapeQaTask(QaAnalysisTask):
                 if theta < 0.0:
                     theta += numpy.pi
                     
-                #print ixx, iyy, ixy, a2, b2, ellip, theta
                 isStar = 0 if s.getD(data.k_ext) else 1
 
                 flux = s.getD(data.k_Psf)

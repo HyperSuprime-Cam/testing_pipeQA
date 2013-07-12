@@ -1,25 +1,6 @@
 import os, re
 import numpy
 
-sourceClass = 'python'
-if os.environ.has_key('SOURCECLASS'):
-    if re.search('afw', os.environ['SOURCECLASS']):
-        sourceClass = 'afw'
-    else:
-        sourceClass = 'python'
-        
-        
-useSource = "afw" #sourceClass
-useRefSource = sourceClass
-
-# these mimic the old measAlg.Flags values
-# since we're wrapping the Source, we'll use these
-STAR          = 0x1
-SATUR_CENTER  = 0x2
-EDGE          = 0x4
-INTERP_CENTER = 0x8
-BAD_CENTROID  = 0x16
-NEGATIVE      = 0x32
 
 #################################################################
 # RefSource
@@ -31,14 +12,9 @@ class _RefCatalog(object):
     def __init__(self):
         self.schema = afwTab.SourceTable.makeMinimalSchema()
 
-        #setMethods = [x for x in qaDataUtils.getSourceSetAccessors()]
-        
         setMethods = ["Ra", "Dec", "PsfFlux", "ApFlux", "ModelFlux", "InstFlux"]
 
         self.keyDict = {}
-        #for sm in setMethods0:
-        #    key = self.schema.addField(sm, type="F8")
-        #    self.keyDict[sm] = key
             
         self.setKeys = []
         for sm in setMethods:
@@ -60,13 +36,6 @@ class _RefSource(object):
         self.ints = numpy.zeros(2, dtype=numpy.int)
         self.radec = numpy.zeros(2)
         self.flux  = numpy.zeros(4, dtype=numpy.float32)
-        #self._id               = 0            
-        #self._flagForDetection = 0x0
-        #self._ra               = 0.0
-        #self._dec              = 0.0
-        #self._psfFlux          = 0.0
-        #self._apFlux           = 0.0
-        #self._modelFlux        = 0.0
 
     def setPhotometry(self, val):
         pass
@@ -95,13 +64,7 @@ class _RefSource(object):
     def setModelFlux(self, val): self.flux[3] = val
 
 
-
-
-if useRefSource == 'afw':
-    from lsst.afw.detection import Source as RefSource
-else:
-    #RefSource = _RefSource
-    RefCatalog = _RefCatalog
+RefCatalog = _RefCatalog
 
 
     
@@ -115,8 +78,6 @@ class _Catalog(object):
         self.schema = afwTab.SourceTable.makeMinimalSchema()
 
         setMethods, setTypes = qaDataUtils.getSourceSetAccessorsAndTypes()
-
-        #self.schema.addField('RefId', type="L")
 
         self.setKeys = []
         self.keyNames = []
@@ -267,54 +228,7 @@ class _Source(object):
     def setSigmaErr(self, val):   self.shape[Source.iSigmaErr] = val
 
 
-#     def getPsfIxx(self):             return self._psfIxx
-#     def setPsfIxx(self, val):             self._psfIxx = val
-#     def getPsfIxxErr(self):             return self._psfIxxErr
-#     def setPsfIxxErr(self, val):             self._psfIxxErr = val
-#     def getPsfIyy(self):             return self._psfIyy
-#     def setPsfIyy(self, val):             self._psfIyy = val
-#     def getPsfIyyErr(self):             return self._psfIyyErr
-#     def setPsfIyyErr(self, val):             self._psfIyyErr = val
-#     def getPsfIxy(self):             return self._psfIxy
-#     def setPsfIxy(self, val):             self._psfIxy = val
-#     def getPsfIxyErr(self):             return self._psfIxyErr
-#     def setPsfIxyErr(self, val):             self._psfIxyErr = val
-
-#     def getResolution(self):             return self._resolution
-#     def setResolution(self, val):             self._resolution = val
-
-#     def getE1(self):                return self._e1
-#     def setE1(self, val):             self._e1 = val
-#     def getE1Err(self):             return self._e1Err
-#     def setE1Err(self, val):             self._e1Err = val
-#     def getE2(self):                return self._e2
-#     def setE2(self, val):             self._e2 = val
-#     def getE2Err(self):             return self._e2Err
-#     def setE2Err(self, val):             self._e2Err = val
-
-#     def getShear1(self):             return self._shear1
-#     def setShear1(self, val):             self._shear1 = val
-#     def getShear1Err(self):             return self._shear1Err
-#     def setShear1Err(self, val):             self._shear1Err = val
-#     def getShear2(self):             return self._shear2
-#     def setShear2(self, val):             self._shear2 = val
-#     def getShear2Err(self):             return self._shear2Err
-#     def setShear2Err(self, val):             self._shear2Err = val
-
-#     def getSigma(self):             return self._sigma
-#     def setSigma(self, val):             self._sigma = val
-#     def getSigmaErr(self):             return self._sigmaErr
-#     def setSigmaErr(self, val):             self._sigmaErr = val
-
-
 ################################################################
 # Source
     
-if useSource == 'afw':    
-    Catalog = _Catalog
-    #Source = _Source
-    
-    
-else:
-    #Source = _Source
-    pass
+Catalog = _Catalog

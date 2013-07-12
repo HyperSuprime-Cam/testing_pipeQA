@@ -36,10 +36,6 @@ def plot(data):
         x -= xbLo
         y -= ybLo
 
-    #print x, y
-    #print limits
-    #print data['bbox']
-    
     norm = colors.Normalize(vmin=vlim[0], vmax=vlim[1])
     sm = cm.ScalarMappable(norm, cmap=cm.jet)
     
@@ -54,9 +50,8 @@ def plot(data):
         color = numpy.array((0.0, 0.0, 0.0))
         fwhm  = numpy.array([0.0])
 
-    #xmax, ymax = x.max(), y.max()
-    xlim = [xlo, xhi] #[0, 1024*int(xmax/1024.0 + 0.5)]
-    ylim = [ylo, yhi] #[0, 1024*int(ymax/1024.0 + 0.5)]
+    xlim = [xlo, xhi]
+    ylim = [ylo, yhi]
 
     fig = figure.Figure(figsize=figsize)
     canvas = FigCanvas(fig)
@@ -75,7 +70,7 @@ def plot(data):
         ax.quiverkey(q, 0.9, -0.12, 0.1*vLen, "e=0.1", coordinates='axes',
                      fontproperties={'size':"small"}, labelpos='E', color='k')
         q.set_array(color)
-        cb = fig.colorbar(q) #, ax)
+        cb = fig.colorbar(q)
         cb.ax.set_xlabel("FWHM$_{\mathrm{xc,yc}}$", size="small")
         cb.ax.xaxis.set_label_position('top')
         for tick in cb.ax.get_yticklabels():
@@ -88,7 +83,7 @@ def plot(data):
                      fontproperties={'size':"small"}, labelpos='E', color='k')
         ax.set_title("PSF Shape (FWHM$_{\mathrm{xc,yc}}$=%.2f)"%(fwhm[0]))
 
-    ax.set_xlabel("x [pixels]") #, position=(0.4, 0.0))
+    ax.set_xlabel("x [pixels]")
 
     ax.set_ylabel("y [pixels]")
     ax.set_xlim(xlim)

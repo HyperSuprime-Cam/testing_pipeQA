@@ -83,8 +83,6 @@ def plotSparseContour(sp, x, y, binSizeX, binSizeY, minCont = 500, nCont = 7):
         yidx = (y[i] - ymin) // binSizeY
         cdata[yidx][xidx] += 1
 
-    #if cdata.max() < minCont:
-    #    minCont = 1
 
     cs    = num.arange(minCont, cdata.max(), (cdata.max() - minCont) // nCont).astype(num.int)
     c     = sp.contour(cdata, cs, origin='lower', linewidths=1, extent=(xmin,xmax,ymin,ymax))

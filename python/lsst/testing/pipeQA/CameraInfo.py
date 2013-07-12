@@ -279,7 +279,6 @@ class LsstSimCameraInfo(CameraInfo):
         """ """
         dataInfo       = [['visit',1], ['snap', 0], ['raft',0], ['sensor',0]]
 
-        #simdir        = eups.productDir("obs_lsstSim")
         if os.environ.has_key('OBS_LSSTSIM_DIR'):
             simdir        = os.environ['OBS_LSSTSIM_DIR']
             cameraGeomPaf = os.path.join(simdir, "description", "Full_STA_geom.paf")
@@ -465,7 +464,6 @@ class SdssCameraInfo(CameraInfo):
         else:
             dataInfo       = [['run', 1], ['band', 0], ['frame',1], ['camcol', 0]]
 
-        #simdir        = eups.productDir("obs_subaru")
         if os.environ.has_key('OBS_SDSS_DIR') and obsSdss is not None:
             simdir         = os.environ['OBS_SDSS_DIR']
             camera = obsSdss.makeCamera.makeCamera(name='SDSS')

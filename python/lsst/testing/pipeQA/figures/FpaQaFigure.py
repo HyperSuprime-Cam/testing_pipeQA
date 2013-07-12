@@ -292,14 +292,11 @@ class FpaQaFigure(QaFigure):
                 clabel = ccd.getId().getName()
                 value = self.data[rlabel][clabel]
                 allValues.append(value)
-                #if (not value is None) or (showUndefined):
                 if value is None:
                     value = numpy.NaN
                     missingCcds[clabel] = self.ccdBoundaries[clabel]
                 if value < failLimits[0] or value > failLimits[1]:
                     failedCcds[clabel] = value
-                #if value > failLimits[1]:
-                #    failedCcds[clabel] = 1
                 values.append(value)
                 patches.append(self.rectangles[clabel])
 
@@ -337,11 +334,9 @@ class FpaQaFigure(QaFigure):
             binwid = float(vlimits[1] - vlimits[0])/nbins
             if binwid > 0.0 and len(finiteValues) > 0:
                 eps = 1.0e-4*binwid
-                #print finiteValues, nbins, vlimits
                 nu, bu, pu = axH.hist(finiteValues, bins=nbins,
                                       range=[vlimits[0]-eps,vlimits[1]+eps],
                                       orientation='horizontal', color='#aaaaaa', fill=True)
-                #nu = numpy.array([1.0])
                 axH.set_ylim(vlimits)
                 xmax = 1.2*nu.max()
                 if xmax <= 0.0:
@@ -363,7 +358,6 @@ class FpaQaFigure(QaFigure):
 
         if not title is None:
             self.fig.text(0.5, 0.94, title, horizontalalignment="center", fontsize=10)
-            #sp.set_title(title, fontsize=12)
         sp.set_xlabel("Focal Plane X", fontsize = 9)
         sp.set_ylabel("Focal Plane Y", fontsize = 9)
 
@@ -473,12 +467,10 @@ class VectorFpaQaFigure(FpaQaFigure):
 
                 if lenInPixtmp < 0:
                     lenInPixtmp = 0
-                #print clabel, radiansWrtXtmp, lenInPixtmp, colorScalartmp
                 
-                #print clabel, radiansWrtXtmp, lenInPixtmp, colorScalartmp
                 lenInPix[clabel]    = lenInPixtmp
                 allValues.append(radiansWrtXtmp)
-                if (not radiansWrtXtmp is None): # or (showUndefined):
+                if (not radiansWrtXtmp is None):
                     if not colorScalartmp is None:
                         colorValues.append(colorScalartmp)
                         patches.append(self.rectangles[clabel])
@@ -486,8 +478,6 @@ class VectorFpaQaFigure(FpaQaFigure):
                         haveColors = True
                         if colorScalartmp < failLimits[0] or colorScalartmp > failLimits[1]:
                             failedCcds[clabel] = colorScalartmp
-                        #if colorScalartmp > failLimits[1]:
-                        #    failedCcds[clabel] = 1
                     else:
                         colorValues.append(numpy.NaN)
                         patches.append(self.rectangles[clabel])
@@ -506,7 +496,7 @@ class VectorFpaQaFigure(FpaQaFigure):
             norm = colors.Normalize()
 
 
-        sp     = self.fig.gca() #add_axes([left, bottom, right-left, top-bottom]) #gca()
+        sp     = self.fig.gca()
 
         ##############################
         # put a histogram on the side
@@ -557,7 +547,7 @@ class VectorFpaQaFigure(FpaQaFigure):
             dy = arrowLen*numpy.sin(angle)
             if numpy.abs(dx) < 1.0e-15 or numpy.abs(dy) < 1.0e-15:
                 continue
-            sp.arrow(x, y, dx, dy) #, ec="k", lw=3)
+            sp.arrow(x, y, dx, dy)
 
         self.plotRaftBoundaries(sp, boundaryColors)
         self.plotCcdBoundaries(sp)
@@ -568,7 +558,7 @@ class VectorFpaQaFigure(FpaQaFigure):
 
         if not title is None:
             self.fig.text(0.5, 0.94, title, horizontalalignment="center", fontsize=10)
-            #sp.set_title(title, fontsize=12)
+
         sp.set_xlabel("Focal Plane X", fontsize = 9)
         sp.set_ylabel("Focal Plane Y", fontsize = 9)
 

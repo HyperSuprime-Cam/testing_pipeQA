@@ -12,7 +12,6 @@ from  matplotlib.ticker import MaxNLocator
 from matplotlib.collections import LineCollection
 from matplotlib.patches import Circle
 
-#import lsst.testing.pipeQA.figures.QaFigureUtils as qaFigUtil
 import QaPlotUtils as qaPlotUtil
 
 def plot(data):
@@ -35,12 +34,6 @@ def plot(data):
         y -= ybLo
 
 
-    #print x
-    #print y
-    #print limits
-    #print data['bbox']
-    
-    #
     figsize = (6.5, 3.25)
     conv = colors.ColorConverter()
     black = conv.to_rgb('k')
@@ -58,10 +51,6 @@ def plot(data):
     if len(x) > 1:
         xlim = xlo, xhi
         ylim = ylo, yhi
-        #xlim = [xmin, xmin + 1024*round((xmax-xmin)/1024.0 + 0.5)]
-        #ylim = [ymin, ymin + 1024*round((ymax-ymin)/1024.0 + 0.5)]
-        #xlim = [0.0, 1024*round((xmax-xmin)/1024.0 + 0.5)]
-        #ylim = [0.0, 1024*round((ymax-ymin)/1024.0 + 0.5)]
     else:
         xlim = [0, 1.0]
         ylim = [0, 1.0]
@@ -69,8 +58,6 @@ def plot(data):
     xmin, xmax = xlim
     ymin, ymax = ylim
         
-    #print x, y
-    #print xmin, ymin
     r = numpy.sqrt(dx**2 + dy**2)
     rmax = 0.6 # r.max()
 
@@ -118,8 +105,6 @@ def plot(data):
                     dxt.append(0.0)
                     dyt.append(0.0)
 
-        #for i in range(len(xt)):
-        #    print xt[i], yt[i], dxt[i], dyt[i]
         q = ax.quiver(numpy.array(xt), numpy.array(yt), numpy.array(dxt), numpy.array(dyt),
                       color='k', scale=1.0, angles='xy', pivot='middle', width=0.004)
         ax.quiverkey(q, 0.9, -0.2, 0.1, "100 mas", coordinates='axes',
@@ -153,15 +138,14 @@ def plot(data):
     left, bottom, width, height = 0.5+spacer, 0.35+spacer, 0.5-2*xmargin, 0.65-ymargin-spacer
     ax = fig.add_axes([left, bottom, width, height])
 
-    #get the figure width/heigh in inches to correct
-    #aspect ratio
+    #get the figure width/heigh in inches to correct aspect ratio
     f_w, f_h = fig.get_size_inches()
     xlimRose = [-width*f_w/(height*f_h)*rmax, f_w*width/(f_h*height)*rmax]
     limRose = [-rmax, rmax]
     # this is much faster than calling plot() in a loop, and quiver() scale length buggy
     if gridVectors:
         ybin = 50
-        xbin = 50 #int(1.0*ybin*f_w*width/(f_h*height))
+        xbin = 50
         qaPlotUtil.make_densityplot(ax, dx, dy, xlims=limRose, ylims=limRose, bins=(xbin,ybin),
                                    log=True)
         qaPlotUtil.make_densityContour(ax, dx, dy, xlims=limRose, ylims=limRose, bins=(xbin,ybin),
@@ -179,8 +163,6 @@ def plot(data):
         ax.add_collection(p)
         ax.scatter(dx, dy, s=0.05, color='k', zorder=2,label="_nolegend_")
 
-        #r = numpy.sqrt(dx**2 + dy**2)
-        #rmax = r.max()
         isort = r.argsort()
         i50 = isort[len(r)/2]
         r50 = r[i50]
@@ -242,11 +224,8 @@ def plot(data):
     ax0.set_xlim([0, 0.9*rmax])
     ax0.set_ylim([0, 1.4*rNmax])
 
-
-
     for tic in ax0.get_xticklabels() + ax0.get_yticklabels(): # + ax.get_xticklabels():
         tic.set_size("xx-small")
-
 
     return fig
 

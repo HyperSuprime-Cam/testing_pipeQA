@@ -1,5 +1,5 @@
 import os
-import psycopg2 #MySQLdb
+import psycopg2
 import lsst.pex.policy as pexPolicy
 import time
 from lsst.pex.logging import Trace
@@ -74,7 +74,6 @@ class DbInterface(DatabaseInterface):
 
         #print "postgresql>", sql
         
-        
         # forking to handle plotting the summary figures causes (i think)
         # a disconnection when the child exits.  Need to reconnect when
         connected = True
@@ -84,13 +83,11 @@ class DbInterface(DatabaseInterface):
             connected = False
 
         if not connected:
-            #print "PostGreSql connection broken.  Reconnecting."
             self.connect()
             self.cursor.execute(sql)
 
         results = self.cursor.fetchall()
         t1 = time.time()
-        #print " (t=%.2fs) " % (t1-t0)
         Trace("lsst.testing.pipeQA.HscDbInterface", 2, "Time for SQL query: %.2f s" % (t1-t0))
         return results
 

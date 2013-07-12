@@ -107,7 +107,7 @@ class QaData(object):
             self.loadStr += message
         else:
             self.loadStr += message
-        #sys.stdout.flush()
+
         self.loadDepth += 1
         self.lastPrint = 0
         t0 = time.time()
@@ -116,7 +116,6 @@ class QaData(object):
 
     def printMidLoad(self, message):
         self.loadStr += message
-        #sys.stdout.flush()
 
     def printStopLoad(self):
         t0 = self.t0[-1]
@@ -136,7 +135,7 @@ class QaData(object):
                 self.loadStr += "\n"+done
             else:
                 self.loadStr += done
-        #sys.stdout.flush()
+
         self.loadStr = ""
 
         self.loadDepth -= 1
@@ -221,7 +220,7 @@ class QaData(object):
             
         self.performCache[dataIdStr][test][label]    += value
         self.performCache[dataIdStr]['total'][label] += value
-        #print 'd', dataIdStr, "l",label, "p",self.performCache[dataIdStr]['total'][label], 'v',value
+
         
     def getPerformance(self, dataIdStr, test, label):
         if isinstance(dataIdStr, dict):
@@ -236,7 +235,6 @@ class QaData(object):
         """Reset all internal cache attributes."""
         for cache in self.cacheList.values():
             for key in cache.keys():
-                #sys.stderr.write( "Clearing "+key+"\n")
                 if isinstance(cache[key], dict):
                     for key2 in cache[key].keys():
                         del cache[key][key2]
@@ -245,7 +243,7 @@ class QaData(object):
         self.initCache()
 
     def printCache(self):
-        for name, cache in self.__dict__.items(): #cacheList.items():
+        for name, cache in self.__dict__.items():
             if re.search("^_", name):
                 continue
             n = 0
@@ -288,17 +286,6 @@ class QaData(object):
             if haveIt:
                 return ssTDict
 
-        # if they've made this exact query before ... we must have it!
-        if False:
-            ssTDict = {}
-            if self.columnQueryCache.has_key(dataIdStr+"-"+accessor):
-                for k, ssDict in self.sourceSetColumnCache():
-                    if re.search(dataIdStr, k):
-                        if not ssTDict.has_key(k):
-                            ssTDict[k] = {}
-                        ssTDict[k][accessor] = ssDict[accessor]
-                return ssTDict
-
         # get it and put the transpose in the cache
         # return a copy of what we cached.
         ssDict = self.getSourceSetBySensor(dataIdRegex)
@@ -315,8 +302,6 @@ class QaData(object):
                     tmp = numpy.append(tmp, value)
                 self.sourceSetColumnCache[k][accessor] = tmp
                 ssTDict[k][accessor] = tmp
-
-        #self.transposeQueryCache[dataIdStr+'-'+accessor] = True
         
         return ssTDict
 
@@ -472,9 +457,8 @@ class QaData(object):
                     s.append(dataIdName + "0")
                 else:
                     s.append( dataIdName + ".*" )
-        #x = self._dataTupleToString(self._dataIdToDataTuple(dataId))
         s = "-".join(s)
-        #print x, s
+
         return s
 
     

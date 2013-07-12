@@ -2,7 +2,6 @@ import os, sys, re
 import numpy
 import numpy.ma as numpyMa
 
-#import pylab
 import matplotlib.figure as figure
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigCanvas
 from matplotlib.font_manager import FontProperties
@@ -39,7 +38,6 @@ class QaFigure(object):
         self.fig.set_dpi(dpi)
         self.canvas      = FigCanvas(self.fig)
         self.map         = {}
-        #self.fig.set_size_inches(size[0] / DPI, size[1] / DPI)
         self.mapAreas    = []
         self.mapTransformed = True
 

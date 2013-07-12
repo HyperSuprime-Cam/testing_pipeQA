@@ -61,7 +61,6 @@ class Timer(object):
 #
 #########################################################################
 class HscDbQaData(QaData):
-    #Qa__init__(self, label, rerun, dataInfo):
 
     def __init__(self, database, rerun, cameraInfo):
         """
@@ -91,10 +90,8 @@ class HscDbQaData(QaData):
 
         # default to new names
         self.dbAliases = {
-            #"flux_Gaussian" : "instFlux",
-            #"flux_ESG"      : "modelFlux",
-            #'flux_gaussian' : 'flux_gaussian',
             }
+        
         # reset to old names if new names not present
         for k,v in self.dbAliases.items():
             if k in keyList:
@@ -220,7 +217,6 @@ class HscDbQaData(QaData):
             sql += 'm.classification_extendedness, m.ref_id, m.id, '
             sql += selectStr
             sql += '  from '+slist+' as s, '+ftab+' as sce, '+mlist+' as m'
-            #sql += '  where (sce.frame_id = m.frame_id) and (s.id = m.id) '
             sql += '  where (sce.frame_id = m.frame_id) and '
             sql += '        (sce.frame_id = s.frame_id) and '
             sql += '        (abs(s.ra2000 - m.ra2000) < '+str(arcsecErr)+") and "
@@ -232,8 +228,6 @@ class HscDbQaData(QaData):
 
 
         # run the query
-        #print sql
-
         results  = self.dbInterface.execute(sql)
 
         self.sqlCache['match'][dataIdStr] = sql
@@ -278,14 +272,13 @@ class HscDbQaData(QaData):
             sref = refCat.addNew()
 
             sref.setId(refObjId)
-            #sref.setId(srcId)
             sref.setD(self.k_rRa, ra)
             sref.setD(self.k_rDec, dec)
 
             # clip at -30
             if mag < -30:
                 mag = -30
-            flux = refflux #10**(-mag/2.5)
+            flux = refflux
 
             sref.setD(self.k_rPsf, flux)
             sref.setD(self.k_rAp, flux)
@@ -308,7 +301,6 @@ class HscDbQaData(QaData):
                     setKey = catObj.setKeys[i]
                     keyName = catObj.keyNames[i]
                     if isinstance(value, str):
-                        #print ord(value)
                         value = 1 if ord(value) else 0
                     if value is None:
                         value = numpy.nan
@@ -326,12 +318,6 @@ class HscDbQaData(QaData):
 
             # calibrate it
             fmag0, fmag0Err = calib[key].getFluxMag0()
-
-            # WARNGING - fmag0Err is wrong, it's the error on the per-second value (magzero_rms in db)
-            
-            # HSC database stores magzero and magzero_rms, convert to fmag0,fmag0Err
-            #fmag0Err = fmag0Err*fmag0*numpy.log(10.0)/2.5
-            #fmag0    = 10.0**(fmag0/2.5)
 
 
             # fluxes 
@@ -414,11 +400,9 @@ class HscDbQaData(QaData):
             matSrc = set(matSrc)
 
             
-            
             undetectedIds = refIds - matRef
             orphanIds     = srcIds - matSrc
             matchedIds    = srcIds & matSrc   # Does not know about duplicates
-            #print 'Undet, orphan, matched:', len(undetectedIds), len(orphanIds), len(matchedIds)
     
             undetected = []
             orphans    = []
@@ -558,7 +542,6 @@ class HscDbQaData(QaData):
             
             i = 0
             for value in row[nIdKeys:]:
-                #print value, type(value), catObj.keyNames[i]
                 if not value is None:
                     setKey = catObj.setKeys[i]
                     keyName = catObj.keyNames[i]
@@ -654,7 +637,8 @@ class HscDbQaData(QaData):
 
 
         # If the dataIdEntry is identical to an earlier query, we must already have all the data
-        dataIdStr = self._dataIdToString(dataIdRegex, defineFully=True)  # E.g. visit862826551-snap.*-raft.*-sensor.*
+        # E.g. visit862826551-snap.*-raft.*-sensor.*
+        dataIdStr = self._dataIdToString(dataIdRegex, defineFully=True)  
 
         if self.visitMatchQueryCache.has_key(matchDatabase):
             if self.visitMatchQueryCache[matchDatabase].has_key(matchVisit):
@@ -680,7 +664,7 @@ class HscDbQaData(QaData):
 
         for dataIdEntry in dataIdList:
             visit, raft, sensor = dataIdEntry['visit'], dataIdEntry['raft'], dataIdEntry['sensor']
-            dataIdEntryStr = self._dataIdToString(dataIdEntry, defineFully=True) # E.g. visit862826551-snap0-raft30-sensor20
+            dataIdEntryStr = self._dataIdToString(dataIdEntry, defineFully=True) 
 
             haveAllKeys = True
             sqlDataId = []
@@ -723,13 +707,6 @@ class HscDbQaData(QaData):
             sql3 += '   INNER JOIN scisql.Region AS reg ON (s.htmId20 BETWEEN reg.htmMin AND reg.htmMax) '
             sql3 += 'WHERE scisql_s2PtInCPoly(s.ra, s.decl, @poly) = 1;'
 
-            #if not re.search("\%", sql1) and haveAllKeys:
-            #    dataIdCopy = copy.copy(dataIdEntry)
-            #    dataIdCopy['snap'] = "0"
-            #    key = self._dataIdToString(dataIdCopy)
-            #    if self.visitMatchCache.has_key(key):
-            #        vmDict[key] = self.visitMatchCache[key]
-            #        continue
             
             self.printStartLoad("Loading DatasetMatches for: " + dataIdEntryStr + "...")
             self.dbInterface.execute(sql1)
@@ -777,16 +754,17 @@ class HscDbQaData(QaData):
                 s.setInstFlux(s.getInstFlux()/fmag0)
     
                 # flux errors
-                psfFluxErr  = qaDataUtils.calibFluxError(s.getPsfFlux(),   s.getPsfFluxErr(),   fmag0, fmag0Err)
+                psfFluxErr  = qaDataUtils.calibFluxError(s.getPsfFlux(), s.getPsfFluxErr(), fmag0, fmag0Err)
                 s.setPsfFluxErr(psfFluxErr)
     
-                apFluxErr   = qaDataUtils.calibFluxError(s.getApFlux(),    s.getApFluxErr(),    fmag0, fmag0Err)
+                apFluxErr   = qaDataUtils.calibFluxError(s.getApFlux(), s.getApFluxErr(), fmag0, fmag0Err)
                 s.setApFluxErr(apFluxErr)
     
-                modFluxErr  = qaDataUtils.calibFluxError(s.getModelFlux(), s.getModelFluxErr(), fmag0, fmag0Err)
+                modFluxErr  = qaDataUtils.calibFluxError(s.getModelFlux(), s.getModelFluxErr(),
+                                                         fmag0, fmag0Err)
                 s.setModelFluxErr(modFluxErr)
     
-                instFluxErr = qaDataUtils.calibFluxError(s.getInstFlux(),  s.getInstFluxErr(),  fmag0, fmag0Err)
+                instFluxErr = qaDataUtils.calibFluxError(s.getInstFlux(), s.getInstFluxErr(), fmag0, fmag0Err)
                 s.setInstFluxErr(instFluxErr)
     
                 vm = vmDict[dataIdEntryStr]
@@ -901,9 +879,6 @@ class HscDbQaData(QaData):
                 sql += '   sce.corner4Ra, sce.corner4Decl) '
                 sql += 'FROM Science_Ccd_Exposure as sce '
                 sql += 'WHERE %s ' % (sqlDataId)
-                #sq += '   (sce.visit = 887252941) AND'
-                #sq += '   (sce.raftName = \'2,2\') AND'
-                #sq += '   (sce.ccdName = \'1,1\');'
                 sql += 'INTO @poly; '
 
                 sql2 = 'SELECT %s ' % (sroFieldStr)
@@ -952,10 +927,7 @@ class HscDbQaData(QaData):
 
             # parse results and put them in a sourceSet
             raftName, ccdName = self.cameraInfo.getRaftAndSensorNames(dataIdEntry)
-            #visit, raft, sensor = dataIdEntry['visit'], dataIdEntry['raft'], dataIdEntry['sensor']
             wcs = self.getWcsBySensor(dataIdEntry)[dataIdEntryStr]
-            #raftName = self.cameraInfo.raftKeyToName(raft)
-            #ccdName = self.cameraInfo.ccdKeyToName(sensor)
             bbox = self.cameraInfo.getBbox(raftName, ccdName)
             
             for row in results:
@@ -1076,9 +1048,6 @@ class HscDbQaData(QaData):
         results = self.dbInterface.execute(sql)
 
         dataIdDict = {}
-        #ccdConvention = 'ccd'
-        #if not dataIdRegex.has_key('ccd'):
-        #    ccdConvention = 'sensor'
             
         for r in results:
 
@@ -1143,8 +1112,6 @@ class HscDbQaData(QaData):
             summary[dataId]["MJD"]          = ce['mjd']
             summary[dataId]["FOCUSZ"]       = ce.get('focusz', 0.0)
             summary[dataId]["ADCPOS"]       = ce.get('adcpos', 0.0)
-            #summary[dataId][""] = ce['']
-            #summary[dataId][""] = ce['']
             
         return summary
 
@@ -1161,7 +1128,6 @@ class HscDbQaData(QaData):
         # b/c of diff cameras, dataId keys and ScienceCcdExposure schema are have different names
         # eg. visit vs. run-field, raft vs. camcol ...
         sceDataIdNames = [
-            #[x[0], "sce."+x[1]]
             x for x in self.cameraInfo.dataIdDbNames.items() if not re.search("snap", x[0])
             ]
 
@@ -1233,12 +1199,9 @@ class HscDbQaData(QaData):
             for idName, dbName in sceDataIdNames:
                 dataIdTmp[idName] = rowDict[dbName]
                 
-            #visit, raft, sensor = rowDict['visit'], rowDict['raftName'], rowDict['ccdName']
-            #dataIdTmp = {'visit':visit, 'raft':raft, 'sensor':sensor, 'snap':'0'}
             key = self._dataIdToString(dataIdTmp, defineFully=True)
             self.dataIdLookup[key] = dataIdTmp
             
-            #print rowDict
             if not self.wcsCache.has_key(key) and rowDict.has_key('crval1'):
                 crval = afwCoord.Coord(afwGeom.PointD(rowDict['crval1'], rowDict['crval2']))
                 crpix = afwGeom.PointD(rowDict['crpix1'], rowDict['crpix2'])
@@ -1273,7 +1236,6 @@ class HscDbQaData(QaData):
                     zp = rowDict['zeropt']
                     fmag0 = 10**(zp/2.5)
                 fmag0Err =  rowDict['magzero_rms']*fmag0*numpy.log(10.0)/2.5
-                #print mag0, exptime, fmag0
                 
                 calib.setFluxMag0(fmag0, fmag0Err)
                 self.calibCache[key] = calib

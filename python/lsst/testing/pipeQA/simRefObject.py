@@ -40,30 +40,6 @@ class SimRefObject(object):
             raise NotImplementedError, "Cannot instantiate SimRefObject with" + \
                 str(len(sroStuff)) + " args."
 
-        #self.refObjectId = 0
-        #self.isStar      = 0
-        #"varClass",       
-        #self.radec       = numpy.zeros(0)
-        #"gLat",           
-        #"gLon",           
-        #"sedName",        
-        #self.mag         = numpy.zeros(5)
-        #"muRa",           
-        #"muDecl",         
-        #"parallax",       
-        #"vRad",           
-        #"redshift",       
-        #"semiMajorBulge", 
-        #"semiMinorBulge", 
-        #"semiMajorDisk",  
-        #"semiMinorDisk",  
-        #"uCov",           
-        #"gCov",           
-        #"rCov",           
-        #"iCov",           
-        #"zCov",           
-        #"yCov",           
-
 
 
     def getId(self): return self.refObjectId
@@ -92,8 +68,4 @@ class SimRefObject(object):
 
     def getFlux(self, filter):
         return 10.0**(-0.4*self.mag[SimRefObject.flookup[filter]])
-
-    #def getCov(self, filter):
-    #    cov = getattr(self, filter+"Cov")
-    #    return cov
 

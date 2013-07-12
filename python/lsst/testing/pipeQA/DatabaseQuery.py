@@ -80,7 +80,6 @@ class LsstSimDbInterface(DatabaseInterface):
             connected = False
 
         if not connected:
-            #print "Mysql connection broken.  Reconnecting."
             self.connect()
 
             # if something blows-up lets see the query and re-raise
@@ -92,8 +91,8 @@ class LsstSimDbInterface(DatabaseInterface):
 
         results = self.cursor.fetchall()
         t1 = time.time()
-        #print " (t=%.2fs) " % (t1-t0)
         Trace("lsst.testing.pipeQA.LsstSimDbInterface", 2, "Time for SQL query: %.2f s" % (t1-t0))
+        
         return results
 
     

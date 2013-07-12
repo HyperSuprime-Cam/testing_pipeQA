@@ -170,9 +170,6 @@ class EmptySectorQaTask(QaAnalysisTask):
         emptyBase    = "emptySectors"
         emptyMatBase = "aa_emptySectorsMat"
 
-        #emptyFig    = qaFig.FpaQaFigure(data.cameraInfo, data=emptyData, map=emptyMap)
-        #emptyFigMat = qaFig.FpaQaFigure(data.cameraInfo, data=emptyMatData, map=emptyMatMap)
-
         emptyFig    = qaFig.FpaQaFigure(data.cameraInfo, data=None, map=None)
         emptyFigMat = qaFig.FpaQaFigure(data.cameraInfo, data=None, map=None)
 

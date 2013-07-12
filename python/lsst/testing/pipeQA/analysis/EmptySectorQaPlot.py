@@ -96,11 +96,13 @@ def plot(data):
             ax.axhline(yline, color="k")
 
         # add map areas to allow mouseover tooltip showing pixel coords
-        dx, dy = 20, 20  # on a 4kx4k ccd, < +/-20 pixels is tough to hit with a mouse
-        #for i in range(len(x)):
-        #    area = x[i]-dx, y[i]-dy, x[i]+dx, y[i]+dy
-        #    fig.addMapArea("no_label_info", area, "nolink:%.1f_%.1f"%(x[i],y[i]))
+        if False:
+            dx, dy = 20, 20  # on a 4kx4k ccd, < +/-20 pixels is tough to hit with a mouse
+            for i in range(len(x)):
+                area = x[i]-dx, y[i]-dy, x[i]+dx, y[i]+dy
+                fig.addMapArea("no_label_info", area, "nolink:%.1f_%.1f"%(x[i],y[i]))
 
+                
         ax.set_title("Matched Detections by CCD Sector", size='small')
     else:
         ax.set_title("Matched Detections", size='small')
