@@ -554,7 +554,7 @@ class PhotCompareQaTask(QaAnalysisTask):
 
                     masterToggle = '0_stars'
 
-                    import PhotCompareQaAnalysisPlot as plotModule
+                    import PhotCompareQaPlot as plotModule
                     label = areaLabel
                     pngFile = figbase+".png"
 
@@ -634,7 +634,7 @@ class PhotCompareQaTask(QaAnalysisTask):
                 else:
 
 
-                    import PhotCompareQaAnalysisPlot as plotModule
+                    import PhotCompareQaPlot as plotModule
                     label = areaLabel
                     caption = dtag + " vs. " +self.magType1 + ". "+statBlurb
                     pngFile = figbase+".png"
@@ -656,7 +656,7 @@ class PhotCompareQaTask(QaAnalysisTask):
             self.log.log(self.log.INFO, "plotting Summary figure")
 
 
-            import PhotCompareQaAnalysisPlot as plotModule
+            import PhotCompareQaPlot as plotModule
             label = 'all'
             caption = dtag+" vs. "+self.magType1
             pngFile = figbase+".png"

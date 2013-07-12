@@ -29,7 +29,6 @@ from AstrometricErrorQaTask   import *
 from CompletenessQaTask       import *
 from ZeropointFitQaTask       import *
 from VignettingQaTask         import *
-from PerformanceQaTask        import *
 
 from VisitToVisitPhotQaTask   import *
 from VisitToVisitAstromQaTask import *

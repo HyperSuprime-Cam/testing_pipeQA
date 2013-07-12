@@ -279,7 +279,7 @@ class EmptySectorQaTask(QaAnalysisTask):
                             'nxn' : [self.nx, self.ny]}
 
                 self.log.log(self.log.INFO, "plotting %s" % (ccd))
-                import EmptySectorQaAnalysisPlot as plotModule
+                import EmptySectorQaPlot as plotModule
                 label = data.cameraInfo.getDetectorName(raft, ccd)
                 caption = "Pixel coordinates of all (black) and matched (red) detections." + label
                 pngFile = cacheLabel+".png"
@@ -300,7 +300,7 @@ class EmptySectorQaTask(QaAnalysisTask):
             self.log.log(self.log.INFO, "plotting Summary figure")
 
 
-            import EmptySectorQaAnalysisPlot as plotModule
+            import EmptySectorQaPlot as plotModule
             label = 'all'
             caption = "Pixel coordinates of all (black) and matched (red) detections." + label
             pngFile = "pointPositions.png"

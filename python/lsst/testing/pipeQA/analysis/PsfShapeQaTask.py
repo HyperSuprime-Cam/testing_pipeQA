@@ -342,7 +342,7 @@ class PsfShapeQaTask(QaAnalysisTask):
                     'summary' : False,
                     }
                 label = data.cameraInfo.getDetectorName(raft, ccd)
-                import PsfShapeQaAnalysisPlot as plotModule
+                import PsfShapeQaPlot as plotModule
                 caption = "PSF ellipticity (e=1 shown with length %.0f pix))"%(vLen)
                 pngFile = cacheLabel + ".png"
 
@@ -360,7 +360,7 @@ class PsfShapeQaTask(QaAnalysisTask):
             self.log.log(self.log.INFO, "plotting Summary figure")
                 
             label = 'all'
-            import PsfShapeQaAnalysisPlot as plotModule
+            import PsfShapeQaPlot as plotModule
             caption = "PSF ellipticity " + label
             pngFile = cacheLabel + ".png"
                 
