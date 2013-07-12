@@ -62,7 +62,7 @@ class TestSet(object):
             
         testfileName = inspect.stack()[-1][1]
         self.testfileName = os.path.split(testfileName)[1]
-        if not label is None:
+        if label is not None:
             self.testfileName += "."+label
 
         self.status = True

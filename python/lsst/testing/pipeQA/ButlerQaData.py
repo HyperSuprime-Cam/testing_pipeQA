@@ -455,7 +455,7 @@ class ButlerQaData(QaData):
                 calibDict = self.getCalibBySensor(dataId)
                 calib = calibDict[dataKey]
 
-                if not calib is None:
+                if calib is not None:
                     fmag0, fmag0Err = calib.getFluxMag0()
                 else:
                     print "Warning: no calib available, fluxes uncalibrated."

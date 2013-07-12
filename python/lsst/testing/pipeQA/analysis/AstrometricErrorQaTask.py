@@ -174,7 +174,7 @@ class AstrometricErrorQaTask(QaAnalysisTask):
         if self.summaryProcessing != self.summOpt['summOnly']:
             for raft, ccdDict in astFig.data.items():
                 for ccd, value in ccdDict.items():
-                    if not self.medErrArcsec.get(raft, ccd) is None:
+                    if self.medErrArcsec.get(raft, ccd) is not None:
                         astErrArcsec = self.medErrArcsec.get(raft, ccd)
                         thetaRad = self.medThetaRad.get(raft, ccd)
                         astFig.data[raft][ccd] = [thetaRad, vLen*astErrArcsec, astErrArcsec]

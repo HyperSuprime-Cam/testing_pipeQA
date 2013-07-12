@@ -297,7 +297,7 @@ class HscDbQaData(QaData):
             
             i = 0
             for value in row[nFields:]:
-               if not value is None:
+               if value is not None:
                     setKey = catObj.setKeys[i]
                     keyName = catObj.keyNames[i]
                     if isinstance(value, str):
@@ -542,7 +542,7 @@ class HscDbQaData(QaData):
             
             i = 0
             for value in row[nIdKeys:]:
-                if not value is None:
+                if value is not None:
                     setKey = catObj.setKeys[i]
                     keyName = catObj.keyNames[i]
                     if isinstance(value, str) and len(value) == 1:
@@ -737,7 +737,7 @@ class HscDbQaData(QaData):
                 i = 0
                 for value in row[nValues:]:
                     method = getattr(s, setMethods[i])
-                    if not value is None:
+                    if value is not None:
                         method(value)
                     i += 1
            
@@ -1218,7 +1218,7 @@ class HscDbQaData(QaData):
             if not self.detectorCache.has_key(key):
                 raftName, ccdName = self.cameraInfo.getRaftAndSensorNames(dataIdTmp)
                 self.detectorCache[key] = self.cameraInfo.detectors[ccdName] #ccdDetector
-                if not raftName is None and len(raftName) > 0:
+                if raftName is not None and len(raftName) > 0:
                     self.raftDetectorCache[key] = self.cameraInfo.detectors[raftName]
 
             if not self.filterCache.has_key(key):

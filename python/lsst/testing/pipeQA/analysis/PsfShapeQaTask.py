@@ -218,14 +218,14 @@ class PsfShapeQaTask(QaAnalysisTask):
             for raft, ccdDict in ellipFig.data.items():
                 for ccd, value in ccdDict.items():
                     label = data.cameraInfo.getDetectorName(raft, ccd)
-                    if not self.ellipMedians.get(raft, ccd) is None:
+                    if self.ellipMedians.get(raft, ccd) is not None:
                         ellipFig.data[raft][ccd] = [self.thetaMedians.get(raft, ccd),
                                                     10*vLen*self.ellipMedians.get(raft, ccd),
                                                     self.ellipMedians.get(raft, ccd)]
                         ellipFig.map[raft][ccd] = "ell/theta=%.3f/%.0f" % (self.ellipMedians.get(raft, ccd),
                                                                            numpy.degrees(self.thetaMedians.get(raft, ccd)))
                         testSet.pickle(ellipBase+label, [ellipFig.data, ellipFig.map])
-                    if not self.fwhm.get(raft, ccd) is None:
+                    if self.fwhm.get(raft, ccd) is not None:
                         fwhm = self.fwhm.get(raft, ccd)
                         fwhmFig.data[raft][ccd] = fwhm
                         fwhmFig.map[raft][ccd] = "fwhm=%.2f asec" % (fwhm)
@@ -249,10 +249,10 @@ class PsfShapeQaTask(QaAnalysisTask):
                     fwhmFig.mergeValues(fwhmDataTmp, fwhmMapTmp)
 
                     fwhm = None
-                    if not fwhmFig.data[raft][ccd] is None:
+                    if fwhmFig.data[raft][ccd] is not None:
                         fwhm = fwhmFig.data[raft][ccd]
 
-                    if not fwhm is None:
+                    if fwhm is not None:
                         if fwhm > fwhmMax:
                             fwhmMax = fwhm
                         if fwhm < fwhmMin:

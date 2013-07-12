@@ -49,14 +49,14 @@ class FpaQaFigure(QaFigure):
         self.max = None
             
         # Fill the data/map values if they were provided.
-        if not data is None:
+        if data is not None:
             if not self.validate():
                 raise Exception("Data did not pass validation.")
             for raft, ccdDict in data.items():
                 for ccd, value in ccdDict.items():
                     self.data[raft][ccd] = data[raft][ccd]
                     
-        if not map is None:
+        if map is not None:
             for raft, ccdDict in data.items():
                 for ccd, value in ccdDict.items():
                     self.map[raft][ccd] = map[raft][ccd]
@@ -75,12 +75,12 @@ class FpaQaFigure(QaFigure):
 
     def getArray(self):
         array = []
-        if not self.data is None:
+        if self.data is not None:
             if not self.validate():
                 raise Exception("Data did not pass validation.")
             for raft, ccdDict in self.data.items():
                 for ccd, value in ccdDict.items():
-                    if not value is None and numpy.isfinite(value):
+                    if value is not None and numpy.isfinite(value):
                         array.append(value)
         return numpy.array(array)
         
@@ -206,7 +206,7 @@ class FpaQaFigure(QaFigure):
             sp.text(xplot, yplot, label, horizontalalignment='center', fontsize = 8)
         
     def adjustTickLabels(self, sp, cb=None):
-        if not cb is None:
+        if cb is not None:
             for tic in cb.ax.get_yticklabels():
                 tic.set_size("xx-small")
         for tic in sp.get_xticklabels():
@@ -301,7 +301,7 @@ class FpaQaFigure(QaFigure):
                 patches.append(self.rectangles[clabel])
 
 
-        if not vlimits is None:
+        if vlimits is not None:
             norm = colors.Normalize(vmin=vlimits[0], vmax=vlimits[1], clip=False)
         else:
             norm = colors.Normalize()
@@ -312,9 +312,9 @@ class FpaQaFigure(QaFigure):
 
         cmap = getattr(cm, cmap)
         cmap.set_bad('k', 0.2)
-        if not cmapOver is None:
+        if cmapOver is not None:
             cmap.set_over(cmapOver, 1.0)
-        if not cmapUnder is None:
+        if cmapUnder is not None:
             cmap.set_under(cmapUnder, 1.0)
         p = PatchCollection(patches, norm=norm, cmap=cmap)
         value_array = numpy.array(values)
@@ -356,7 +356,7 @@ class FpaQaFigure(QaFigure):
         if self.cameraInfo.doLabel or doLabel:
             self.labelSensors(sp)
 
-        if not title is None:
+        if title is not None:
             self.fig.text(0.5, 0.94, title, horizontalalignment="center", fontsize=10)
         sp.set_xlabel("Focal Plane X", fontsize = 9)
         sp.set_ylabel("Focal Plane Y", fontsize = 9)
@@ -457,7 +457,7 @@ class VectorFpaQaFigure(FpaQaFigure):
                         lenInPixtmp = defaultLen
                         
                 else:
-                    if not values is None:
+                    if values is not None:
                         values = float(values)
                         defaultLen = 1500.0  # this works for most ccds, but should change to eg. ccdwidth/2
                     else:
@@ -471,7 +471,7 @@ class VectorFpaQaFigure(FpaQaFigure):
                 lenInPix[clabel]    = lenInPixtmp
                 allValues.append(radiansWrtXtmp)
                 if (not radiansWrtXtmp is None):
-                    if not colorScalartmp is None:
+                    if colorScalartmp is not None:
                         colorValues.append(colorScalartmp)
                         patches.append(self.rectangles[clabel])
                         colorScalar[clabel] = colorScalartmp
@@ -490,7 +490,7 @@ class VectorFpaQaFigure(FpaQaFigure):
                     missingCcds[clabel] = self.ccdBoundaries[clabel]
                     
 
-        if not vlimits is None:
+        if vlimits is not None:
             norm = colors.Normalize(vmin=vlimits[0], vmax=vlimits[1], clip=False)
         else:
             norm = colors.Normalize()
@@ -524,9 +524,9 @@ class VectorFpaQaFigure(FpaQaFigure):
 
             cmap = getattr(cm, cmap)
             cmap.set_bad('k', 0.2)
-            if not cmapOver is None:
+            if cmapOver is not None:
                 cmap.set_over(cmapOver, 1.0)
-            if not cmapUnder is None:
+            if cmapUnder is not None:
                 cmap.set_under(cmapUnder, 1.0)
 
             p = PatchCollection(patches, norm=norm, cmap=cmap)
@@ -556,7 +556,7 @@ class VectorFpaQaFigure(FpaQaFigure):
         if self.cameraInfo.doLabel or doLabel:
             self.labelSensors(sp)
 
-        if not title is None:
+        if title is not None:
             self.fig.text(0.5, 0.94, title, horizontalalignment="center", fontsize=10)
 
         sp.set_xlabel("Focal Plane X", fontsize = 9)

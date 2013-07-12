@@ -221,7 +221,7 @@ class ZeropointFitQaTask(QaAnalysisTask):
                 for ccd, value in ccdDict.items():
                     
                     label = data.cameraInfo.getDetectorName(raft, ccd)                    
-                    if not self.zeroPoint.get(raft, ccd) is None:
+                    if self.zeroPoint.get(raft, ccd) is not None:
                         zpt = self.zeroPoint.get(raft, ccd)
                         zptFig.data[raft][ccd] = zpt
                         zptFig.map[raft][ccd] = 'zpt=%.2f' % (zpt)
@@ -243,7 +243,7 @@ class ZeropointFitQaTask(QaAnalysisTask):
                     label = data.cameraInfo.getDetectorName(raft, ccd)                    
                     zptData, zptMap = testSet.unpickle(zptBase, default=[None, None])
                     offsetData, offsetMap = testSet.unpickle(offsetBase+label, default=[None, None])
-                    if not self.zptData[raft, ccd] is None:
+                    if self.zptData[raft, ccd] is not None:
                         zpt = self.zptData[raft, ccd]
                         zpts.append(zpt)
             if len(zpts) == 0:

@@ -331,7 +331,7 @@ class DbQaData(QaData):
             
             i = 0
             for value in row[nFields:]:
-               if not value is None:
+               if value is not None:
                     setKey = catObj.setKeys[i]
                     if isinstance(value, str):
                         # bool returns as char ascii #0 or #1 (both are unprintable)
@@ -547,7 +547,7 @@ class DbQaData(QaData):
             
             i = 0
             for value in row[nIdKeys:]:
-                if not value is None:
+                if value is not None:
                     setKey = catObj.setKeys[i]
                     if isinstance(value, str) and len(value) == 1:
                         value = 1 if ord(value) else 0
@@ -741,7 +741,7 @@ class DbQaData(QaData):
                 i = 0
                 for value in row[nValues:]:
                     method = getattr(s, setMethods[i])
-                    if not value is None:
+                    if value is not None:
                         method(value)
                     i += 1
            

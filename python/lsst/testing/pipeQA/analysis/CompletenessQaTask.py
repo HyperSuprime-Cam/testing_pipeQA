@@ -283,7 +283,7 @@ class CompletenessQaTask(QaAnalysisTask):
         if self.summaryProcessing != self.summOpt['summOnly']:
             for raft, ccdDict in depthFig.data.items():
                 for ccd, value in ccdDict.items():
-                    if not self.depth.get(raft, ccd) is None:
+                    if self.depth.get(raft, ccd) is not None:
                         depth = self.depth.get(raft, ccd)
                         depths.append(depth)
                         depthFig.data[raft][ccd] = depth
@@ -302,7 +302,7 @@ class CompletenessQaTask(QaAnalysisTask):
 
             for raft, ccdDict in depthFig.data.items():
                 for ccd, value in ccdDict.items():
-                    if not self.depth.get(raft, ccd) is None:
+                    if self.depth.get(raft, ccd) is not None:
                         label = data.cameraInfo.getDetectorName(raft, ccd)
                         depthDataTmp, depthMapTmp = testSet.unpickle(filebase+label, default=[None, None])
                         depthFig.mergeValues(depthDataTmp, depthMapTmp)

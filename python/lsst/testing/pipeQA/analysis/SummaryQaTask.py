@@ -155,7 +155,7 @@ class SummaryQaTask(QaAnalysisTask):
 
                         # set values for data[raft][ccd] (color coding)
                         # set values for map[raft][ccd]  (tooltip text)
-                        if not self.aggregate.get(raft, ccd) is None:
+                        if self.aggregate.get(raft, ccd) is not None:
                             summ = self.aggregate.get(raft, ccd)
                             summFig.data[raft][ccd] = summ
                             summFig.map[raft][ccd] = "%.1f" % (summ)

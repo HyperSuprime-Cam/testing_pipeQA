@@ -195,7 +195,7 @@ class VignettingQaTask(QaAnalysisTask):
                 for ccd, value in ccdDict.items():
                     label = data.cameraInfo.getDetectorName(raft, ccd)
                     
-                    if not self.medianOffset.get(raft, ccd) is None:
+                    if self.medianOffset.get(raft, ccd) is not None:
                         med = self.medianOffset.get(raft, ccd)
                         medFig.data[raft][ccd] = med
                         if num.isfinite(med):
@@ -205,7 +205,7 @@ class VignettingQaTask(QaAnalysisTask):
                             
                         testSet.pickle(medFigbase + label, [medFig.data, medFig.map]) #cache
 
-                    if not self.rmsOffset.get(raft, ccd) is None:
+                    if self.rmsOffset.get(raft, ccd) is not None:
                         std = self.rmsOffset.get(raft, ccd)
                         stdFig.data[raft][ccd] = std
                         if num.isfinite(std):

@@ -380,7 +380,7 @@ class PipeQaTask(pipeBase.Task):
             visits = visitsTmp
     
         groupTag = ""
-        if not groupInfo is None:
+        if groupInfo is not None:
             groupSize, whichGroup = map(int, groupInfo.split(":"))
             lo, hi = whichGroup*groupSize, (whichGroup+1)*groupSize
     
