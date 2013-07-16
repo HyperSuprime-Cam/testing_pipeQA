@@ -378,7 +378,10 @@ class PhotCompareQaTask(QaAnalysisTask):
 
             self.trend.set(raft, ccd, lineFit)
             label = "slope "+tag #+" " + areaLabel
-            slopeLimits = self.slopeLimits[0]*lineFit[0][1], self.slopeLimits[1]*lineFit[0][1]
+            if numpy.isfinite(lineFit[0][1]) and numpy.isfinite(lineFit[0][1]):
+                slopeLimits = self.slopeLimits[0]*lineFit[0][1], self.slopeLimits[1]*lineFit[0][1]
+            else:
+                slopeLimits = -1.0, 1.0
             comment = "slope of "+dtag+" (mag lt %.1f, nstar/clip=%d/%d) limits=(%.1f,%.1f)sigma" % \
                       (self.magCut, len(dmag), n, self.slopeLimits[0], self.slopeLimits[1])
             testSet.addTest( testCode.Test(label, lineCoeffs[0][0], slopeLimits, comment,
@@ -394,7 +397,11 @@ class PhotCompareQaTask(QaAnalysisTask):
             lineFit = qaAnaUtil.robustPolyFit(allMags, allDiffs, 1)
             lineCoeffs = lineFit[0], lineFit[2]
         label = "slope"
-        slopeLimits = self.slopeLimits[0]*lineFit[1], self.slopeLimits[1]*lineFit[1]
+        
+        if numpy.isfinite(lineFit[1]):
+            slopeLimits = self.slopeLimits[0]*lineFit[1], self.slopeLimits[1]*lineFit[1]
+        else:
+            slopeLimits = -1.0, 1.0
         comment = "slope for all ccds (mag lt %.1f, nstar=%d) limits=(%.1f,%.1f sigma)" % \
             (self.magCut, len(allDiffs), self.slopeLimits[0], self.slopeLimits[1])
         testSet.addTest( testCode.Test(label, lineCoeffs[0], slopeLimits, comment, areaLabel="all"))

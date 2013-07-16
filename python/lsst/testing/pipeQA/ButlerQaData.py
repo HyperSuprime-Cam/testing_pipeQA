@@ -150,7 +150,7 @@ class ButlerQaData(QaData):
         """
         visits = []
 
-        dataTuplesToFetch = self._regexMatchDataIds(dataIdRegex, self.dataTuples, verbose=False)
+        dataTuplesToFetch = self._regexMatchDataIds(dataIdRegex, self.dataTuples, exact=False, verbose=False)
 
         for dataTuple in dataTuplesToFetch:
             dataId = self._dataTupleToDataId(dataTuple)
@@ -174,7 +174,7 @@ class ButlerQaData(QaData):
             return [dataIdRegex]
 
 
-        dataTuplesToFetch = self._regexMatchDataIds(dataIdRegex, self.dataTuples)
+        dataTuplesToFetch = self._regexMatchDataIds(dataIdRegex, self.dataTuples, exact=False)
 
         dataIdDict = {}
         # handle lsst/hsc different naming conventions
@@ -517,7 +517,7 @@ class ButlerQaData(QaData):
                     rec.setI(self.k_bad,  s.get('flags.badcentroid'))
                     rec.setI(self.k_satc, s.get('flags.pixel.saturated.center'))
                     rec.setD(self.k_ext,  s.get('classification.extendedness'))
-                    rec.setI(self.k_nchild, s.get('deblend_nchild'))
+                    rec.setI(self.k_nchild, 0) #s.get('deblend_nchild'))
                     
                     # flux errors
                     psfFluxErr  = qaDataUtils.calibFluxError(float(s.getPsfFlux()), float(s.getPsfFluxErr()),
