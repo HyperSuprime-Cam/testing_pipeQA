@@ -1,3 +1,25 @@
+#
+# LSST Data Management System
+# Copyright 2008, 2009, 2010 LSST Corporation.
+#
+# This product includes software developed by the
+# LSST Project (http://www.lsst.org/).
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.    See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the LSST License Statement and
+# the GNU General Public License along with this program.  If not,
+# see <http://www.lsstcorp.org/LegalNotices/>.
+#
+
 import sys, re, os
 import time
 import copy
@@ -118,8 +140,6 @@ class PipeQaTask(pipeBase.Task):
                             help="Make figures in separate process (default=%(default)s)")
         parser.add_argument("-F", "--useForced", default=False, action='store_true',
                             help="Use forced photometry (default=%(default)s)")        
-        parser.add_argument("-g", "--group", default=None,
-                            help="Specify sub-group of visits 'groupSize:whichGroup' (default=%(default)s)")
         parser.add_argument("-k", "--keep", default=False, action="store_true",
                             help="Keep existing outputs (default=%(default)s)")
         parser.add_argument("-r", "--raft", default=".*",
@@ -252,7 +272,6 @@ class PipeQaTask(pipeBase.Task):
         retrievalType = parsedCmd.dataSource
         keep         = parsedCmd.keep
         breakBy      = parsedCmd.breakBy
-        groupInfo    = parsedCmd.group
         summaryProcessing = parsedCmd.summaryProcessing
         forkFigure   = parsedCmd.forkFigure
         wwwCache     = not parsedCmd.noWwwCache
@@ -379,25 +398,6 @@ class PipeQaTask(pipeBase.Task):
         else:
             visits = visitsTmp
     
-        groupTag = ""
-        if groupInfo is not None:
-            groupSize, whichGroup = map(int, groupInfo.split(":"))
-            lo, hi = whichGroup*groupSize, (whichGroup+1)*groupSize
-    
-            nvisit = len(visits)
-            if lo >= nvisit:
-                self.log.log(self.log.FATAL,
-                             "Can't run visits %d to %d as there are only %d visits" % (lo, hi, nvisit))
-                sys.exit()
-            if hi > nvisit:
-                hi = nvisit
-            visits = visits[lo:hi]
-    
-            self.log.log(self.log.INFO,
-                         "Total of %d visits grouped by %d.  Running group %d with visits %d - %d:\n%s\n" % \
-                             (nvisit, groupSize, whichGroup, lo, hi-1, "\n".join(visits)))
-            groupTag = "%02d-%02d" % (groupSize, whichGroup)
-    
         
 
         for visit in visits:
@@ -423,7 +423,7 @@ class PipeQaTask(pipeBase.Task):
                 
                 raftName, ccdName = data.cameraInfo.getRaftAndSensorNames(thisDataId)
                 ccdName = data.cameraInfo.getDetectorName(raftName, ccdName)
-                testset = pipeQA.TestSet(group="", label="QA-failures"+groupTag, wwwCache=wwwCache, sqliteSuffix=ccdName)
+                testset = pipeQA.TestSet(group="", label="QA-failures", wwwCache=wwwCache, sqliteSuffix=ccdName)
 
                 for task in taskList:
     
@@ -479,7 +479,7 @@ class PipeQaTask(pipeBase.Task):
 
                 
         if summaryProcessing in ['summOnly']:
-            ts = pipeQA.TestSet(group="", label="QA-failures"+groupTag, wwwCache=wwwCache, sqliteSuffix="")
+            ts = pipeQA.TestSet(group="", label="QA-failures", wwwCache=wwwCache, sqliteSuffix="")
             ts.accrete()
             ts.updateCounts()
 
