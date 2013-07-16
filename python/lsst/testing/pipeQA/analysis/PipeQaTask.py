@@ -134,8 +134,6 @@ class PipeQaTask(pipeBase.Task):
                             choices=('butler', 'db'))
         parser.add_argument("-e", "--exceptExit", default=False, action='store_true',
                             help="Don't capture exceptions, fail and exit (default=%(default)s)")
-        parser.add_argument("-f", "--forkFigure", default=False, action='store_true',
-                            help="Make figures in separate process (default=%(default)s)")
         parser.add_argument("-F", "--useForced", default=False, action='store_true',
                             help="Use forced photometry (default=%(default)s)")        
         parser.add_argument("-r", "--raft", default=".*",
@@ -267,7 +265,6 @@ class PipeQaTask(pipeBase.Task):
         camera       = parsedCmd.camera
         retrievalType = parsedCmd.dataSource
         summaryProcessing = parsedCmd.summaryProcessing
-        forkFigure   = parsedCmd.forkFigure
         wwwCache     = not parsedCmd.noWwwCache
         useForced    = parsedCmd.useForced
         coaddTable   = parsedCmd.coaddTable
@@ -415,7 +412,6 @@ class PipeQaTask(pipeBase.Task):
 
                 for task in taskList:
     
-                    test_t0 = time.time()
                     test = str(task)
                     if not re.search(testRegex, test):
                         continue
@@ -423,36 +419,20 @@ class PipeQaTask(pipeBase.Task):
                     date = datetime.datetime.now().strftime("%a %Y-%m-%d %H:%M:%S")
                     visitLog = str(visit) + " ccd:" + str(thisDataId['ccd'])
                     self.log.log(self.log.INFO, "Running " + test + "  visit:" + visitLog + "  ("+date+")")
-                    sys.stdout.flush() # clear the buffer before the fork
     
     
                     # try the test() method
-                    t0 = time.time()
                     if summaryProcessing in ['delay', 'none']:
                         self.runSubtask(task.test, data, thisDataId, visit, test, testset, exceptExit)
 
+                    # try the plot() method
+                    self.runSubtask(task.plot, data, thisDataId, visit, test, testset, exceptExit)
 
-                    t0 = time.time()
-                    if forkFigure:
-                        pid = os.fork()
-                        if pid == 0:
-                            # try the plot() method
-                            self.runSubtask(task.plot, data, thisDataId, visit, test, testset, exceptExit)
-                            os._exit(os.EX_OK) # sys.exit(0)
-                        else:
-                            os.waitpid(pid, 0)
-                            
-                    else:
-                        # try the plot() method
-                        self.runSubtask(task.plot, data, thisDataId, visit, test, testset, exceptExit)
-
-                    
                     # try the free() method
                     # test() method only ran for 'delay' and 'none'.  Only then is there stuff to free
                     if summaryProcessing in ['delay', 'none']:
                         self.runSubtask(task.free, data, thisDataId, visit, test, testset, exceptExit)
     
-
                         
                 # we're now done this dataId ... can clear the cache            
                 data.clearCache()
