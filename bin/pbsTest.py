@@ -112,7 +112,7 @@ def main(db, visit, noop=False, nCcd=10, queue='batch', nodes=None, ppn=None, ca
         
     #########
     # scatter
-    scatCmd = "pipeQa.py --noWwwCache -C %s -b ccd -v %s -d db -c $PBS_ARRAYID -S none %s" % (camera,
+    scatCmd = "pipeQa.py --noWwwCache -C %s -v %s -d db -c $PBS_ARRAYID -S none %s" % (camera,
                                                                                               visit, db)
     scat.addCmd(scatCmd, noop=noop)
 
@@ -127,7 +127,7 @@ def main(db, visit, noop=False, nCcd=10, queue='batch', nodes=None, ppn=None, ca
     #########
     # gather
     gath.depend = "afteranyarray:"+scatId
-    gathCmd = "pipeQa.py -C %s -b ccd -v %s -d db -S summOnly %s" % (camera, visit, db)
+    gathCmd = "pipeQa.py -C %s -v %s -d db -S summOnly %s" % (camera, visit, db)
     gath.addCmd(gathCmd, noop=noop)
 
     gathFile = "qsub-gath.sh"

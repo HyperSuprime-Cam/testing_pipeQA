@@ -125,8 +125,6 @@ class PipeQaTask(pipeBase.Task):
                                          formatter_class = argparse.RawDescriptionHelpFormatter)
         
         parser.add_argument("dataset", help="Dataset to use")
-        parser.add_argument("-b", "--breakBy", default="visit",
-                            help="Break the run by 'visit','raft', or 'ccd' (default=%(default)s)")
         parser.add_argument("-C", "--camera", default="lsstSim",
                             help="Specify a camera and override auto-detection (default=%(default)s)")
         parser.add_argument("-c", "--ccd", default=".*",
@@ -140,8 +138,6 @@ class PipeQaTask(pipeBase.Task):
                             help="Make figures in separate process (default=%(default)s)")
         parser.add_argument("-F", "--useForced", default=False, action='store_true',
                             help="Use forced photometry (default=%(default)s)")        
-        parser.add_argument("-k", "--keep", default=False, action="store_true",
-                            help="Keep existing outputs (default=%(default)s)")
         parser.add_argument("-r", "--raft", default=".*",
                             help="Specify raft as regex (default=%(default)s)")
         parser.add_argument("-R", "--rerun", default=None,
@@ -270,8 +266,6 @@ class PipeQaTask(pipeBase.Task):
         testRegex    = parsedCmd.test
         camera       = parsedCmd.camera
         retrievalType = parsedCmd.dataSource
-        keep         = parsedCmd.keep
-        breakBy      = parsedCmd.breakBy
         summaryProcessing = parsedCmd.summaryProcessing
         forkFigure   = parsedCmd.forkFigure
         wwwCache     = not parsedCmd.noWwwCache
@@ -291,14 +285,8 @@ class PipeQaTask(pipeBase.Task):
         # finally, the dataset to run!
         dataset      = parsedCmd.dataset
 
-        if not re.search("^(visit|raft|ccd)$", breakBy):
-            self.log.log(self.log.FATAL, "breakBy (-b) must be 'visit', 'raft', or 'ccd'")
-            sys.exit()
-    
-        if breakBy in ['raft', 'ccd'] and not keep:
-            self.log.log(self.log.WARN, "You've specified breakBy=%s, which requires 'keep' (-k). "+
-                         "I'll set it for you.")
-            keep = True
+        # this is outdated.  we always want it true now
+        keep = True
         
         # Is this deprecated?
         Trace.setVerbosity('lsst.testing.pipeQA', int(verbosity))
@@ -408,7 +396,7 @@ class PipeQaTask(pipeBase.Task):
     
             # now break up the run into eg. rafts or ccds
             #  ... if we only run one raft or ccd at a time, we use less memory
-            brokenDownDataIdList = data.breakDataId(dataIdVisit, breakBy)
+            brokenDownDataIdList = data.breakDataId(dataIdVisit, 'ccd')
 
             #if this is a summary only run, shortcircuit to the last ccd
             if summaryProcessing in ['summOnly']:
@@ -433,9 +421,7 @@ class PipeQaTask(pipeBase.Task):
                         continue
     
                     date = datetime.datetime.now().strftime("%a %Y-%m-%d %H:%M:%S")
-                    visitLog = str(visit)
-                    if breakBy.lower() == 'ccd':
-                        visitLog += " ccd:" + str(thisDataId['ccd'])
+                    visitLog = str(visit) + " ccd:" + str(thisDataId['ccd'])
                     self.log.log(self.log.INFO, "Running " + test + "  visit:" + visitLog + "  ("+date+")")
                     sys.stdout.flush() # clear the buffer before the fork
     
