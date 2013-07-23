@@ -381,9 +381,9 @@ class HscCameraInfo(CameraInfo):
 
         if os.environ.has_key('OBS_SUBARU_DIR'):
             simdir         = os.environ['OBS_SUBARU_DIR']
-            cameraGeomPaf = os.path.join(simdir, "hscSim", "description", "hscSim_geom.paf")
+            cameraGeomPaf = os.path.join(simdir, "hsc", "hsc_geom.paf")
             if not os.path.exists(cameraGeomPaf):
-                cameraGeomPaf = os.path.join(simdir, "hscSim", "hscSim_geom.paf")
+                cameraGeomPaf = os.path.join(simdir, "hsc", "description", "hsc_geom.paf")
                 if not os.path.exists(cameraGeomPaf):
                     raise Exception("Unable to find cameraGeom Policy file: %s" % (cameraGeomPaf))
             cameraGeomPolicy = cameraGeomUtils.getGeomPolicy(cameraGeomPaf)
