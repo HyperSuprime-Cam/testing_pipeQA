@@ -62,18 +62,24 @@ class CameraInfo(object):
 
         self.rawName = "raw"
 
+        self.ccdNamesBySerial = {}
+
         for r in self.camera:
             raft = cameraGeom.cast_Raft(r)
             raftName = raft.getId().getName().strip()
             self.detectors[raftName] = raft
             self.rafts[raftName] = raft
             for c in raft:
-                ccd = cameraGeom.cast_Ccd(c)
-                ccdName = ccd.getId().getName().strip()
+                ccd       = cameraGeom.cast_Ccd(c)
+                ccdId     = ccd.getId()
+                ccdName   = ccdId.getName().strip()
+                ccdSerial = ccdId.getSerial()
+                
                 self.detectors[ccdName] = ccd
                 self.sensors[ccdName] = ccd
                 self.nSensor += 1
                 self.raftCcdKeys.append([raftName, ccdName])
+                self.ccdNamesBySerial[ccdSerial] = ccdName
 
                 
         self.dataIdTranslationMap = {
@@ -361,20 +367,6 @@ class CfhtCameraInfo(CameraInfo):
 #
 ####################################################################
 class HscCameraInfo(CameraInfo):
-    # Names of CCDs, indexed by 0-indexed serial number
-    _ccdNames = [
-        "1_53", "1_54", "1_55", "1_56", "1_42", "1_43", "1_44", "1_45", "1_46", "1_47",
-        "1_36", "1_37", "1_38", "1_39", "1_40", "1_41", "0_30", "0_29", "0_28", "1_32",
-        "1_33", "1_34", "0_27", "0_26", "0_25", "0_24", "1_00", "1_01", "1_02", "1_03",
-        "0_23", "0_22", "0_21", "0_20", "1_04", "1_05", "1_06", "1_07", "0_19", "0_18",
-        "0_17", "0_16", "1_08", "1_09", "1_10", "1_11", "0_15", "0_14", "0_13", "0_12",
-        "1_12", "1_13", "1_14", "1_15", "0_11", "0_10", "0_09", "0_08", "1_16", "1_17",
-        "1_18", "1_19", "0_07", "0_06", "0_05", "0_04", "1_20", "1_21", "1_22", "1_23",
-        "0_03", "0_02", "0_01", "0_00", "1_24", "1_25", "1_26", "1_27", "0_34", "0_33",
-        "0_32", "1_28", "1_29", "1_30", "0_41", "0_40", "0_39", "0_38", "0_37", "0_36",
-        "0_47", "0_46", "0_45", "0_44", "0_43", "0_42", "0_56", "0_55", "0_54", "0_53",
-        "0_31", "1_35", "0_35", "1_31",]
-
     
     def __init__(self):
         """ """
@@ -411,7 +403,7 @@ class HscCameraInfo(CameraInfo):
     def getRaftAndSensorNames(self, dataId):
         raftName = ''
         ccd = dataId[self.dataIdTranslationMap['sensor']]
-        ccdName = self._ccdNames[int(ccd)]
+        ccdName = self.ccdNamesBySerial[int(ccd)]
         return raftName, ccdName
         
 
@@ -421,6 +413,7 @@ class HscCameraInfo(CameraInfo):
 #
 ####################################################################
 class SuprimecamCameraInfo(CameraInfo):
+
     def __init__(self, mit=False):
         
         dataInfo       = [['visit',1], ['ccd', 0]]
@@ -454,21 +447,12 @@ class SuprimecamCameraInfo(CameraInfo):
             }
 
     def getRaftAndSensorNames(self, dataId):
-        if self.mit:
-            names = ['w4c5',      'si006s',  'w7c3',     'w9c2',   'w67c1',
-                     'si002s',    'w93c2',   'si001s',   'si005s',  'w6c1']
-        else:
-            names = ["Nausicaa",  'Kiki',    'Fio',      'Sophie', 'Sheeta',
-                     'Satsuki',   'Chihiro', 'Clarisse', 'Ponyo',  'San']
-        ccdName = None
-        if dataId.has_key('ccd'):
-            dataIdUse = dataId['ccd']
-            if isinstance(dataId['ccd'], str):
-                dataIdUse = dataId['ccd'].strip()
-                if re.search('^\d+$', dataIdUse):
-                    dataIdUse = int(dataIdUse)
-            ccdName = names[dataIdUse]
-        return None, ccdName
+        
+        raftName = ''
+        ccd = dataId[self.dataIdTranslationMap['sensor']]
+        ccdName = self.ccdNamesBySerial[int(ccd)]
+        return raftName, ccdName
+        
         
         
 
