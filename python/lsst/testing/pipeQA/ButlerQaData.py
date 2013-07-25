@@ -672,14 +672,7 @@ class ButlerQaData(QaData):
                 
                 self.wcsCache[dataKey]      = afwImage.makeWcs(calexp_md)
 
-                ccdName = calexp_md.getAsString('DETNAME').strip()
-                names = ccdName.split()
-
-                if len(names) > 1:
-                    raftName = names[0]
-                else:
-                    raftName = ""
-                raftName = raftName.strip()
+                raftName, ccdName = self.cameraInfo.getRaftAndSensorNames(dataId)
 
                 self.detectorCache[dataKey] = self.cameraInfo.detectors[ccdName] #ccdDetector
                 if len(raftName) > 0:

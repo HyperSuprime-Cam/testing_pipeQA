@@ -374,6 +374,7 @@ class HscCameraInfo(CameraInfo):
         "0_32", "1_28", "1_29", "1_30", "0_41", "0_40", "0_39", "0_38", "0_37", "0_36",
         "0_47", "0_46", "0_45", "0_44", "0_43", "0_42", "0_56", "0_55", "0_54", "0_53",
         "0_31", "1_35", "0_35", "1_31",]
+
     
     def __init__(self):
         """ """
@@ -391,7 +392,7 @@ class HscCameraInfo(CameraInfo):
         else:
             camera = None
             
-        CameraInfo.__init__(self, "hscSim", dataInfo, camera)
+        CameraInfo.__init__(self, "hsc", dataInfo, camera)
 
         self.dataIdTranslationMap = {
             'visit'  : 'visit',
@@ -409,7 +410,8 @@ class HscCameraInfo(CameraInfo):
 
     def getRaftAndSensorNames(self, dataId):
         raftName = ''
-        ccdName  = "hsc%03d" % (int(dataId[self.dataIdTranslationMap['sensor']]))
+        ccd = dataId[self.dataIdTranslationMap['sensor']]
+        ccdName = self._ccdNames[int(ccd)]
         return raftName, ccdName
         
 
