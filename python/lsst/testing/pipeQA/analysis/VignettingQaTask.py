@@ -39,7 +39,7 @@ import QaPlotUtils                               as qaPlotUtil
 
 class VignettingQaConfig(pexConfig.Config):
     cameras   = pexConfig.ListField(dtype = str, doc = "Cameras to run VignettingQaTask",
-                                    default = ("lsstSim", "cfht", "suprimecam", "hscSim", "sdss", "coadd"))
+                                    default = ("lsstSim", "cfht", "suprimecam", "hsc", "sdss", "coadd"))
     maxMedian = pexConfig.Field(dtype = float, doc = "Maximum median magnitude offset", default = 0.02)
     maxRms    = pexConfig.Field(dtype = float, doc = "Maximum magnitude offset RMS", default = 0.02)
     maxMag    = pexConfig.Field(dtype = float,

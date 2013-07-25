@@ -42,7 +42,7 @@ import QaPlotUtils                  as qaPlotUtil
 class PhotCompareQaConfig(pexConfig.Config):
     
     cameras     = pexConfig.ListField(dtype = str, doc = "Cameras to run PhotCompareQaTask",
-                                      default = ("lsstSim", "hscSim", "suprimecam", "cfht", "sdss", "coadd"))
+                                      default = ("lsstSim", "hsc", "suprimecam", "cfht", "sdss", "coadd"))
     magCut      = pexConfig.Field(dtype = float, doc = "Faintest magnitude for establishing photometric RMS",
                                   default = 20.0)
     deltaMin    = pexConfig.Field(dtype = float, doc = "Min allowed delta", default = -0.02)

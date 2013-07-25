@@ -40,7 +40,7 @@ import QaPlotUtils                  as qaPlotUtil
 
 class PsfShapeQaConfig(pexConfig.Config): 
     cameras  = pexConfig.ListField(dtype = str, doc = "Cameras to run PsfShapeQaTask",
-                                   default = ("lsstSim", "hscSim", "suprimecam", "cfht", "sdss", "coadd"))
+                                   default = ("lsstSim", "hsc", "suprimecam", "cfht", "sdss", "coadd"))
     ellipMax = pexConfig.Field(dtype = float, doc = "Maximum median ellipticity", default = 0.2)
     fwhmMax  = pexConfig.Field(dtype = float, doc = "Maximum Psf Fwhm (arcsec)", default = 2.0)
     

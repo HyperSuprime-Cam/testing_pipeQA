@@ -45,7 +45,7 @@ import QaPlotUtils                  as qaPlotUtil
 class AstrometricErrorQaConfig(pexConfig.Config):
     cameras = pexConfig.ListField(dtype = str,
                                   doc = "Cameras to run AstrometricErrorQaTask",
-                                  default = ("lsstSim", "hscSim", "suprimecam", "cfht", "sdss", "coadd"))
+                                  default = ("lsstSim", "hsc", "suprimecam", "cfht", "sdss", "coadd"))
     maxErr  = pexConfig.Field(dtype = float,
                               doc = "Maximum astrometric error (in arcseconds)",
                               default = 0.5)

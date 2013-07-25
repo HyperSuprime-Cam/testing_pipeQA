@@ -43,7 +43,7 @@ import QaPlotUtils                  as qaPlotUtil
 class SummaryQaConfig(pexConfig.Config):
     cameras = pexConfig.ListField(dtype = str,
                                   doc = "Cameras to run SummaryQaTask",
-                                  default = ("suprimecam", "hscSim"))
+                                  default = ("suprimecam", "hsc"))
 
     
 class SummaryQaTask(QaAnalysisTask):
