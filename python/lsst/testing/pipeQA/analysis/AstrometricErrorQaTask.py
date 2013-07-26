@@ -126,8 +126,9 @@ class AstrometricErrorQaTask(QaAnalysisTask):
         testSet = self.getTestSet(data, dataId)
         testSet.addMetadata({"Description": self.description})
         
-        self.medErrArcsec = raftCcdData.RaftCcdData(self.detector)
-        self.medThetaRad  = raftCcdData.RaftCcdData(self.detector)
+        self.medErrArcsec    = raftCcdData.RaftCcdData(self.detector)
+        self.medThetaRad     = raftCcdData.RaftCcdData(self.detector)
+        self.medRmsErrArcsec = raftCcdData.RaftCcdData(self.detector)
 
         for raft,  ccd in self.dRa.raftCcdKeys():
             dRa  = self.dRa.get(raft, ccd).copy()
@@ -163,6 +164,7 @@ class AstrometricErrorQaTask(QaAnalysisTask):
                 
             medRmsErr = medRmsErr*afwGeom.radians
             
+            self.medRmsErrArcsec.set(raft, ccd, medRmsErr.asArcseconds())
             self.medErrArcsec.set(raft, ccd, sysErrArcsec)
             self.medThetaRad.set(raft, ccd, sysThetaRad)
             
@@ -189,6 +191,8 @@ class AstrometricErrorQaTask(QaAnalysisTask):
             isFinalDataId = True
 
 
+        rmsAstBase = "rmsAstError"
+        rmsAstFig = qaFig.FpaQaFigure(data.cameraInfo, data=None, map=None)
         medAstBase = "medAstError"
         astFig = qaFig.VectorFpaQaFigure(data.cameraInfo, data=None, map=None)
 
@@ -197,6 +201,16 @@ class AstrometricErrorQaTask(QaAnalysisTask):
             for raft, ccdDict in astFig.data.items():
                 for ccd, value in ccdDict.items():
                     if self.medErrArcsec.get(raft, ccd) is not None:
+
+                        ## the RMS stuff
+                        rmsErrArcsec = self.medRmsErrArcsec.get(raft, ccd)
+                        rmsAstFig.data[raft][ccd] = rmsErrArcsec
+                        rmsAstFig.map[raft][ccd] = "RMS=%.4f" % (rmsErrArcsec)
+
+                        label = data.cameraInfo.getDetectorName(raft, ccd)
+                        testSet.pickle(rmsAstBase + label, [rmsAstFig.data, rmsAstFig.map])
+
+                        ## the median stuff
                         astErrArcsec = self.medErrArcsec.get(raft, ccd)
                         thetaRad = self.medThetaRad.get(raft, ccd)
                         astFig.data[raft][ccd] = [thetaRad, vLen*astErrArcsec, astErrArcsec]
@@ -210,20 +224,33 @@ class AstrometricErrorQaTask(QaAnalysisTask):
 
             for raft, ccdDict in astFig.data.items():
                 for ccd, value in ccdDict.items():
+
+                    # RMS
+                    label = data.cameraInfo.getDetectorName(raft, ccd)
+                    rmsAstDataTmp, rmsAstMapTmp = testSet.unpickle(rmsAstBase+label, default=[None, None])
+                    rmsAstFig.mergeValues(rmsAstDataTmp, rmsAstMapTmp)
+
+                    # Median
                     label = data.cameraInfo.getDetectorName(raft, ccd)
                     medAstDataTmp, medAstMapTmp = testSet.unpickle(medAstBase+label, default=[None, None])
                     astFig.mergeValues(medAstDataTmp, medAstMapTmp)
 
+            #RMS
             self.log.log(self.log.INFO, "plotting FPAs")
-            astFig.makeFigure(showUndefined=showUndefined, cmap="Reds", vlimits=[0.0, 2.0*self.limits[1]],
-                              title="Median astrometric error", cmapOver='#ff0000', failLimits=self.limits,
+            rmsAstFig.makeFigure(showUndefined=showUndefined, cmap="Reds", vlimits=[0.0, 2.0*self.limits[1]],
+                                 title="RMS astrometric error", cmapOver='#ff0000', failLimits=self.limits,
                               cmapUnder="#ff0000")
-            testSet.addFigure(astFig, medAstBase+".png", "Median astrometric error",  navMap=True)
+            testSet.addFigure(rmsAstFig, "f01"+rmsAstBase+".png", "RMS astrometric error",  navMap=True)
 
+            # Median
+            astFig.makeFigure(showUndefined=showUndefined, cmap="Reds", vlimits=[0.0, 2.0*self.limits[1]],
+                              title="Median systematic astrometric error", cmapOver='#ff0000', failLimits=self.limits,
+                              cmapUnder="#ff0000")
+            testSet.addFigure(astFig, "f02"+medAstBase+".png", "Median systematic astrometric error",  navMap=True)
 
+        del rmsAstFig
         del astFig
 
-        prePlot = False
 
         cacheLabel = "astromError"
 
