@@ -59,8 +59,8 @@ class PhotCompareQaConfig(pexConfig.Config):
 
     compareTypes  = pexConfig.ListField(dtype = str,
                                         doc = "Photometric Error: qaAnalysis.PhotCompareQaAnalysis", 
-                                        default = ("psf cat", "psf ap", "psf mod",
-                                                   "ap cat", "psf inst", "inst cat", "mod cat", "mod inst"))
+                                        default = ("psf cat", "psf ap",
+                                                   "ap cat", "psf inst", "mod inst"))
     
 # allowed = {
 #    "psf cat"  : "Compare Psf magnitudes to catalog magnitudes",
