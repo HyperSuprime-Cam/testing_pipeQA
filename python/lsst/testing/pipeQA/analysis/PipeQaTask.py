@@ -296,7 +296,7 @@ class PipeQaTask(pipeBase.Task):
         data = pipeQA.makeQaData(dataset, rerun=rerun, camera=camera,
                                  shapeAlg = self.config.shapeAlgorithm,
                                  retrievalType=retrievalType,
-                                 useForced=useForced, coaddTable=coaddTable)
+                                 useForced=useForced, coaddTable=coaddTable, log=self.log)
     
         if data.cameraInfo.name == 'lsstSim' and  dataIdInput.has_key('ccd'):
             dataIdInput['sensor'] = dataIdInput['ccd']

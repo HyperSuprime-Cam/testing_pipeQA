@@ -91,10 +91,10 @@ def makeQaData(label, rerun=None, retrievalType=None, camera=None, **kwargs):
 
         if camera in ["hsc","suprimecam","suprimecam-mit"]:
             from HscDbQaData      import HscDbQaData
-            return HscDbQaData(label, rerun, cameraToUse)
+            return HscDbQaData(label, rerun, cameraToUse, **kwargs)
         else:
             from DbQaData         import DbQaData
-            return DbQaData(label, rerun, cameraToUse)
+            return DbQaData(label, rerun, cameraToUse, **kwargs)
 
 
 

@@ -84,13 +84,13 @@ class Timer(object):
 #########################################################################
 class HscDbQaData(QaData):
 
-    def __init__(self, database, rerun, cameraInfo):
+    def __init__(self, database, rerun, cameraInfo, **kwargs):
         """
         @param database The name of the database to connect to
         @param rerun The data rerun to use
         @param cameraInfo A cameraInfo object describing the camera for these data
         """
-        QaData.__init__(self, database, rerun, cameraInfo, qaDataUtils)
+        QaData.__init__(self, database, rerun, cameraInfo, qaDataUtils, **kwargs)
         self.dbId        = DatabaseIdentity(self.label)
         self.dbInterface = DbInterface(self.dbId)
 

@@ -74,7 +74,7 @@ class ButlerQaData(QaData):
         @param dataDir The full path to the directory containing the data registry file.
         """
         
-        QaData.__init__(self, label, rerun, cameraInfo, qaDataUtils)
+        QaData.__init__(self, label, rerun, cameraInfo, qaDataUtils, **kwargs)
         self.rerun = rerun
         self.dataDir = dataDir
 

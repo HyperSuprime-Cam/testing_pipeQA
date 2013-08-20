@@ -25,6 +25,7 @@ import numpy
 
 import source as pqaSource
 
+import lsst.pex.logging as pexLog
 
 #######################################################################
 #
@@ -37,7 +38,7 @@ class QaData(object):
     #######################################################################
     #
     #######################################################################
-    def __init__(self, label, rerun, cameraInfo, qaDataUtils):
+    def __init__(self, label, rerun, cameraInfo, qaDataUtils, **kwargs):
         """
         @param label The name of this data set
         @param rerun The rerun to retrieve
@@ -48,6 +49,8 @@ class QaData(object):
         self.rerun = rerun
         self.cameraInfo = cameraInfo
         self.dataInfo = self.cameraInfo.dataInfo
+
+        self.log = kwargs.get('log', pexLog.getDefaultLog())
         
         self.dataIdNames   = []
         self.dataIdDiscrim = []

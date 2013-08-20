@@ -90,7 +90,7 @@ class DbQaData(QaData):
         @param rerun The data rerun to use
         @param cameraInfo A cameraInfo object describing the camera for these data
         """
-        QaData.__init__(self, database, rerun, cameraInfo, qaDataUtils)
+        QaData.__init__(self, database, rerun, cameraInfo, qaDataUtils, **kwargs)
         self.dbId        = DatabaseIdentity(self.label)
         self.dbInterface = LsstSimDbInterface(self.dbId)
 
