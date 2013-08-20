@@ -246,7 +246,7 @@ class HscDbQaData(QaData):
             sql += '    and '+idWhere
 
 
-        self.printStartLoad("Loading MatchList ("+ self.refStr[useRef][1]  +") for: " + dataIdStr + "...")
+        self.printStartLoad(dataIdStr + ": Loading MatchList ("+ self.refStr[useRef][1]  +")")
 
 
         # run the query
@@ -313,6 +313,7 @@ class HscDbQaData(QaData):
             realId = srcId
             if sourceLookupByRef.has_key(refObjId):
                 realId = sourceLookupByRef[refObjId].getId()
+
             s.setId(realId)
             s.setD(self.k_ext, 0.0 if isStar else 1.0)
 
@@ -444,10 +445,16 @@ class HscDbQaData(QaData):
                         matched.append(matchListById[soid])
                     else:
                         blended.append(matchListById[soid])
-                        
-            self.printMidLoad('\n        %s: Undet, orphan, matched, blended = %d %d %d %d' % (
-                key, len(undetected), len(orphans), len(matched), len(blended))
-                              )
+
+            # if there were no matched objects, let's WARN
+            if len(matched) == 0:
+                self.log.log(self.log.WARN, '%s: NO MATCHED OBJECTS!  Undet, orphan, matched, blended = %d %d %d %d' % (
+                        key, len(undetected), len(orphans), len(matched), len(blended))
+                             )
+            else:
+                self.log.log(self.log.INFO, '%s: Undet, orphan, matched, blended = %d %d %d %d' % (
+                        key, len(undetected), len(orphans), len(matched), len(blended))
+                             )
 
             typeDict[key]['orphan']     = orphans
             typeDict[key]['matched']    = matched
@@ -528,7 +535,7 @@ class HscDbQaData(QaData):
 
         self.queryCache[dataIdStr] = True
         
-        self.printStartLoad("Loading SourceSets for: " + dataIdStr + "...")
+        self.printStartLoad(dataIdStr + ": Loading SourceSets")
 
         # run the query
         results  = self.dbInterface.execute(sql)
@@ -935,7 +942,7 @@ class HscDbQaData(QaData):
                     continue
 
                         
-            self.printStartLoad("Loading RefObjects for: " + dataIdEntryStr + "...")
+            self.printStartLoad(dataIdEntryStr + ": Loading RefObjects")
 
             # run the queries
             if nStep == 2:
@@ -1205,7 +1212,7 @@ class HscDbQaData(QaData):
         if self.calexpQueryCache.has_key(dataIdStr) and self.calexpQueryCache[dataIdStr]:
             return
 
-        self.printStartLoad("Loading Calexp for: " + dataIdStr + "...")
+        self.printStartLoad(dataIdStr + ": Loading Calexp")
 
         # run the query
         results  = self.dbInterface.execute(sql)
