@@ -427,20 +427,17 @@ class ButlerQaData(QaData):
                 self.matchListCache[useRef][dataKey] = typeDict[dataKey]
 
 
-                self.printMidLoad('\n        %s: Undet, orphan, matched, blended = %d %d %d %d' % (
-                    dataKey,
-                    len(typeDict[dataKey]['undetected']),
-                    len(typeDict[dataKey]['orphan']),
-                    len(typeDict[dataKey]['matched']),
-                    len(typeDict[dataKey]['blended']))
-                                  )
+                if len(matched) == 0:
+                    self.log.log(self.log.WARN, '%s: NO MATCHED OBJECTS!  Undet, orphan, matched, blended = %d %d %d %d' % (
+                            dataKey, len(undetected), len(orphans), len(matched), len(blended))
+                                 )
+                else:
+                    self.log.log(self.log.INFO, '%s: Undet, orphan, matched, blended = %d %d %d %d' % (
+                            dataKey, len(undetected), len(orphans), len(matched), len(blended))
+                                 )
+
 
                 self.matchQueryCache[useRef][dataKey] = True
-
-                # Determine which are orphans, blends, straight matches, and non-detections
-                ######
-                ######
-                ######
 
                 self.printStopLoad()
 
