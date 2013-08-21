@@ -177,10 +177,12 @@ class QaAnalysisTask(pipeBase.Task):
 
 
             # version info
-            pqaVersion = eups.getSetupVersion('testing_pipeQA')
-            dqaVersion = eups.getSetupVersion('testing_displayQA')
-            self.testSets[tsId].addMetadata('PipeQA', pqaVersion)
-            self.testSets[tsId].addMetadata('DisplayQA', dqaVersion)
+            eupsPkgs = sorted(["testing_pipeQA", "testing_displayQA", "astrometry_net_data"])
+            eupsVersions = []
+            for pkg in eupsPkgs:
+                eupsVersions.append(eups.getSetupVersion(pkg))
+            eupsVersStr = "\n".join([" ".join(pair) for pair in zip(eupsPkgs, eupsVersions)])
+            self.testSets[tsId].addMetadata("EUPS_qa-"+ccdName, eupsVersStr)
             
             if hasattr(data, 'coaddTable') and not data.coaddTable is None:
                 self.testSets[tsId].addMetadata('coaddTable', data.coaddTable)
