@@ -305,7 +305,9 @@ class ButlerQaData(QaData):
                         # sources
                         s = cat.addNew()
                         s.setId(sIn.getId())
-                        isStar = srefIn.get('stargal')
+                        isStar = 0
+                        if 'stargal' in srefIn.getSchema().getNames():
+                            isStar = srefIn.get('stargal')
                         s.setD(self.k_ext, isStar)
 
                         s.setD(self.k_x,    sIn.getX())
@@ -607,7 +609,9 @@ class ButlerQaData(QaData):
             for rec in refCat:
                 sro = simRefObj.SimRefObject()
                 sro.refObjectId = rec.getId()
-                sro.isStar = rec.get('stargal') + 0
+                sro.isStar = 0
+                if 'stargal' in rec.getSchema().getNames():
+                    sro.isStar = rec.get('stargal') + 0
 
                 coo = rec.get('coord')
                 sro.setRa(coo.getRa().asDegrees())
