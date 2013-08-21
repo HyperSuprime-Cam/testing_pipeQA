@@ -71,9 +71,26 @@ def makeQaData(label, rerun=None, retrievalType=None, camera=None, **kwargs):
     #####################
     # make a butler QaData
     if retrievalType.lower() == "butler":
-        
+
         if os.environ.has_key('TESTBED_PATH'):
-            testdataDir = os.path.join(os.getenv("TESTBED_PATH"), label)
+            path = os.getenv("TESTBED_PATH")
+            testdataDirs = []
+            for path_elem in path.split(":"):
+                p = os.path.join(path_elem, label)
+                if os.path.exists(p):
+                    testdataDirs.append(p)
+                    
+            red = "\033[31m"
+            off = "\033[0m"
+            if len(testdataDirs) == 0:
+                raise Exception(red+"Unable to find '%s' in any TESTBED_PATH directory."+off % (label))
+            if len(testdataDirs) > 1:
+                msg = "Rerun %s is ambiguous ... present in:\n" +\
+                    "   " + "\n   ".join(testdataDirs) + "\n"
+                print red+msg+off
+                raise Exception(red+"Ambiguous rerun"+off)
+            
+            testdataDir = testdataDirs[0]
         else:
             raise Exception("Must specify environment variable TESTBED_PATH.")
 
