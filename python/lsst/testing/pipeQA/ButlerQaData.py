@@ -173,14 +173,18 @@ class ButlerQaData(QaData):
         if breakBy == 'visit':
             return [dataIdRegex]
 
-
-        dataTuplesToFetch = self._regexMatchDataIds(dataIdRegex, self.dataTuples, exact=False)
-
         dataIdDict = {}
         # handle lsst/hsc different naming conventions
         ccdConvention = 'ccd'
         if not dataIdRegex.has_key('ccd'):
             ccdConvention = 'sensor'
+
+        
+        exact = False
+        if re.search("^\d+$", dataIdRegex[ccdConvention]):
+            exact = True
+        dataTuplesToFetch = self._regexMatchDataIds(dataIdRegex, self.dataTuples, exact=exact)
+
 
         for dataTuple in dataTuplesToFetch:
             thisDataId = self._dataTupleToDataId(dataTuple)
