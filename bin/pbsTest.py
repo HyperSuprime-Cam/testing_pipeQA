@@ -30,6 +30,7 @@ class Pbs(object):
         s  = "#!/usr/bin/env bash\n"
         s += "#PBS -q %s\n" % (self.queue)
         s += "#PBS -N %s\n" % (self.name)
+        # these don't mean much for non-mpi jobs
         if self.nodes and self.ppn:
             s += "#PBS -l nodes=%s:ppn=%s\n" % (str(self.nodes), str(self.ppn))
         s += "#PBS -l walltime=%d\n" % (1800)
@@ -43,7 +44,6 @@ class Pbs(object):
         for c in self.cmds:
             s += c + "\n"
         return s
-
 
     def write(self, filename):
         s = self.script()
@@ -60,8 +60,9 @@ class Pbs(object):
 #
 #############################################################################################
         
-def main(db, visit, noop=False, nCcd=10, queue='batch', nodes=None, ppn=None, camera="suprimecam-mit",
-         mail=None, rmlog=False, newQa=False):
+def main(db, visit, dataSource,
+         noop=False, nCcd=10, queue='batch', nodes=None, ppn=None, camera="suprimecam-mit",
+         mail=None, rmlog=False, newQa=False, jobs=None):
 
     ###############################
     # init some variables
@@ -112,22 +113,24 @@ def main(db, visit, noop=False, nCcd=10, queue='batch', nodes=None, ppn=None, ca
         
     #########
     # scatter
-    scatCmd = "pipeQa.py --noWwwCache -C %s -v %s -d db -c $PBS_ARRAYID -S none %s" % (camera,
-                                                                                              visit, db)
+    qaPath = "pipeQa.py"
+    scatCmd = qaPath + " --noWwwCache -C %s -v %s -d %s -c $PBS_ARRAYID -S none %s" % (camera, visit,
+                                                                                       dataSource, db)
     scat.addCmd(scatCmd, noop=noop)
 
     scatFile = "qsub-scat.sh"
     scat.write(scatFile)
-    scatCmd = ["qsub", "-V", "-t",  "0-%d" % (nCcd-1),  scatFile]
+    scatCmd = ["qsub", "-V", "-t",  "0-%d%s" % (nCcd-1, "%"+str(jobs) if jobs else ""),  scatFile]
     scatProc = subprocess.Popen(scatCmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     scatId = scatProc.communicate()[0].strip()
+    scatId = re.sub("\[\].*", "[]", scatId)
     print scatCmd, scatId
-
     
     #########
     # gather
-    gath.depend = "afteranyarray:"+scatId
-    gathCmd = "pipeQa.py -C %s -v %s -d db -S summOnly %s" % (camera, visit, db)
+    # this should use 'afteranyarray' but there's a bug in the version currently installed on master
+    gath.depend = "afterokarray:"+scatId
+    gathCmd = qaPath + " -C %s -v %s -d %s -S summOnly %s" % (camera, visit, dataSource, db)
     gath.addCmd(gathCmd, noop=noop)
 
     gathFile = "qsub-gath.sh"
@@ -150,27 +153,33 @@ if __name__ == "__main__":
     parser.add_argument("-c", "--nCcd", type=int, default=10, help="Number of CCDs to process")
     parser.add_argument("-C", "--camera", default="suprimecam-mit", help="camera name",
                         choices=("suprimecam-mit", "hsc", "suprimecam"))
+    parser.add_argument("-d", "--dataSource", default="db",
+                        help="Specify the source of data to load",
+                        choices=('butler', 'db'))
     parser.add_argument("-M", "--mail", default="steven.bickerton@gmail.com",
                         help="email address for PBS messages")
     parser.add_argument("-n", "--noop", action='store_true', default=False,  help="Don't actually run.")
     parser.add_argument("-N", "--newQa", action='store_true', default=False, help="Force-run newQa.py -F")
     parser.add_argument("--nodes", default=None, type=int, help="Number of nodes")
     parser.add_argument("--ppn", default=None, type=int, help="Processes per node")
+    parser.add_argument("--jobs", default=None, type=int, help="Number of parallel jobs")
     parser.add_argument("-Q", "--queue", type=str, default="batch", help="Name of PBS queue")
     parser.add_argument("-r", "--rmlog", action='store_true', default=False, help="Remove old logs.")
-    parser.add_argument("-s", "--monitor", action='store_true', default=False, help="Spawn a popup monitor to watch qstat")
+    parser.add_argument("-s", "--monitor", action='store_true', default=False,
+                        help="Spawn a popup monitor to watch qstat")
     args = parser.parse_args()
 
-    main(args.db, args.visit,
+    main(args.db, args.visit, args.dataSource,
          noop=args.noop, nCcd=args.nCcd, queue=args.queue,
          nodes=args.nodes, ppn=args.ppn,
-         camera=args.camera, mail=args.mail, rmlog=args.rmlog, newQa=args.newQa)
+         camera=args.camera, mail=args.mail, rmlog=args.rmlog, newQa=args.newQa, jobs=args.jobs)
 
     if args.monitor:
         import commands
         stat, pupdate = commands.getstatusoutput("which popupdate")
         if not re.search("popupdate", pupdate):
-            print "You don't appear to have popupdate installed on your system.  Please ask Steve if you'd like it (it's a short python script)"
+            print "You don't appear to have popupdate installed on your system.  "
+            print "Please ask Steve if you'd like it (it's a short python script)"
             sys.exit()
         os.system("popupdate 'qstat -t' -t 1.0 &")
         
