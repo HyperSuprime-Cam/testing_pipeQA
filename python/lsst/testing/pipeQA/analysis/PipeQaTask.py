@@ -314,7 +314,7 @@ class PipeQaTask(pipeBase.Task):
     
         # if they requested a key that doesn't exist for this camera ... throw
         for k, v in dataIdInput.items():
-            if (not k in data.dataIdNames) and (v != '.*'):
+            if (k not in data.dataIdNames) and (v != '.*'):
                 raise Exception("Key "+k+" not available for this dataset (camera="+data.cameraInfo.name+")")
     
             

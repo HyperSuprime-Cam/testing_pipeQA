@@ -126,12 +126,7 @@ class VignettingQaTask(QaAnalysisTask):
             
             raftId     = self.detector[key].getParent().getId().getName()
             ccdId      = self.detector[key].getId().getName()
-
-            # We have a trimmed detector
-            self.detector[key].setTrimmed(True)
-            bbox   = self.detector[key].getAllPixels()
-            startX = bbox.getBeginX()
-            startY = bbox.getBeginY()
+            startX, startY, xxhi, yyhi = data.cameraInfo.getBbox(raftId, ccdId)
 
             if self.matchListDictSrc.has_key(key):
                 mdict    = self.matchListDictSrc[key]['matched']

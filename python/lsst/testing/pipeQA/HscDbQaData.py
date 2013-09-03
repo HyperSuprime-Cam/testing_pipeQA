@@ -56,25 +56,6 @@ class MatchedSource(object):
         self.z              = Source()
         self.y              = Source()
 
-class Timer(object):
-
-    def __init__(self):
-        self.t0 = {}
-        self.t = {}
-        self.labels = []
-        
-    def start(self, label):
-        if not self.t.has_key(label):
-            self.labels.append(label)
-            self.t[label] = 0.0
-        self.t0[label] = time.time()
-        
-    def stop(self, label):
-        self.t[label] += time.time() - self.t0[label]
-
-    def write(self):
-        for label in self.labels:
-            print label, "%.2f" % (self.t[label])
             
 
 #########################################################################
@@ -374,6 +355,7 @@ class HscDbQaData(QaData):
 
             dist = 0.0
 
+
             matchList.append([sref, s, dist])
             
             multiplicity[s.getId()] = nMatches
@@ -472,7 +454,7 @@ class HscDbQaData(QaData):
         # cache it
         self.matchQueryCache[useRef][dataIdStr] = True
 
-        self.printStopLoad()
+        self.printStopLoad("MatchList load of "+dataIdStr)
         
         return typeDict
 
@@ -614,7 +596,7 @@ class HscDbQaData(QaData):
         for k, ss in ssDict.items():
             self.sourceSetCache[k] = ssDict[k]
         
-        self.printStopLoad()
+        self.printStopLoad("SourceSet load of "+dataIdStr)
 
         return ssDict
 
@@ -742,7 +724,7 @@ class HscDbQaData(QaData):
             self.dbInterface.execute(sql2)
             results = self.dbInterface.execute(sql3)
 
-            self.printMidLoad("Found %d matches..." % (len(results)))
+            self.log.log(self.log.INFO, "Found %d matches..." % (len(results)))
 
             for row in results:
                 s = pqaSource.Source()
@@ -983,7 +965,7 @@ class HscDbQaData(QaData):
 
             self.refObjectQueryCache[dataIdStr] = True
             
-            self.printStopLoad()
+            self.printStopLoad("RefObject load for "+dataIdEntryStr)
 
             
         # cache it
@@ -1274,7 +1256,7 @@ class HscDbQaData(QaData):
 
         self.calexpQueryCache[dataIdStr] = True
         
-        self.printStopLoad()
+        self.printStopLoad("Calexp load for "+dataIdStr)
 
 
 

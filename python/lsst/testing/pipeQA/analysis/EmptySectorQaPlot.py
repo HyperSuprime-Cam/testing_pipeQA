@@ -84,11 +84,11 @@ def plot(data):
 
     ncol = None
     if summary:
-        ms = 0.1
+        ms = 0.5
         if len(xmat) < 10000:
-            ms = 0.5
-        if len(xmat) < 1000:
             ms = 1.0
+        if len(xmat) < 1000:
+            ms = 2.0
         ax.plot(xmat, ymat, "k.", ms=ms, label=summaryLabel)
         ncol = 1
     else:

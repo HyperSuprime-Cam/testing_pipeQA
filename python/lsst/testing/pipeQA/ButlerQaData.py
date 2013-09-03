@@ -257,7 +257,7 @@ class ButlerQaData(QaData):
             matchList = []
             
             if not isWritten:
-                print str(dataTuple) + " output file missing.  Skipping."
+                self.log.log(self.log.WARN, str(dataTuple) + " output file missing.  Skipping.")
                 continue
             
             else:
@@ -427,19 +427,19 @@ class ButlerQaData(QaData):
                 self.matchListCache[useRef][dataKey] = typeDict[dataKey]
 
 
-                if len(matched) == 0:
+                if len(matchList) == 0:
                     self.log.log(self.log.WARN, '%s: NO MATCHED OBJECTS!  Undet, orphan, matched, blended = %d %d %d %d' % (
-                            dataKey, len(undetected), len(orphans), len(matched), len(blended))
+                            dataKey, len(undetected), len(orphans), len(matchList), len(blended))
                                  )
                 else:
                     self.log.log(self.log.INFO, '%s: Undet, orphan, matched, blended = %d %d %d %d' % (
-                            dataKey, len(undetected), len(orphans), len(matched), len(blended))
+                            dataKey, len(undetected), len(orphans), len(matchList), len(blended))
                                  )
 
 
                 self.matchQueryCache[useRef][dataKey] = True
 
-                self.printStopLoad()
+                self.printStopLoad("MatchList load for: " + dataKey)
 
         return copy.copy(typeDict)
 
@@ -479,7 +479,7 @@ class ButlerQaData(QaData):
                 if calib is not None:
                     fmag0, fmag0Err = calib.getFluxMag0()
                 else:
-                    print "Warning: no calib available, fluxes uncalibrated."
+                    self.log.log(self.log.WARN, "Warning: no calib available, fluxes uncalibrated.")
                     fmag0, fmag0Err = 1.0, 1.0
 
 
@@ -542,9 +542,9 @@ class ButlerQaData(QaData):
 
  
             else:
-                print str(dataTuple) + " output file missing.  Skipping."
+                self.log.log(self.log.WARN, str(dataTuple) + " output file missing.  Skipping.")
                 
-            self.printStopLoad()
+            self.printStopLoad("SourceSets load for: " + dataKey)
                 
         return ssDict
 
@@ -617,7 +617,7 @@ class ButlerQaData(QaData):
 
                 sros.append(sro)
 
-        self.printStopLoad()
+        self.printStopLoad("RefObjects load for: " + dataIdStr)
         
         # cache it
         self.refObjectQueryCache[dataIdStr] = True
@@ -729,13 +729,12 @@ class ButlerQaData(QaData):
                 
             else:
                 calibFilename = self.butler.get('calexp_filename', dataId)
-                print "\nSkipping " + str(dataTuple) + ". Calib output file missing:"
-                print "   "+str(calibFilename)
+                self.log.log(self.log.WARN, "Skipping " + str(dataTuple) + ". Calib output file missing:")
+                self.log.log(self.log.WARN, "   "+str(calibFilename))
                 self.alreadyTriedCalexp.add(dataKey)
 
-            self.printStopLoad()
+            self.printStopLoad("Calexp load for: " + dataKey)
             
-
 
             
     def getCalexpEntryBySensor(self, cache, dataIdRegex):
@@ -780,7 +779,7 @@ class ButlerQaData(QaData):
         dataTuples = []
         for dataTuple in availableDataTuples:
             if verbose:
-                print dataTuple
+                self.log.log(self.log.INFO, str(dataTuple))
             # start true and fail if any dataId keys fail ... eg. 'visit' doesn't match
             match = True
             for i in range(len(self.dataIdNames)):
