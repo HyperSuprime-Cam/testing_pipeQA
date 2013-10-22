@@ -25,7 +25,7 @@ import traceback
 import os
 import re
 import inspect
-import sqlite
+import sqlite3 as sqlite
 import stat
 
 
