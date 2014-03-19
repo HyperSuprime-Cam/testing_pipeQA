@@ -42,13 +42,13 @@ def lineFit(x, y, dy=None):
     Sy = (y/var).sum()
     Sxx = ((x**2)/var).sum()
     Sxy = ((x*y)/var).sum()
-    
-    if (no_err):
+    Delta = S*Sxx - Sx**2
+
+    if (no_err) or Delta < 1.0e-6:
         Stt = ((x - Sx/S)**2).sum()
         Sty = ((x - Sx/S)*y).sum()
     
-    Delta = S*Sxx - Sx**2
-    if no_err:
+    if no_err or Delta < 1.0e-6:
         bb = (1.0/Stt)*Sty
         aa = (Sy - Sx*bb)/S
         var_aa = (1.0/S)*(1.0 + Sx**2/(S*Stt))
@@ -63,7 +63,7 @@ def lineFit(x, y, dy=None):
     rms_bb = numpy.sqrt(numpy.abs(var_bb))
 
     # coefficient of correlation
-    if no_err:
+    if no_err or Delta < 1.0e-6:
         cov_ab = (-Sx/(S*Stt))
         r_ab   = (cov_ab/(rms_aa*rms_bb))
     else:

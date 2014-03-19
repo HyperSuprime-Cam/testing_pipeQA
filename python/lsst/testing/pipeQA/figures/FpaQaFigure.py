@@ -294,9 +294,9 @@ class FpaQaFigure(QaFigure):
         histWidth = 0.05
         useHist = True
         if useHist:
-            left, right, bottom, top = 0.195, 0.95-2.0*histWidth, 0.15, 0.9
+            left, right, bottom, top = 0.195, 0.95-2.0*histWidth, 0.175, 0.87
         else:
-            left, right, bottom, top = 0.195, 0.95, 0.15, 0.9
+            left, right, bottom, top = 0.195, 0.95, 0.175, 0.87
         self.fig.subplots_adjust(left=left, right=right, bottom=bottom, top=top)
         
         sp     = self.fig.gca()

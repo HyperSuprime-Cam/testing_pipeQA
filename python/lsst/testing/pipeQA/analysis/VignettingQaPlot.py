@@ -65,6 +65,7 @@ def plot(data):
         sp1 = fig.add_subplot(111)
         sp1.plot(radii, dmags, 'ro', ms=2.0)
         sp1.set_ylim(ylim)
+        fig.subplots_adjust(left=0.15)
 
         ddmag = 0.001
         drad  = 0.01 * (max(radii) - min(radii))
@@ -78,12 +79,12 @@ def plot(data):
         sp1.axhline(y=0, c = 'k', linestyle = ':', alpha = 0.25)
         sp1.axhline(y=med, c = 'b', linestyle = '-')
         sp1.axhspan(ymin = med-std, ymax = med+std, fc = 'b', alpha = 0.15)
-        sp1x2 = sp1.twinx()
-        ylab = sp1x2.set_ylabel('Delta magnitude (%s-%s)' % tuple(magTypes), fontsize=10)
-        ylab.set_rotation(-90)
+        #sp1x2 = sp1.twinx()
+        ylab = sp1.set_ylabel('Delta magnitude (%s-%s)' % tuple(magTypes), fontsize=10)
+        #ylab.set_rotation(-90)
         sp1.set_xlabel('Dist from focal plane center (pixels)', fontsize=10)
         qaPlotUtil.qaSetp(sp1.get_xticklabels()+sp1.get_yticklabels(), fontsize = 8)
-        qaPlotUtil.qaSetp(sp1x2.get_xticklabels()+sp1x2.get_yticklabels(), visible=False)
+        #qaPlotUtil.qaSetp(sp1.get_xticklabels()+sp1.get_yticklabels(), visible=False)
 
     else:
         ymin = num.max([dmags.min(),-0.5])
@@ -94,16 +95,16 @@ def plot(data):
             
         sp1 = fig.add_subplot(111)
         sp1.plot(radii, dmags, 'ro', ms=2, alpha = 0.5)
-
+        fig.subplots_adjust(left=0.15)
         sp1.set_ylim(ylim)
 
         sp1.axhline(y=0, c = 'k', linestyle = ':', alpha = 0.25)
-        sp1x2 = sp1.twinx()
-        ylab = sp1x2.set_ylabel('Delta magnitude (%s-%s)' % tuple(magTypes), fontsize=10)
-        ylab.set_rotation(-90)
+        #sp1x2 = sp1.twinx()
+        ylab = sp1.set_ylabel('Delta magnitude (%s-%s)' % tuple(magTypes), fontsize=10)
+        #ylab.set_rotation(-90)
         sp1.set_xlabel('Dist from focal plane center (pixels)', fontsize=10)
         qaPlotUtil.qaSetp(sp1.get_xticklabels()+sp1.get_yticklabels(), fontsize = 8)
-        qaPlotUtil.qaSetp(sp1x2.get_xticklabels()+sp1x2.get_yticklabels(), visible=False)
+        #qaPlotUtil.qaSetp(sp1.get_xticklabels()+sp1.get_yticklabels(), visible=False)
 
     return fig
 

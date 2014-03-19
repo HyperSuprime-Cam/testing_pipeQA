@@ -26,6 +26,7 @@ import lsst.meas.algorithms         as measAlg
 import lsst.afw.math                as afwMath
 import lsst.pex.config              as pexConfig
 import lsst.pipe.base               as pipeBase
+import lsst.afw.cameraGeom          as camGeom
 
 from   .QaAnalysisTask              import QaAnalysisTask
 import lsst.testing.pipeQA.TestCode as testCode
@@ -252,27 +253,25 @@ class EmptySectorQaTask(QaAnalysisTask):
 
         cacheLabel = "pointPositions"
 
-        if self.summaryProcessing != self.summOpt['summOnly']:
-            
-            xlo, xhi, ylo, yhi = 1.e10, -1.e10, 1.e10, -1.e10
-            if data.cameraInfo.name == 'coadd':
-                for raft,ccd in data.cameraInfo.raftCcdKeys:
-                    xtmp, ytmp = self.x.get(raft, ccd), self.y.get(raft, ccd)
-                    xxlo, yylo, xxhi, yyhi = xtmp.min(), ytmp.min(), xtmp.max(), ytmp.max()
-                if xxlo < xlo: xlo = xxlo
-                if xxhi > xhi: xhi = xxhi
-                if yylo < ylo: ylo = yylo
-                if yyhi > yhi: yhi = yyhi
+        l_cam, b_cam, r_cam, t_cam = 1.0e6, 1.0e6, -1.0e6, -1.0e6
+        for r in data.cameraInfo.camera:
+            raft = camGeom.cast_Raft(r)
+            for c in raft:
+                ccd = camGeom.cast_Ccd(c)
+                cc       = ccd.getCenter().getPixels(ccd.getPixelSize())
+                cxc, cyc = cc.getX(), cc.getY()
+                cbbox    = ccd.getAllPixels(True)
+                cwidth   = cbbox.getMaxX() - cbbox.getMinX()
+                cheight  = cbbox.getMaxY() - cbbox.getMinY()
 
-                    
-            else:
-                allpix = data.cameraInfo.camera.getAllPixels()
-                xlo = -0.5*(allpix.getMaxX() - allpix.getMinX())
-                xhi = -xlo
-                ylo = -0.5*(allpix.getMaxY() - allpix.getMinY())
-                yhi = -ylo
-            
-            
+                l_cam = min(l_cam, cxc - cwidth/2)
+                b_cam = min(b_cam, cyc - cheight/2)
+                r_cam = max(r_cam, cxc + cwidth/2)
+                t_cam = max(t_cam, cyc + cheight/2)
+        xlo, xhi, ylo, yhi = l_cam, r_cam, b_cam, t_cam
+
+        if self.summaryProcessing != self.summOpt['summOnly']:
+
             # make any individual (ie. per sensor) plots
             for raft, ccd in self.emptySectors.raftCcdKeys():
 
@@ -296,7 +295,7 @@ class EmptySectorQaTask(QaAnalysisTask):
                             'summary' : False, 'alllimits' : [xlo, xhi, ylo, yhi],
                             'bbox' : [xxlo, xxhi, yylo, yyhi],
                             'nxn' : [self.nx, self.ny]}
-
+                
                 self.log.log(self.log.INFO, "plotting %s" % (ccd))
                 import EmptySectorQaPlot as plotModule
                 label = data.cameraInfo.getDetectorName(raft, ccd)

@@ -41,8 +41,8 @@ import QaPlotUtils                  as qaPlotUtil
 class PsfShapeQaConfig(pexConfig.Config): 
     cameras  = pexConfig.ListField(dtype = str, doc = "Cameras to run PsfShapeQaTask",
                                    default = ("lsstSim", "hsc", "suprimecam", "cfht", "sdss", "coadd"))
-    ellipMax = pexConfig.Field(dtype = float, doc = "Maximum median ellipticity", default = 0.2)
-    fwhmMax  = pexConfig.Field(dtype = float, doc = "Maximum Psf Fwhm (arcsec)", default = 2.0)
+    ellipMax = pexConfig.Field(dtype = float, doc = "Maximum median ellipticity", default = 0.30)
+    fwhmMax  = pexConfig.Field(dtype = float, doc = "Maximum Psf Fwhm (arcsec)", default = 1.0)
     
     
 class PsfShapeQaTask(QaAnalysisTask):
@@ -226,7 +226,7 @@ class PsfShapeQaTask(QaAnalysisTask):
         if len(data.brokenDataIdList) == 0 or data.brokenDataIdList[-1] == dataId:
             isFinalDataId = True
 
-        vLen = 3000.0  # for e=1.0
+        vLen = 1000.0  # for e=1.0
 
         # fpa figures
         ellipBase = "medPsfEllip"

@@ -53,9 +53,9 @@ class PhotCompareQaConfig(pexConfig.Config):
                                   default = 0.01)
     slopeMinSigma = pexConfig.Field(dtype = float,
                                     doc = "Min (positive valued) std.devs. of slope below slope=0",
-                                    default = 3.5)
+                                    default = 5.0)
     slopeMaxSigma = pexConfig.Field(dtype = float,
-                                    doc = "Maximum std.dev. of slope above slope=0", default = 3.5)
+                                    doc = "Maximum std.dev. of slope above slope=0", default = 5.0)
 
     compareTypes  = pexConfig.ListField(dtype = str,
                                         doc = "Photometric Error: qaAnalysis.PhotCompareQaAnalysis", 
@@ -272,9 +272,10 @@ class PhotCompareQaTask(QaAnalysisTask):
 
                         m1 = -2.5*numpy.log10(f1)
                         m2 = -2.5*numpy.log10(f2)
-                        dm1 = 2.5 / numpy.log(10.0) * df1 / f1
-                        dm2 = 2.5 / numpy.log(10.0) * df2 / f2
+                        dm1 = 2.5*df1 / (f1*numpy.log(10.0))
+                        dm2 = 2.5*df2 / (f2*numpy.log(10.0))
 
+                        #print m1, m2, dm1, dm2, numpy.sqrt(dm1**2+dm2**2)
                         extend = s.getD(data.k_ext)
 
                         star = 0 if extend else 1
@@ -455,7 +456,7 @@ class PhotCompareQaTask(QaAnalysisTask):
 
                 if self.means.get(raft, ccd) is not None:
                     meanFig.map[raft][ccd] = "mean=%.4f" % (self.means.get(raft, ccd))
-                    stdFig.map[raft][ccd] = "std=%.4f" % (self.stds.get(raft, ccd))
+                    stdFig.map[raft][ccd]  = "std=%.4f" % (self.stds.get(raft, ccd))
                     derrFig.map[raft][ccd] = "derr=%.4f" % (self.derrs.get(raft, ccd))
                     fmt0, fmt1, fmtS = "%.4f", "%.4f", "%.1f"
                     if slope[0] is None:

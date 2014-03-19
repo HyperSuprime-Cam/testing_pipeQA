@@ -41,13 +41,13 @@ import QaPlotUtils                  as qaPlotUtil
 class ZeropointFitQaConfig(pexConfig.Config):
     cameras   = pexConfig.ListField(dtype = str,
                                     doc = "Cameras to run ZeropointFitQa",
-                                    default = ("lsstSim", "cfht", "sdss", "coadd"))
+                                    default = ("lsstSim", "cfht", "sdss", "coadd", "hsc"))
     offsetMin = pexConfig.Field(dtype = float,
                                 doc = "Median offset of stars from zeropoint fit; minimum good value",
-                                default = -0.05)
+                                default = -0.1)
     offsetMax = pexConfig.Field(dtype = float,
                                 doc = "Median offset of stars from zeropoint fit; maximum good value",
-                                default = +0.05)
+                                default = +0.1)
 
     
     
@@ -130,7 +130,6 @@ class ZeropointFitQaTask(QaAnalysisTask):
             self.undetectedGalaxy.set(raftId, ccdId, num.array([]))
             self.orphan.set(raftId, ccdId, num.array([]))
 
-
             fmag0 = self.calib[key].getFluxMag0()[0]
             if fmag0 <= 0.0:
                 self.zeroPoint.set(raftId, ccdId, NaN)
@@ -208,7 +207,10 @@ class ZeropointFitQaTask(QaAnalysisTask):
                 offset      = num.array(self.matchedStar.get(raftId, ccdId)["Imgmag"]) # make a copy
                 offset     -= self.zeroPoint.get(raftId, ccdId)
                 offset     -= self.matchedStar.get(raftId, ccdId)["Refmag"]
-                med         = num.median(offset) 
+                med         = num.median(offset)
+                # zeroPoint is actually just a contact from the Calib unless meas_mosaic has run.
+                # let's show the as-measured single frame estimate by adding in the median again
+                self.zeroPoint.set(raftId, ccdId, self.zeroPoint.get(raftId, ccdId)-med)
                 self.medOffset.set(raftId, ccdId, med)
                 
                 areaLabel = data.cameraInfo.getDetectorName(raftId, ccdId)
@@ -244,14 +246,14 @@ class ZeropointFitQaTask(QaAnalysisTask):
                     
                     label = data.cameraInfo.getDetectorName(raft, ccd)                    
                     if self.zeroPoint.get(raft, ccd) is not None:
-                        zpt = self.zeroPoint.get(raft, ccd)
-                        zptFig.data[raft][ccd] = zpt
-                        zptFig.map[raft][ccd] = 'zpt=%.2f' % (zpt)
-
                         offset = self.medOffset.get(raft, ccd)
                         offsetFig.data[raft][ccd] = offset
                         offsetFig.map[raft][ccd] = 'offset=%.2f' % (offset)
                         
+                        zpt = self.zeroPoint.get(raft, ccd)
+                        zptFig.data[raft][ccd] = zpt
+                        zptFig.map[raft][ccd] = 'zpt=%.2f' % (zpt)
+
                         testSet.pickle(zptBase + label,    [zptFig.data, zptFig.map])
                         testSet.pickle(offsetBase + label, [offsetFig.data, offsetFig.map])
 
@@ -260,29 +262,41 @@ class ZeropointFitQaTask(QaAnalysisTask):
         if (self.summaryProcessing in [self.summOpt['summOnly'], self.summOpt['delay']]) and isFinalDataId:
 
             zpts = []
+            offsets = []
             for raft, ccdDict in zptFig.data.items():
                 for ccd, value in ccdDict.items():
                     label = data.cameraInfo.getDetectorName(raft, ccd)                    
-                    zptData, zptMap = testSet.unpickle(zptBase, default=[None, None])
-                    offsetData, offsetMap = testSet.unpickle(offsetBase+label, default=[None, None])
-                    if self.zptData[raft, ccd] is not None:
-                        zpt = self.zptData[raft, ccd]
+                    zptDataTmp, zptMapTmp = testSet.unpickle(zptBase + label, default=[None, None])
+                    zptFig.mergeValues(zptDataTmp, zptMapTmp)
+                    offsetDataTmp, offsetMapTmp = testSet.unpickle(offsetBase + label, default=[None, None])
+                    offsetFig.mergeValues(offsetDataTmp, offsetMapTmp)
+                    
+                    if zptDataTmp and raft in zptDataTmp and ccd in zptDataTmp[raft]:
+                        zpt = zptDataTmp[raft][ccd]
                         zpts.append(zpt)
+                    if offsetDataTmp and raft in offsetDataTmp and ccd in offsetDataTmp[raft]:
+                        offset = offsetDataTmp[raft][ccd]
+                        offsets.append(offset)
+                        
             if len(zpts) == 0:
                 zpts.append(0.0)
+                offsets.append(0.0)
                 
             
             self.log.log(self.log.INFO, "plotting FPAs")
             
             blue = '#0000ff'
             red = '#ff0000'
+
+            newlimits = [num.min(zpts)+self.limits[0],num.max(zpts)+self.limits[1]]
             zptFig.makeFigure(showUndefined=showUndefined, cmap="jet",
-                              vlimits=[num.min(zpts)-0.05, num.max(zpts)+0.05],
+                              vlimits=newlimits, failLimits=newlimits,
                               title="Zeropoint", cmapOver=red, cmapUnder=blue)
             testSet.addFigure(zptFig, zptBase+".png", "Photometric zeropoint", navMap=True)
             del zptFig
-        
-            offsetFig.makeFigure(showUndefined=showUndefined, cmap="jet", vlimits=self.limits,
+
+            offsetFig.makeFigure(showUndefined=showUndefined, cmap="jet",
+                                 vlimits=self.limits,
                                  title="Med offset from Zpt Fit", cmapOver=red, failLimits=self.limits,
                                  cmapUnder=blue)
             testSet.addFigure(offsetFig, offsetBase + ".png", "Median offset from photometric zeropoint", 

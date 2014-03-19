@@ -31,6 +31,8 @@ import lsst.afw.geom                    as afwGeom
 import lsst.afw.cameraGeom              as cameraGeom
 import lsst.meas.algorithms             as measAlg
 
+import lsst.meas.photocal               as measPhotCal
+import lsst.obs.hsc.colorterms       as osubColorTerms
 # we need these for meas_extensions
 # ... they are never explicitly used
 try: import lsst.meas.extensions.shapeHSM
@@ -40,6 +42,9 @@ except: pass
 try: import lsst.meas.extensions.photometryKron
 except: pass
 
+haveMosaic=True
+try: import lsst.meas.mosaic as measMos
+except: haveMosaic=False
 
 import numpy
 import math
@@ -269,15 +274,23 @@ class ButlerQaData(QaData):
                 self.printStartLoad("Loading MatchList for: " + dataKey + "...")
                 
                 matches = measAstrom.astrom.readMatches(self.butler, dataId)
-                
+
+                # use the ref fluxes to get colors and color correct
+                astrom = measAstrom.astrom.Astrometry(measAstrom.config.MeasAstromConfig())
+                _rad = 0.1*afwGeom.arcseconds
                 sourcesDict    = self.getSourceSetBySensor(dataId)
                 refObjectsDict = self.getRefObjectSetBySensor(dataId)
 
                 calibDict = self.getCalibBySensor(dataId)
                 calib = calibDict[dataKey]
 
+                measPhotCal.colorterms.Colorterm.setColorterms(osubColorTerms.colortermsData)
+                measPhotCal.colorterms.Colorterm.setActiveDevice("Hamamatsu") # ahghgh ... hard code
+        
+                cterm = osubColorTerms.colortermsData['Hamamatsu'][filterName]
                 
                 fmag0, fmag0err = calib.getFluxMag0()
+                fmag0err = 0.0
                 for m in matches:
                     srefIn, sIn, dist = m
                     if ((srefIn is not None) and (sIn is not None)):
@@ -297,10 +310,26 @@ class ButlerQaData(QaData):
                         sref = refCat.addNew()
 
                         sref.setId(srefIn.getId()) # this should be refobjId
-                        sref.setD(self.k_rRa, srefIn.getRa().asDegrees())
-                        sref.setD(self.k_rDec, srefIn.getDec().asDegrees())
-                        flux = srefIn.get('flux')
 
+                        fmag0, fmag0Err = calib.getFluxMag0()
+
+                        _ra = srefIn.getRa()
+                        _dec = srefIn.getDec()
+                        fullRefCat = astrom.getReferenceSources(_ra, _dec, _rad, filterName, allFluxes=True)
+                        mPrimary   = -2.5*numpy.log10(fullRefCat.get(cterm.primary))
+                        mSecondary = -2.5*numpy.log10(fullRefCat.get(cterm.secondary))
+                        refMag = cterm.transformMags(filterName, mPrimary, mSecondary)
+                        refMag2 = mPrimary - (refMag - mPrimary)
+                        calmag = -2.5*numpy.log10(sIn.getApFlux()/fmag0)
+                        #print mPrimary, refMag, refMag2, calmag, mPrimary-mSecondary, mPrimary-calmag, refMag-calmag, refMag2-calmag
+
+
+                        
+                        sref.setD(self.k_rRa, _ra.asDegrees())
+                        sref.setD(self.k_rDec, _dec.asDegrees())
+                        #flux = srefIn.get('flux')
+                        flux = 10**(-refMag[0]/2.5)
+                        
                         sref.setD(self.k_rPsf, flux)
                         sref.setD(self.k_rAp, flux)
                         sref.setD(self.k_rMod, flux)
@@ -328,8 +357,6 @@ class ButlerQaData(QaData):
                         s.setI(self.k_bad,  sIn.get('flags.badcentroid'))
                         s.setI(self.k_satc, sIn.get('flags.pixel.saturated.center'))
                         s.setD(self.k_ext,  sIn.get('classification.extendedness'))
-
-                        fmag0, fmag0Err = calib.getFluxMag0()
 
                         # fluxes
                         s.setD(self.k_Psf,   s.getD(self.k_Psf)/fmag0)
@@ -486,7 +513,8 @@ class ButlerQaData(QaData):
                     self.log.log(self.log.WARN, "Warning: no calib available, fluxes uncalibrated.")
                     fmag0, fmag0Err = 1.0, 1.0
 
-
+                fmag0Err = 0.0
+                #print fmag0, fmag0Err
                 catObj = pqaSource.Catalog()
                 cat  = catObj.catalog
 
@@ -642,14 +670,49 @@ class ButlerQaData(QaData):
         for dataId, ce in calexp.items():
             if not dataId in summary:
                 summary[dataId] = {}
-            if ce is not None:
-                summary[dataId]["DATE_OBS"] = datetime.datetime.strptime(ce['DATE-OBS'], "%Y-%m-%d") or 'xx-xx-xx'
-                summary[dataId]["EXPTIME"]  = ce['EXPTIME'] or 0.0
-                summary[dataId]['RA']       = ce['RA']      or 0.0
-                summary[dataId]['DEC']      = ce['DEC']     or 0.0
-            summary[dataId]['ALT']      = "xx"
-            summary[dataId]['AZ']       = "xxx"
-            
+
+            if ce is None:
+                ce = {}
+
+            dobs = ce.get('DATE-OBS', '0000-00-00')
+            summary[dataId]["DATE_OBS"] = datetime.datetime.strptime(dobs, "%Y-%m-%d")
+            summary[dataId]["EXPTIME"]  = ce.get('EXPTIME', 0.0)
+            summary[dataId]['RA']       = ce.get('RA', 0.0)
+            summary[dataId]['DEC']      = ce.get('DEC', 0.0)
+
+            summary[dataId]['ALT']          = ce.get('ALTITUDE', 0.0)
+            summary[dataId]['AZ']           = ce.get('AZIMUTH', 0.0)
+            summary[dataId]["SKYLEVEL"]     = ce.get('SKYLEVEL', 0.0)
+            summary[dataId]["ELLIPT"]       = ce.get('ELLIPT', 0.0)
+            summary[dataId]["ELL_PA"]       = ce.get('ELL_PA_MED', 0.0)
+            summary[dataId]["AIRMASS"]      = ce.get('AIRMASS', 0.0)
+            summary[dataId]["FLATNESS_RMS"] = ce.get('FLATNESS_RMS', 0.0)
+            summary[dataId]["FLATNESS_PP"]  = ce.get('FLATNESS_PP', 0.0)
+            summary[dataId]["SIGMA_SKY"]    = ce.get('SKYSIGMA', 0.0)
+            summary[dataId]["SEEING"]       = ce.get('SEEING', 0.0)
+            summary[dataId]['OBJECT']       = ce.get('OBJECT', 0.0)
+            summary[dataId]["OSLEVEL1"]     = ce.get('OSLEVEL1', 0.0)
+            summary[dataId]["OSLEVEL2"]     = ce.get('OSLEVEL2', 0.0)
+            summary[dataId]["OSLEVEL3"]     = ce.get('OSLEVEL3', 0.0)
+            summary[dataId]["OSLEVEL4"]     = ce.get('OSLEVEL4', 0.0)
+            summary[dataId]["OSSIGMA1"]     = ce.get('OSSIGMA1', 0.0)
+            summary[dataId]["OSSIGMA2"]     = ce.get('OSSIGMA2', 0.0)
+            summary[dataId]["OSSIGMA3"]     = ce.get('OSSIGMA3', 0.0)
+            summary[dataId]["OSSIGMA4"]     = ce.get('OSSIGMA4', 0.0)
+            #hsc = cd.get('HST', '00:00:00')
+            summary[dataId]["HST"]          = ce.get('HST', 0.0)
+            summary[dataId]["INSROT"]       = ce.get('INR-STR', 0.0)
+            summary[dataId]["PA"]           = ce.get('INST-PA', 0.0)            
+            summary[dataId]["MJD"]          = ce.get('MJD', 0.0)
+            summary[dataId]["FOCUSZ"]       = ce.get('FOC-VAL', 0.0)
+            summary[dataId]["ADCPOS"]       = ce.get('ADC-STR', 0.0)
+
+            summary[dataId]['GAIN1']        = ce.get("T_GAIN1", 0.0)
+            summary[dataId]['GAIN2']        = ce.get("T_GAIN2", 0.0)
+            summary[dataId]['GAIN3']        = ce.get("T_GAIN3", 0.0)
+            summary[dataId]['GAIN4']        = ce.get("T_GAIN4", 0.0)
+            summary[dataId]['CCDTEMP']      = ce.get("DET-TMED", -1.0)
+
         return summary
         
 
@@ -667,6 +730,8 @@ class ButlerQaData(QaData):
             dataId = self._dataTupleToDataId(dataTuple)
             dataKey = self._dataTupleToString(dataTuple)
 
+            #dataRef = self.butler.getDataRef(butler, dataId)
+            
             if self.calexpCache.has_key(dataKey) or (dataKey in self.alreadyTriedCalexp):
                 continue
 
@@ -687,6 +752,15 @@ class ButlerQaData(QaData):
                 self.filterCache[dataKey]   = afwImage.Filter(calexp_md)
                 self.calibCache[dataKey]    = afwImage.Calib(calexp_md)
 
+                # if we have a meas_mosaic value, use that for fmag0
+                if self.butler.datasetExists("fcr", dataId) and haveMosaic:
+                    fcr_md = self.butler.get("fcr_md", dataId, immediate=True)
+                    ffp    = measMos.FluxFitParams(fcr_md)
+                    fmag0 = fcr_md.get("FLUXMAG0")
+                    print "FMAG0=", fmag0
+                    self.calibCache.setFluxMag0(fmag0)
+
+                    
                 # store the calexp as a dict
                 if not self.calexpCache.has_key(dataKey):
                     self.calexpCache[dataKey] = {}

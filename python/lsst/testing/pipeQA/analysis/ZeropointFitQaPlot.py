@@ -113,7 +113,7 @@ def plot(data):
     # Plot zpt
     xzpt = num.array((xmin, xmax))
     pzpt = axis.plot(xzpt, xzpt - zeropt, 'k--', label = 'Zeropoint')
-    legLines.append(pzpt)
+    legLines.append(pzpt[0])
     legLabels.append("Zeropoint")
 
     maxN2 = 999
@@ -211,7 +211,7 @@ def plot(data):
     qaPlotUtil.qaSetp(ax4.get_yticklabels(), fontsize = 8)
 
     fig.legend(legLines, legLabels,
-                   numpoints=1, prop=FontProperties(size='x-small'), loc = 'center right')
+               numpoints=1, prop=FontProperties(size='x-small'), loc = 'center right')
 
     fig.suptitle('%s' % (title), fontsize = 12)
 

@@ -130,10 +130,10 @@ class QaAnalysisTask(pipeBase.Task):
 
         # HST
         hst = summaryInfo.get("HST", None)
-        if hst:
-            hst = hst.strftime("%H:%M:%S")
-        else:
-            hst = None
+        #if hst:
+        #    hst = hst.strftime("%H:%M:%S")
+        #else:
+        #    hst = None
 
         # Misc. values (we won't list these unless they have a value)
         getOrIgnoreList = 'OBJECT', "EXPTIME", 'INSROT', 'FOCUSZ', 'ADCPOS', 'PA'

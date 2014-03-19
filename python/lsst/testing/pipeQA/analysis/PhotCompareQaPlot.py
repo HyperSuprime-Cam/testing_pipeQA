@@ -162,6 +162,8 @@ def standardFigure(*args):
             star = numpy.array([0])
 
 
+        #whereCut = numpy.where((mag < magCut) & (star0 > 0))[0]
+        #whereOther = numpy.where((mag > magCut) | (star0 ==0))[0]
         whereCut = numpy.where((mag < magCut))[0]
         whereOther = numpy.where((mag > magCut))[0]
 
@@ -297,6 +299,8 @@ def derrFigure(*args):
         derr = numpy.array([eps])
         star = numpy.array([0])
 
+    #whereCut = numpy.where((mag < magCut) & (star0 > 0))[0]
+    # whereOther = numpy.where((mag > magCut) | (star0 ==0))[0]
     whereCut = numpy.where((mag < magCut))[0]
     whereOther = numpy.where((mag > magCut))[0]
 
