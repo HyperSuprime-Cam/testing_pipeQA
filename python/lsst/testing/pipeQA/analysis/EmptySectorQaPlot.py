@@ -45,7 +45,25 @@ def plot(data):
     limits = data['limits']
     summary = data['summary']
     nx, ny  = data['nxn']
-    
+
+    ra = data['ra']
+    dec = data['dec']
+    ramat = data['ramat']
+    decmat = data['decmat']
+    w = numpy.where(numpy.isfinite(ra) & numpy.isfinite(dec))
+    wm = numpy.where(numpy.isfinite(ramat) & numpy.isfinite(decmat))
+    ra_lo = min(ra[w].min(), ramat[wm].min())
+    ra_hi = max(ra[w].max(), ramat[wm].max())
+    dec_lo = min(dec[w].min(), decmat[wm].min())
+    dec_hi = max(dec[w].max(), decmat[wm].max())
+
+    buff = 0.1
+    if summary:
+        ra_lo -= buff
+        ra_hi += buff
+        dec_lo -= buff
+        dec_hi += buff
+        
     xlo, xhi, ylo, yhi = limits
     xwid, ywid = xhi - xlo, yhi - ylo
 
@@ -73,15 +91,16 @@ def plot(data):
             xmat = x
             ymat = y
 
-    figsize = (4.0, 4.0)
+    figsize = (7.0, 3.5)
 
     ####################
     # create the plot
     fig = figure.Figure(figsize=figsize)
     canvas = FigCanvas(fig)
-    ax = fig.add_subplot(111)
-    fig.subplots_adjust(left=0.19) #, bottom=0.15)
-
+    ax = fig.add_subplot(121)
+    rax = fig.add_subplot(122)
+    fig.subplots_adjust(bottom=0.15) #left=0.19) #, bottom=0.15)
+    
     ncol = None
     if summary:
         ms = 0.5
@@ -90,10 +109,14 @@ def plot(data):
         if len(xmat) < 1000:
             ms = 2.0
         ax.plot(xmat, ymat, "k.", ms=ms, label=summaryLabel)
+        rax.plot(ramat, decmat, "k.", ms=ms, label=summaryLabel)
         ncol = 1
     else:
         ax.plot(x, y, "k.", ms=2.0, label="detected")
         ax.plot(xmat, ymat, "ro", ms=4.0, label="matched",
+                mfc='None', markeredgecolor='r')
+        rax.plot(ra, dec, "k.", ms=2.0, label="detected")
+        rax.plot(ramat, decmat, "ro", ms=4.0, label="matched",
                 mfc='None', markeredgecolor='r')
         ncol = 2
 
@@ -102,10 +125,23 @@ def plot(data):
     ax.set_ylim([ylo, yhi])
     ax.set_xlabel("x [pixel]", size='x-small')
     ax.set_ylabel("y [pixel]", size='x-small')
-    ax.legend(prop=fm.FontProperties(size ="xx-small"), ncol=ncol, loc="upper center")
+    #ax.legend(prop=fm.FontProperties(size ="xx-small"), ncol=ncol, loc="upper center")
     for tic in ax.get_xticklabels() + ax.get_yticklabels():
         tic.set_size("x-small")
 
+    rax_twin = rax.twinx() 
+    rax.get_xaxis().get_major_formatter().set_useOffset(False)
+    rax_twin.get_yaxis().get_major_formatter().set_useOffset(False)
+    rax.set_xlim([ra_lo, ra_hi])
+    rax.set_ylim([dec_lo, dec_hi])
+    rax_twin.set_ylim([dec_lo, dec_hi])
+    rax.get_yaxis().set_visible(False)
+    rax.set_xlabel("R.A. [deg]", size='x-small')
+    rax_twin.set_ylabel("Decl. [deg]", size='x-small')
+    #rax.legend(prop=fm.FontProperties(size ="xx-small"), ncol=ncol, loc="upper center")
+    for tic in rax.get_xticklabels() + rax_twin.get_yticklabels():
+        tic.set_size("x-small")
+        
     # don't bother with this stuff for the final summary plot
     if not summary:
         # show the regions
@@ -124,9 +160,9 @@ def plot(data):
                 fig.addMapArea("no_label_info", area, "nolink:%.1f_%.1f"%(x[i],y[i]))
 
                 
-        ax.set_title("Matched Detections by CCD Sector", size='small')
+        fig.suptitle("Matched Detections by CCD Sector", size='small')
     else:
-        ax.set_title("Matched Detections", size='small')
+        fig.suptitle("Matched Detections", size='small')
 
 
     return fig

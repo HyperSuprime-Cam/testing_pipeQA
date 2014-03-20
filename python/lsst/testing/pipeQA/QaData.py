@@ -82,6 +82,10 @@ class QaData(object):
         self.k_rAp    = refCatObj.keyDict['ApFlux']
         self.k_rMod   = refCatObj.keyDict['ModelFlux']
         self.k_rInst  = refCatObj.keyDict['InstFlux']
+        self.k_rPsfE  = refCatObj.keyDict['PsfFluxErr']
+        self.k_rApE   = refCatObj.keyDict['ApFluxErr']
+        self.k_rModE  = refCatObj.keyDict['ModelFluxErr']
+        self.k_rInstE = refCatObj.keyDict['InstFluxErr']
         self.k_rRa    = refCatObj.keyDict['Ra']
         self.k_rDec   = refCatObj.keyDict['Dec']
         

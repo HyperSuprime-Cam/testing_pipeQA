@@ -312,14 +312,13 @@ class ButlerQaData(QaData):
                         sref.setId(srefIn.getId()) # this should be refobjId
 
                         fmag0, fmag0Err = calib.getFluxMag0()
-
+                        
                         _ra = srefIn.getRa()
                         _dec = srefIn.getDec()
                         fullRefCat = astrom.getReferenceSources(_ra, _dec, _rad, filterName, allFluxes=True)
                         mPrimary   = -2.5*numpy.log10(fullRefCat.get(cterm.primary))
                         mSecondary = -2.5*numpy.log10(fullRefCat.get(cterm.secondary))
                         refMag = cterm.transformMags(filterName, mPrimary, mSecondary)
-                        refMag2 = mPrimary - (refMag - mPrimary)
                         calmag = -2.5*numpy.log10(sIn.getApFlux()/fmag0)
                         #print mPrimary, refMag, refMag2, calmag, mPrimary-mSecondary, mPrimary-calmag, refMag-calmag, refMag2-calmag
 
@@ -329,11 +328,17 @@ class ButlerQaData(QaData):
                         sref.setD(self.k_rDec, _dec.asDegrees())
                         #flux = srefIn.get('flux')
                         flux = 10**(-refMag[0]/2.5)
+                        refMerr = fullRefCat.get(cterm.primary+".err")
+                        ferr = (flux*numpy.log(10.0)*0.4*refMerr)[0]
                         
                         sref.setD(self.k_rPsf, flux)
                         sref.setD(self.k_rAp, flux)
                         sref.setD(self.k_rMod, flux)
                         sref.setD(self.k_rInst, flux)
+                        sref.setD(self.k_rPsfE, ferr)
+                        sref.setD(self.k_rApE, ferr)
+                        sref.setD(self.k_rModE, ferr)
+                        sref.setD(self.k_rInstE, ferr)
 
                         # sources
                         s = cat.addNew()
@@ -513,7 +518,7 @@ class ButlerQaData(QaData):
                     self.log.log(self.log.WARN, "Warning: no calib available, fluxes uncalibrated.")
                     fmag0, fmag0Err = 1.0, 1.0
 
-                fmag0Err = 0.0
+                #fmag0Err = 0.0
                 #print fmag0, fmag0Err
                 catObj = pqaSource.Catalog()
                 cat  = catObj.catalog
@@ -752,13 +757,23 @@ class ButlerQaData(QaData):
                 self.filterCache[dataKey]   = afwImage.Filter(calexp_md)
                 self.calibCache[dataKey]    = afwImage.Calib(calexp_md)
 
+                # try the other MAGZERO values instead
+                if 'MAGZERO' in calexp_md.names():
+                    exptime = calexp_md.get("EXPTIME")
+                    mag0 = calexp_md.get('MAGZERO')
+                    fmag0 = 10**(mag0/2.5)*exptime
+                    merr0 = calexp_md.get("MAGZERO_RMS")/numpy.sqrt(calexp_md.get("MAGZERO_NOBJ"))
+                    fmerr0 = fmag0*numpy.log(10.0)*merr0*0.4
+                    self.calibCache[dataKey].setFluxMag0(fmag0, fmerr0)
+
+                
                 # if we have a meas_mosaic value, use that for fmag0
                 if self.butler.datasetExists("fcr", dataId) and haveMosaic:
                     fcr_md = self.butler.get("fcr_md", dataId, immediate=True)
                     ffp    = measMos.FluxFitParams(fcr_md)
                     fmag0 = fcr_md.get("FLUXMAG0")
-                    print "FMAG0=", fmag0
-                    self.calibCache.setFluxMag0(fmag0)
+                    #print "FMAG0=", fmag0
+                    self.calibCache[dataKey].setFluxMag0(fmag0)
 
                     
                 # store the calexp as a dict

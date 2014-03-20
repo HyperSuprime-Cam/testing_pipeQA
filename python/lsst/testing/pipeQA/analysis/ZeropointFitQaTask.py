@@ -208,9 +208,7 @@ class ZeropointFitQaTask(QaAnalysisTask):
                 offset     -= self.zeroPoint.get(raftId, ccdId)
                 offset     -= self.matchedStar.get(raftId, ccdId)["Refmag"]
                 med         = num.median(offset)
-                # zeroPoint is actually just a contact from the Calib unless meas_mosaic has run.
-                # let's show the as-measured single frame estimate by adding in the median again
-                self.zeroPoint.set(raftId, ccdId, self.zeroPoint.get(raftId, ccdId)-med)
+
                 self.medOffset.set(raftId, ccdId, med)
                 
                 areaLabel = data.cameraInfo.getDetectorName(raftId, ccdId)

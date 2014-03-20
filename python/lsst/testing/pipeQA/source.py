@@ -34,7 +34,11 @@ class _RefCatalog(object):
     def __init__(self):
         self.schema = afwTab.SourceTable.makeMinimalSchema()
 
-        setMethods = ["Ra", "Dec", "PsfFlux", "ApFlux", "ModelFlux", "InstFlux"]
+        setMethods = [
+            "Ra", "Dec",
+            "PsfFlux", "ApFlux", "ModelFlux", "InstFlux",
+            "PsfFluxErr", "ApFluxErr", "ModelFluxErr", "InstFluxErr",
+            ]
 
         self.keyDict = {}
             

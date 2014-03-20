@@ -40,8 +40,8 @@ import QaPlotUtils                               as qaPlotUtil
 class VignettingQaConfig(pexConfig.Config):
     cameras   = pexConfig.ListField(dtype = str, doc = "Cameras to run VignettingQaTask",
                                     default = ("lsstSim", "cfht", "suprimecam", "hsc", "sdss", "coadd"))
-    maxMedian = pexConfig.Field(dtype = float, doc = "Maximum median magnitude offset", default = 0.02)
-    maxRms    = pexConfig.Field(dtype = float, doc = "Maximum magnitude offset RMS", default = 0.02)
+    maxMedian = pexConfig.Field(dtype = float, doc = "Maximum median magnitude offset", default = 0.08)
+    maxRms    = pexConfig.Field(dtype = float, doc = "Maximum magnitude offset RMS", default = 0.04)
     maxMag    = pexConfig.Field(dtype = float,
                                 doc = "Maximum magnitude star to use in VignettingQa test (-1 for median)",
                                 default = -1.0)
@@ -244,7 +244,7 @@ class VignettingQaTask(QaAnalysisTask):
                     medFigDataTmp, medFigMapTmp = testSet.unpickle(medFigbase + label, default=[None, None])
                     medFig.mergeValues(medFigDataTmp, medFigMapTmp)
                     stdFigDataTmp, stdFigMapTmp = testSet.unpickle(stdFigbase + label, default=[None, None])
-                    medFig.mergeValues(stdFigDataTmp, stdFigMapTmp)
+                    stdFig.mergeValues(stdFigDataTmp, stdFigMapTmp)
         
             self.log.log(self.log.INFO, "plotting FPAs")
             medFig.makeFigure(showUndefined=showUndefined, cmap="RdBu_r", vlimits=self.medLimits,

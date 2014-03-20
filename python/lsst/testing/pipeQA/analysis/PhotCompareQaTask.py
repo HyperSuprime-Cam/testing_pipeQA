@@ -50,7 +50,7 @@ class PhotCompareQaConfig(pexConfig.Config):
     rmsMax      = pexConfig.Field(dtype = float, doc = "Max allowed photometric RMS on bright end",
                                   default = 0.02)
     derrMax     = pexConfig.Field(dtype = float, doc = "Max allowed error bar underestimate on bright end",
-                                  default = 0.01)
+                                  default = 0.02)
     slopeMinSigma = pexConfig.Field(dtype = float,
                                     doc = "Min (positive valued) std.devs. of slope below slope=0",
                                     default = 5.0)
@@ -108,6 +108,10 @@ class PhotCompareQaTask(QaAnalysisTask):
         self.slopeLimits      = [-self.config.slopeMinSigma, self.config.slopeMaxSigma]
         self.starGalaxyToggle = starGalaxyToggle # not from config!
 
+        # be a little more lenient for catalog comparisons (SDSS is much shallower than HSC)
+        if magType1 == 'cat' or magType2 == 'cat':
+            self.deltaLimits = [-0.08, 0.08]
+            self.rmsLimits   = [0.0, 0.04]
         
         def magType(mType):
             if re.search("(psf|PSF)", mType):
@@ -179,7 +183,8 @@ class PhotCompareQaTask(QaAnalysisTask):
         elif mType=="mod":
             return s.getD(data.k_ModE)
         elif mType=="cat":
-            return 0.0
+            return sref.getD(data.k_rPsfE)
+            #return 0.0
         elif mType=="inst":
             return s.getD(data.k_InstE)
 
@@ -242,9 +247,10 @@ class PhotCompareQaTask(QaAnalysisTask):
                         m2  = -2.5*numpy.log10(f2)
                         dm1 = 2.5 / numpy.log(10.0) * df1 / f1
                         dm2 = 2.5 / numpy.log(10.0) * df2 / f2
-                        
+
+                        #if m1 < 20.0:
+                        #    print m1, m2, dm1, dm2
                         star = 0 if s.getD(data.k_ext) else 1
-                        
                         if numpy.isfinite(m1) and numpy.isfinite(m2):
                             self.derr.append(raft, ccd, numpy.sqrt(dm1**2 + dm2**2))
                             self.diff.append(raft, ccd, m1 - m2)
@@ -274,8 +280,8 @@ class PhotCompareQaTask(QaAnalysisTask):
                         m2 = -2.5*numpy.log10(f2)
                         dm1 = 2.5*df1 / (f1*numpy.log(10.0))
                         dm2 = 2.5*df2 / (f2*numpy.log(10.0))
-
-                        #print m1, m2, dm1, dm2, numpy.sqrt(dm1**2+dm2**2)
+                        #if m1 < 20.0:
+                        #    print m1, m2, dm1, dm2, numpy.sqrt(dm1**2+dm2**2)
                         extend = s.getD(data.k_ext)
 
                         star = 0 if extend else 1

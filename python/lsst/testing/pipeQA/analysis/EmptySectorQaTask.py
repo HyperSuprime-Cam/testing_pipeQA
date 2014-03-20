@@ -73,6 +73,10 @@ class EmptySectorQaTask(QaAnalysisTask):
         del self.x
         del self.ymat
         del self.xmat
+        del self.ra
+        del self.dec
+        del self.ramat
+        del self.decmat
         del self.size
         del self.filter
         del self.detector
@@ -97,6 +101,11 @@ class EmptySectorQaTask(QaAnalysisTask):
         self.xmat  = raftCcdData.RaftCcdVector(self.detector)
         self.ymat  = raftCcdData.RaftCcdVector(self.detector)
 
+        self.ra     = raftCcdData.RaftCcdVector(self.detector)
+        self.dec    = raftCcdData.RaftCcdVector(self.detector)
+        self.ramat  = raftCcdData.RaftCcdVector(self.detector)
+        self.decmat = raftCcdData.RaftCcdVector(self.detector)
+        
         # fill containers with values we need for our test
         filter = None
         self.size = raftCcdData.RaftCcdData(self.detector, initValue=[1.0, 1.0])
@@ -113,12 +122,15 @@ class EmptySectorQaTask(QaAnalysisTask):
                 if not data.isFlagged(s):
                     self.x.append(raft, ccd, s.getD(data.k_x))
                     self.y.append(raft, ccd, s.getD(data.k_y))
-                
+                    self.ra.append(raft, ccd, s.getD(data.k_Ra))
+                    self.dec.append(raft, ccd, s.getD(data.k_Dec))
             if self.matchListDictSrc.has_key(key):
                 for m in self.matchListDictSrc[key]['matched']:
                     sref, s, dist = m
                     self.xmat.append(raft, ccd, s.getD(data.k_x))
                     self.ymat.append(raft, ccd, s.getD(data.k_y))
+                    self.ramat.append(raft, ccd, sref.getD(data.k_rRa))
+                    self.decmat.append(raft, ccd, sref.getD(data.k_rDec))
 
                     
         # create a testset
@@ -280,6 +292,9 @@ class EmptySectorQaTask(QaAnalysisTask):
                 xmat, ymat = self.xmat.get(raft, ccd), self.ymat.get(raft, ccd)
                 xwid, ywid = self.size.get(raft, ccd)
 
+                ra, dec    = self.ra.get(raft, ccd), self.dec.get(raft, ccd)
+                ramat, decmat = self.ramat.get(raft, ccd), self.decmat.get(raft, ccd)
+                
                 if data.cameraInfo.name == 'coadd':
                     xmin, ymin, xmax, ymax = x.min(), y.min(), x.max(), y.max()
                     x -= xmin
@@ -291,6 +306,7 @@ class EmptySectorQaTask(QaAnalysisTask):
                     xxlo, yylo, xxhi, yyhi = data.cameraInfo.getBbox(raft, ccd)
 
                 dataDict = {'x' : x+xxlo, 'y' : y+yylo, 'xmat' : xmat+xxlo, 'ymat' : ymat+yylo,
+                            'ra' : ra, 'dec': dec, 'ramat': ramat, 'decmat': decmat,
                             'limits' : [0, xwid, 0, ywid],
                             'summary' : False, 'alllimits' : [xlo, xhi, ylo, yhi],
                             'bbox' : [xxlo, xxhi, yylo, yyhi],
