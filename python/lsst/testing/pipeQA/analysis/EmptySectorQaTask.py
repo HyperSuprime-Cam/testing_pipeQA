@@ -22,6 +22,7 @@
 
 import sys, os, re
 import numpy
+import copy
 import lsst.meas.algorithms         as measAlg
 import lsst.afw.math                as afwMath
 import lsst.pex.config              as pexConfig
@@ -47,6 +48,11 @@ class EmptySectorQaConfig(pexConfig.Config):
     ny         = pexConfig.Field(dtype = int, doc = "Mesh size in y", default = 4)
 
 
+edgeChips = {
+    #'hsc' : set([0, 3, 9, 101, 29, 77, 103, 95, 99, 96, 90, 102, 70, 22, 100, 4]),
+    'hsc' : set(['1_53', '1_56', '1_47', '1_35', '1_03', '1_27', '1_31', '0_42', '0_53', '0_56', '0_47',
+                 '0_35', '0_03', '0_27', '0_31', '1_42']),
+}
     
 class EmptySectorQaTask(QaAnalysisTask):
     ConfigClass = EmptySectorQaConfig
@@ -55,16 +61,21 @@ class EmptySectorQaTask(QaAnalysisTask):
     def __init__(self, **kwargs):
         QaAnalysisTask.__init__(self, **kwargs)
         self.limits = [0, self.config.maxMissing]
+        self.maxEdgeMissing = 4
         self.nx = self.config.nx
         self.ny = self.config.ny
 
         self.description = """
-         For each CCD, the 1-to-1 matches between the reference catalog and
-         sources are plotted as a function of position in the focal plane.
-         Portions of each CCD where there are no matches are considered "empty
-         sectors" and suggest a problem with the reference catalog matching.
-         The summary FPA figure shows the number of empty sectors per CCD.
-        """
+         For each CCD, the 1-to-1 matches between the reference
+         catalog and sources are plotted as a function of position in
+         the focal plane.  Portions of each CCD where there are no
+         matches are considered "empty sectors" and suggest a problem
+         with the reference catalog matching.  The summary FPA figure
+         shows the number of empty sectors per CCD.  Normally CCDs are
+         considered to fail when empty sectors > %d.  However, CCDs on
+         the edge of the focal plane may be obscured and can have a
+         different limit.  The 'edge' limit is currently set to %d.
+        """ % (self.limits[1], self.maxEdgeMissing)
 
     def free(self):
 
@@ -176,10 +187,17 @@ class EmptySectorQaTask(QaAnalysisTask):
             areaLabel = data.cameraInfo.getDetectorName(raft, ccd)
             label = "empty ccd regions"
             comment = "%dx%d (nstar=%d)" % (self.nx, self.ny, len(x))
+
+            # we'll be more lenient for edge chips
+            limit_tmp = copy.copy(self.limits)
+            edgechips = edgeChips.get(data.cameraInfo.name, set())
+            if ccd in edgechips:
+                limit_tmp[1] = self.maxEdgeMissing
             
-            test = testCode.Test(label, nEmpty, self.limits, comment, areaLabel=areaLabel)
+            test = testCode.Test(label, nEmpty, limit_tmp, comment, areaLabel=areaLabel)
             testSet.addTest(test)
-            test = testCode.Test(label+" (matched)", nEmptyMat, self.limits, comment, areaLabel=areaLabel)
+
+            test = testCode.Test(label+" (matched)", nEmptyMat, limit_tmp, comment, areaLabel=areaLabel)
             testSet.addTest(test)
 
             # a bit sketchy adding tests in the plot section, but these are dummies

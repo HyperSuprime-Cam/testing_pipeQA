@@ -48,7 +48,7 @@ class AstrometricErrorQaConfig(pexConfig.Config):
                                   default = ("lsstSim", "hsc", "suprimecam", "cfht", "sdss", "coadd"))
     maxErr  = pexConfig.Field(dtype = float,
                               doc = "Maximum astrometric error (in arcseconds)",
-                              default = 0.2)
+                              default = 0.09)
 
 class AstrometricErrorQaTask(QaAnalysisTask):
     ConfigClass = AstrometricErrorQaConfig

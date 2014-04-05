@@ -53,14 +53,14 @@ class PhotCompareQaConfig(pexConfig.Config):
                                   default = 0.02)
     slopeMinSigma = pexConfig.Field(dtype = float,
                                     doc = "Min (positive valued) std.devs. of slope below slope=0",
-                                    default = 5.0)
+                                    default = 8.0)
     slopeMaxSigma = pexConfig.Field(dtype = float,
-                                    doc = "Maximum std.dev. of slope above slope=0", default = 5.0)
+                                    doc = "Maximum std.dev. of slope above slope=0", default = 8.0)
 
     compareTypes  = pexConfig.ListField(dtype = str,
                                         doc = "Photometric Error: qaAnalysis.PhotCompareQaAnalysis", 
                                         default = ("psf cat", "psf ap",
-                                                   "ap cat", "psf inst", "mod inst"))
+                                                   "ap cat", "psf mod"))
     
 # allowed = {
 #    "psf cat"  : "Compare Psf magnitudes to catalog magnitudes",
