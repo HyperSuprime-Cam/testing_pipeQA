@@ -768,13 +768,16 @@ class ButlerQaData(QaData):
 
                 
                 # if we have a meas_mosaic value, use that for fmag0
-                if self.butler.datasetExists("fcr", dataId) and haveMosaic:
-                    fcr_md = self.butler.get("fcr_md", dataId, immediate=True)
-                    ffp    = measMos.FluxFitParams(fcr_md)
-                    fmag0 = fcr_md.get("FLUXMAG0")
-                    #print "FMAG0=", fmag0
-                    self.calibCache[dataKey].setFluxMag0(fmag0)
-
+                # need a try block since butler will raise an exception if registries don't include tract
+                try:
+                    if self.butler.datasetExists("fcr", dataId) and haveMosaic:
+                        fcr_md = self.butler.get("fcr_md", dataId, immediate=True)
+                        ffp    = measMos.FluxFitParams(fcr_md)
+                        fmag0 = fcr_md.get("FLUXMAG0")
+                        #print "FMAG0=", fmag0
+                        self.calibCache[dataKey].setFluxMag0(fmag0)
+                except:
+                    pass
                     
                 # store the calexp as a dict
                 if not self.calexpCache.has_key(dataKey):
